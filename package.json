@@ -1,0 +1,27 @@
+{
+  "name": "santa-isabel-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Santa Isabel — sistema de pedidos y cotizaciones (Node.js + PostgreSQL)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:migrate": "node src/db/migrate.js",
+    "db:seed": "node src/db/seed.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop santa-isabel",
+    "pm2:restart": "pm2 restart santa-isabel",
+    "pm2:logs": "pm2 logs santa-isabel",
+    "cert:selfsigned": "sh scripts/gen-selfsigned-cert.sh"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "connect-pg-simple": "^9.0.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "express-session": "^1.18.0",
+    "pg": "^8.11.5"
+  }
+}

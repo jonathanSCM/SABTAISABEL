@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: santaisabel
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: santa_isabel
+    volumes:
+      - santa_isabel_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U santaisabel -d santa_isabel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://santaisabel:${DB_PASSWORD:-changeme}@db:5432/santa_isabel
+      SESSION_SECRET: ${SESSION_SECRET:-cambia-este-secreto}
+      NODE_ENV: production
+      PORT: 4000
+    ports:
+      - "4000:4000"
+
+volumes:
+  santa_isabel_db:

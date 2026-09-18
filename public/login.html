@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ingresar — Santa Isabel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --paper:#FBF7F2; --surface:#FFFFFF; --line:#E7DBC8; --line-2:#D6C4A9;
+  --ink:#2A211D; --ink-2:#6E6058; --ink-3:#9C9088;
+  --rose:#9C3B4C; --rose-ink:#7A2D3B;
+  --crit:#A24E4A; --crit-soft:#F4E4E3;
+  --shadow:0 20px 50px -28px rgba(42,33,29,.30); --r:13px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:#1C1613; --surface:#241D19; --line:#3B322B; --line-2:#4C4038;
+    --ink:#F2E9E1; --ink-2:#C2B3A7; --ink-3:#8B7C71;
+    --rose:#E0949F; --rose-ink:#F0B8C0;
+    --crit:#CC7B75; --crit-soft:#2E1F1E;
+    --shadow:0 20px 60px -28px rgba(0,0,0,.7);
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--paper); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif;
+  display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;
+}
+.card{
+  width:100%; max-width:380px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  box-shadow:var(--shadow); padding:32px 28px 28px;
+}
+.brand{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:26px;text-align:center}
+.brand__mark{width:44px;height:44px;color:var(--rose)}
+.brand__name{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.brand__sub{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label{font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.12em;text-transform:uppercase}
+.input{padding:11px 13px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface);font-size:14px;color:var(--ink);width:100%}
+.input:focus{border-color:var(--rose);outline:none}
+.btn{
+  width:100%;padding:12px;border-radius:999px;border:0;background:var(--rose);color:#fff;font-weight:600;
+  font-size:14px;cursor:pointer;margin-top:6px;min-height:44px;
+}
+.btn:hover{background:var(--rose-ink)}
+.btn:disabled{opacity:.6;cursor:default}
+.err{background:var(--crit-soft);color:var(--crit);border-radius:var(--r);padding:10px 13px;font-size:13px;margin-bottom:16px;display:none}
+.foot{margin-top:20px;font-size:11px;color:var(--ink-3);text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">
+    <svg class="brand__mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+      <path d="M4 12c3-6 13-6 16 0-3 6-13 6-16 0Z"/><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/>
+      <path d="M12 4.2v1.6M12 18.2v1.6" stroke-dasharray="1.6 1.8"/>
+    </svg>
+    <div class="brand__name">Santa Isabel</div>
+    <div class="brand__sub">Taller de confección</div>
+  </div>
+  <div class="err" id="err"></div>
+  <form id="form">
+    <div class="field"><label for="email">Correo</label><input class="input" id="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="password">Contraseña</label><input class="input" id="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn" type="submit" id="btn">Ingresar</button>
+  </form>
+  <div class="foot">Sistema interno del taller. Acceso solo para personal autorizado.</div>
+</div>
+<script>
+const form = document.getElementById("form");
+const err = document.getElementById("err");
+const btn = document.getElementById("btn");
+
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  err.style.display = "none";
+  btn.disabled = true; btn.textContent = "Ingresando…";
+  try{
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value
+      })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "No se pudo ingresar.");
+    location.href = "/";
+  } catch(ex){
+    err.textContent = ex.message;
+    err.style.display = "block";
+  } finally {
+    btn.disabled = false; btn.textContent = "Ingresar";
+  }
+});
+
+/* si ya hay sesión activa, saltar directo a la app */
+fetch("/api/auth/me").then(r => { if(r.ok) location.href = "/"; }).catch(()=>{});
+</script>
+</body>
+</html>
