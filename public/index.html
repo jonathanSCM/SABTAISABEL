@@ -21,7 +21,7 @@
   --run:#5C7A93; --run-soft:#E6EDF2;
   --done:#9C9088; --done-soft:#EFEAE2;
   --shadow:0 20px 50px -28px rgba(42,33,29,.30);
-  --r:13px;
+  --r:7px;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -66,13 +66,19 @@ body{
   font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased;
 }
 h1,h2,h3{margin:0;text-wrap:balance}
-.disp,h1,.kpi__value,.calhead h2,.brand__name,#drawerTitle,.modal__h h2,.sheet__brand b{
-  font-family:"IBM Plex Sans",system-ui,sans-serif;
+/* look técnico: los títulos y etiquetas van en monoespaciada (como un dashboard/terminal),
+   el texto de lectura sigue en la sans — nunca cae a una fuente serif aunque falle la
+   fuente web, porque el fallback ya es monospace/sans-serif del sistema */
+.disp,h1,.calhead h2,.brand__name,#drawerTitle,.modal__h h2,.sheet__brand b,
+.card__head h2,.qsection__h h3,#modalTitle,#modalUsuarioTitle,#modalResetPwTitle,
+#modalMiCuentaTitle,#modalMuestraTitle,#modalProduccionTitle,.actsheet__h{
+  font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:-.01em;
 }
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--rose);outline-offset:2px}
 .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
-.eyebrow{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--gold)}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--gold)}
 .muted{color:var(--ink-2)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 ::selection{background:var(--rose);color:#fff}

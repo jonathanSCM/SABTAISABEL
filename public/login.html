@@ -13,7 +13,7 @@
   --ink:#2A211D; --ink-2:#6E6058; --ink-3:#9C9088;
   --rose:#9C3B4C; --rose-ink:#7A2D3B;
   --crit:#A24E4A; --crit-soft:#F4E4E3;
-  --shadow:0 20px 50px -28px rgba(42,33,29,.30); --r:13px;
+  --shadow:0 20px 50px -28px rgba(42,33,29,.30); --r:7px;
 }
 @media (prefers-color-scheme:dark){
   :root{
@@ -36,10 +36,10 @@ body{
 }
 .brand{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:26px;text-align:center}
 .brand__mark{width:44px;height:44px;color:var(--rose)}
-.brand__name{font-size:20px;font-weight:700;letter-spacing:-.01em}
-.brand__sub{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.brand__name{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:-.01em}
+.brand__sub{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.field label{font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.12em;text-transform:uppercase}
+.field label{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase}
 .input{padding:11px 13px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface);font-size:14px;color:var(--ink);width:100%}
 .input:focus{border-color:var(--rose);outline:none}
 .btn{
