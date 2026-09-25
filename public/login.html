@@ -49,6 +49,14 @@ body{
 .btn:hover{background:var(--rose-ink)}
 .btn:disabled{opacity:.6;cursor:default}
 .err{background:var(--crit-soft);color:var(--crit);border-radius:var(--r);padding:10px 13px;font-size:13px;margin-bottom:16px;display:none}
+.pw{position:relative}
+.pw .input{padding-right:46px}
+.pw__toggle{position:absolute;right:2px;top:0;bottom:0;width:44px;border:0;background:none;color:var(--ink-3);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:var(--r)}
+.pw__toggle:hover{color:var(--ink)}
+.pw__toggle svg{width:20px;height:20px}
+.remember{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2);margin:2px 0 6px;min-height:44px;cursor:pointer}
+.remember input{width:20px;height:20px;accent-color:var(--rose);margin:0;flex:none}
+.input{font-size:16px}
 .foot{margin-top:20px;font-size:11px;color:var(--ink-3);text-align:center;line-height:1.6}
 </style>
 </head>
@@ -65,7 +73,9 @@ body{
   <div class="err" id="err"></div>
   <form id="form">
     <div class="field"><label for="email">Correo</label><input class="input" id="email" type="email" autocomplete="username" required></div>
-    <div class="field"><label for="password">Contraseña</label><input class="input" id="password" type="password" autocomplete="current-password" required></div>
+    <div class="field"><label for="password">Contraseña</label><div class="pw"><input class="input" id="password" type="password" autocomplete="current-password" required>
+      <button type="button" class="pw__toggle" id="pwToggle" aria-label="Mostrar contraseña" aria-pressed="false"></button></div></div>
+    <label class="remember"><input type="checkbox" id="recordar"> Recuérdame en este dispositivo</label>
     <button class="btn" type="submit" id="btn">Ingresar</button>
   </form>
   <div class="foot">Sistema interno del taller. Acceso solo para personal autorizado.</div>
@@ -85,7 +95,8 @@ form.addEventListener("submit", async e => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: document.getElementById("email").value.trim(),
-        password: document.getElementById("password").value
+        password: document.getElementById("password").value,
+        recordar: document.getElementById("recordar").checked
       })
     });
     const data = await res.json();
@@ -98,6 +109,18 @@ form.addEventListener("submit", async e => {
     btn.disabled = false; btn.textContent = "Ingresar";
   }
 });
+
+const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+const pw = document.getElementById("password"), pwToggle = document.getElementById("pwToggle");
+pwToggle.innerHTML = EYE;
+pwToggle.onclick = () => {
+  const show = pw.type === "password";
+  pw.type = show ? "text" : "password";
+  pwToggle.innerHTML = show ? EYE_OFF : EYE;
+  pwToggle.setAttribute("aria-pressed", String(show));
+  pwToggle.setAttribute("aria-label", show ? "Ocultar contraseña" : "Mostrar contraseña");
+};
 
 /* si ya hay sesión activa, saltar directo a la app */
 fetch("/api/auth/me").then(r => { if(r.ok) location.href = "/"; }).catch(()=>{});

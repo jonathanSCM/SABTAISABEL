@@ -146,6 +146,18 @@ button,input,select,textarea{font:inherit;color:inherit}
 }
 .theme-toggle:hover{background:var(--surface-2);color:var(--ink);border-color:var(--ink-3)}
 .theme-toggle svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.acct-btn{
+  display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;padding:0;
+  border:1px solid var(--rose);border-radius:50%;background:var(--rose);color:#fff;cursor:pointer;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:700;font-size:13px;
+}
+.acct-btn:hover{background:var(--rose-ink)}
+@media (max-width:859px){ .acct-btn,.theme-toggle{width:40px;height:40px} }
+.pw{position:relative;display:block}
+.pw .input{padding-right:46px}
+.pw__toggle{position:absolute;right:2px;top:0;bottom:0;width:44px;border:0;background:none;color:var(--ink-3);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:var(--r);padding:0}
+.pw__toggle:hover{color:var(--ink)}
+.pw__toggle svg{width:20px;height:20px}
 .page{padding:16px 15px 96px;display:flex;flex-direction:column;gap:18px;max-width:1280px;width:100%}
 @media (min-width:860px){
   .topbar{padding:18px 30px 15px}
@@ -281,6 +293,11 @@ button,input,select,textarea{font:inherit;color:inherit}
   border-left:0;border-right:0;border-top:0;width:100%;text-align:left;
 }
 .row:last-child{border-bottom:0}
+.urow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;cursor:default}
+.urow .row__main{flex:1 1 200px}
+.urow .row__t,.urow .row__s{white-space:normal;overflow-wrap:anywhere}
+.urow .urow__acciones{flex-direction:row;align-items:center;gap:8px;flex-wrap:wrap}
+@media (max-width:859px){ .urow__acciones{flex:1 1 100%} .urow__acciones .btn{flex:1 1 auto} }
 .row:hover{background:var(--surface-2)}
 .row__main{display:block;min-width:0}
 .row__t{display:block;font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -405,6 +422,10 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
   display:flex;flex-direction:column;overflow-y:auto;box-shadow:var(--shadow);
 }
 .drawer[data-open="true"]{transform:none}
+/* en escritorio el detalle del pedido tiene mucho contenido (curva, checklist, producción…);
+   angosto se sentía apretado, así que en pantallas amplias el panel crece */
+@media (min-width:860px){ .drawer{width:min(620px,55vw)} }
+@media (min-width:1280px){ .drawer{width:min(680px,46vw)} }
 .drawer__h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:18px 20px 15px;display:flex;gap:10px;align-items:flex-start;z-index:2}
 #drawerTitle{font-size:18px;font-weight:700;margin-top:5px;letter-spacing:-.01em}
 .drawer__b{padding:18px 20px 44px;display:flex;flex-direction:column;gap:22px}
@@ -431,17 +452,32 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
 .seemore{background:none;border:0;color:var(--rose-ink);font-size:12.5px;font-weight:600;cursor:pointer;padding:2px 0;text-align:left}
 .seemore:hover{text-decoration:underline}
 
-/* checklist de preparación: filas grandes, todo el rectángulo es el toque (mobile-first) */
+/* checklist de preparación: filas grandes, editable y ordenable (mobile-first) */
 .chk-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.chk-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;min-height:52px;border:0;border-top:1px solid var(--line);background:none;cursor:pointer;font:inherit;color:inherit}
-.chk-item:first-child{border-top:0}
+.chk-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 10px 10px 14px;min-height:52px;font:inherit;color:inherit}
 .chk-item:hover{background:var(--surface-2)}
-.chk-item__box{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--line-2);flex:none;display:flex;align-items:center;justify-content:center;color:#fff}
+.chk-item__box{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--line-2);flex:none;display:flex;align-items:center;justify-content:center;color:#fff;background:none;cursor:pointer;padding:0}
 .chk-item__box.is-on{background:var(--ok);border-color:var(--ok)}
 .chk-item__box .ico{width:15px;height:15px}
-.chk-item__txt{display:flex;flex-direction:column;gap:2px;min-width:0}
-.chk-item__label{font-size:13.5px;font-weight:500}
+.chk-item__txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.chk-item__label-input{font-size:13.5px;font-weight:500;font-family:inherit;color:inherit;border:0;background:none;padding:2px 0;width:100%;border-radius:4px}
+.chk-item__label-input:hover{background:var(--surface-3)}
+.chk-item__label-input:focus{outline:1.5px solid var(--rose);background:var(--surface);outline-offset:1px}
 .chk-item__meta{font-size:11.5px;color:var(--ink-3)}
+.chk-item__order{display:flex;gap:2px;flex:none}
+.chk-order-btn{width:26px;height:26px;border:0;border-radius:6px;background:none;color:var(--ink-3);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.chk-order-btn .ico{width:14px;height:14px}
+.chk-order-btn:hover{background:var(--surface-3);color:var(--ink)}
+.chk-order-btn:disabled{opacity:.3;cursor:default}
+.chk-order-btn:disabled:hover{background:none}
+.chk-order-btn--del:hover{color:var(--crit)}
+.chk-row{border-top:1px solid var(--line)}
+.chk-row:first-child{border-top:0}
+.chk-row .chk-item{border-top:0}
+.chk-row__recep{display:flex;flex-direction:column;gap:8px;padding:0 14px 12px 48px}
+.chk-row__recep .input{font-size:12.5px;padding:8px 10px}
+.chk-add{display:flex;gap:8px;margin-top:10px}
+.chk-add .input{flex:1}
 
 /* muestra versionada */
 .muestras-list{display:flex;flex-direction:column;gap:12px}
@@ -526,6 +562,10 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
   .modal[data-open="true"]{transform:none;opacity:1}
 }
 .modal[data-open="true"]{transform:none}
+/* cerrados: fuera de la pantalla, del foco de teclado y de los clics (visibility se retrasa para no cortar la animación de cierre) */
+.modal:not([data-open="true"]),.actsheet:not([data-open="true"]),.drawer:not([data-open="true"]){
+  visibility:hidden;pointer-events:none;transition:transform .24s ease,opacity .2s,visibility 0s linear .25s;
+}
 .modal__h{padding:20px 20px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
 .modal__h h2{font-size:18px;font-weight:700;letter-spacing:-.01em}
 .form{padding:16px 18px;display:grid;grid-template-columns:1fr;gap:14px}
@@ -577,7 +617,7 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
 /* ================= Cotizaciones ================= */
 .qtoolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
-.qcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;cursor:pointer;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+.qcard{text-align:left;width:100%;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;cursor:pointer;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
 .qcard:hover{border-color:var(--rose)}
 .qcard__top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .qcard__id{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3)}
@@ -746,7 +786,22 @@ table.sheet-t td.r,table.sheet-t th.r{text-align:right;font-family:"IBM Plex Mon
 @media (max-width:859px){
   .btn{min-height:44px}
   .btn--sm{min-height:38px}
-  .chip{min-height:40px}
+  .topbar{flex-wrap:nowrap;gap:10px}
+  .topbar>div:first-child{min-width:0;flex:1}
+  .topbar h1{font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar__right{flex:none}
+  .chip{min-height:40px;flex:none;white-space:nowrap}
+  /* filtros rápidos: una sola fila de chips con scroll horizontal, no un bloque de varias filas */
+  .chips{flex-wrap:nowrap;overflow-x:auto;width:100%;gap:8px;border:0;border-radius:0;padding:2px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .chips::-webkit-scrollbar{display:none}
+  .chips:not(#f-requiere-muestra){-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);padding-right:28px}
+  .chips .chip{border:1px solid var(--line-2);border-radius:999px;padding:8px 16px}
+  .chips .chip:last-child{border-right:1px solid var(--line-2)}
+  .chips .chip[aria-pressed="true"]{border-color:var(--ink)}
+  #f-requiere-muestra{width:max-content}
+  /* buscar a ancho completo; los dos selectores lado a lado */
+  .filters .field{flex:1 1 calc(50% - 6px)!important;min-width:0}
+  .filters .field:first-child{flex-basis:100%!important}
   .day,.nav__btn{min-height:44px}
 }
 
@@ -794,6 +849,7 @@ table.sheet-t td.r,table.sheet-t th.r{text-align:right;font-family:"IBM Plex Mon
           <button class="btn btn--ghost btn--sm" id="btnNewQuote">+ Cotización</button>
           <button class="btn btn--primary" id="btnNew">+ Nuevo pedido</button>
         </div>
+        <button class="acct-btn" id="btnAcct" type="button" aria-label="Mi cuenta" title="Mi cuenta">?</button>
         <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar a tema oscuro" title="Cambiar tema claro/oscuro"></button>
       </div>
     </header>
@@ -839,6 +895,12 @@ table.sheet-t td.r,table.sheet-t th.r{text-align:right;font-family:"IBM Plex Mon
     <div class="field"><label for="f-cantidad">Cantidad</label><input class="input num" id="f-cantidad" type="number" min="1" step="1" value="1" required></div>
     <div class="field"><label for="f-compromiso">Fecha comprometida</label><input class="input" id="f-compromiso" type="date" required></div>
     <div class="field full"><label for="f-responsable">Responsable</label><input class="input" id="f-responsable" list="responsables" placeholder="Opcional"><datalist id="responsables"></datalist></div>
+    <div class="field full"><label>¿Requiere muestra?</label>
+      <div class="chips" id="f-requiere-muestra">
+        <button type="button" class="chip" data-val="si" aria-pressed="true">Sí</button>
+        <button type="button" class="chip" data-val="no" aria-pressed="false">No</button>
+      </div>
+    </div>
     <button type="button" class="seemore full" id="btnVerMasForm" aria-expanded="false">Ver más detalles (etapa, prioridad, fecha solicitada, observaciones)</button>
     <div class="full" id="formMas" style="display:none;grid-template-columns:1fr 1fr;gap:14px">
       <div class="field"><label for="f-etapa">Etapa</label><select class="input" id="f-etapa"><option value="">Sin asignar</option></select></div>
@@ -884,8 +946,10 @@ table.sheet-t td.r,table.sheet-t th.r{text-align:right;font-family:"IBM Plex Mon
   <div class="modal__h"><h2 id="modalMuestraTitle">Nueva versión de muestra</h2><button class="btn btn--ghost btn--sm" id="modalMuestraClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
   <form class="form" id="formMuestra" novalidate>
     <div class="field full"><label for="ms-responsable">Responsable</label><input class="input" id="ms-responsable" list="responsables" placeholder="Opcional"></div>
+    <div class="field"><label for="ms-talla">Talla aprobada</label><input class="input" id="ms-talla" placeholder="Ej. S"></div>
+    <div class="field"><label for="ms-materiales">Materiales</label><input class="input" id="ms-materiales" placeholder="Tela, encaje, forro…"></div>
     <div class="field full"><label for="ms-cambios">Cambios solicitados</label><textarea class="input" id="ms-cambios" placeholder="Qué se le pidió ajustar a esta versión"></textarea></div>
-    <div class="field full"><label for="ms-comentarios">Comentarios del cliente</label><textarea class="input" id="ms-comentarios"></textarea></div>
+    <div class="field full"><label for="ms-comentarios">Observaciones / comentarios del cliente</label><textarea class="input" id="ms-comentarios"></textarea></div>
     <div class="field full"><label>Fotos (hasta 6)</label>
       <input type="file" id="ms-fotos" accept="image/*" multiple style="display:none">
       <button type="button" class="btn btn--ghost btn--sm" id="ms-fotos-btn" style="align-self:flex-start">Elegir fotos</button>
@@ -893,6 +957,29 @@ table.sheet-t td.r,table.sheet-t th.r{text-align:right;font-family:"IBM Plex Mon
     </div>
   </form>
   <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnMuestraCancel">Cancelar</button><button type="submit" form="formMuestra" class="btn btn--primary" id="btnMuestraSave">Registrar muestra</button></div>
+</div>
+
+<div class="modal" id="modalCurva" role="dialog" aria-modal="true" aria-labelledby="modalCurvaTitle">
+  <div class="modal__h"><h2 id="modalCurvaTitle">Desglose por talla y color</h2><button class="btn btn--ghost btn--sm" id="modalCurvaClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <form class="form" id="formCurva" novalidate>
+    <div class="field full"><label for="cv-tallas">Tallas (una por línea: talla, cantidad)</label><textarea class="input" id="cv-tallas" placeholder="S, 10&#10;M, 12&#10;L, 8" rows="4"></textarea></div>
+    <div class="field full"><label for="cv-colores">Colores (una por línea: color, cantidad)</label><textarea class="input" id="cv-colores" placeholder="Rojo, 5&#10;Azul, 7" rows="4"></textarea></div>
+  </form>
+  <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnCurvaCancel">Cancelar</button><button type="submit" form="formCurva" class="btn btn--primary" id="btnCurvaSave">Guardar</button></div>
+</div>
+
+<div class="modal" id="modalMolde" role="dialog" aria-modal="true" aria-labelledby="modalMoldeTitle">
+  <div class="modal__h"><h2 id="modalMoldeTitle">Archivar molde</h2><button class="btn btn--ghost btn--sm" id="modalMoldeClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <form class="form" id="formMolde" novalidate>
+    <div class="field full"><label for="md-responsable">Responsable</label><input class="input" id="md-responsable" list="responsables" placeholder="Opcional"></div>
+    <div class="field full"><label for="md-notas">Notas</label><textarea class="input" id="md-notas" placeholder="De qué prenda es, medidas, ajustes hechos…"></textarea></div>
+    <div class="field full"><label>Fotos del molde (hasta 6)</label>
+      <input type="file" id="md-fotos" accept="image/*" multiple style="display:none">
+      <button type="button" class="btn btn--ghost btn--sm" id="md-fotos-btn" style="align-self:flex-start">Elegir fotos</button>
+      <div class="muestra-card__fotos" id="md-fotos-preview"></div>
+    </div>
+  </form>
+  <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnMoldeCancel">Cancelar</button><button type="submit" form="formMolde" class="btn btn--primary" id="btnMoldeSave">Archivar</button></div>
 </div>
 
 <div class="modal" id="modalProduccion" role="dialog" aria-modal="true" aria-labelledby="modalProduccionTitle">
@@ -1021,7 +1108,8 @@ const state = {
   filtros:{ estado:"Todos", cliente:"Todos", rango:"Todas", texto:"" },
   mes:(function(){ const d = hoy(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
   pedidoAbierto:null, entrando:true, recien:null, confirmAlta:false, semanaModo:"estado", qTexto:"",
-  vistaGuiaId:null,
+  vistaGuiaId:null, vistaFichaId:null, vistaFichaVersion:null,
+  moldesPorCliente:{}, moldesCargando:new Set(),
   cotiz:{ modo:"lista", verId:null, draft:null, wired:false }
 };
 
@@ -1058,8 +1146,10 @@ function renderNav(){
     "</button>"
   ).join("");
   $("#nav").innerHTML = html;
-  $("#tabbar").style.gridTemplateColumns = "repeat("+views.length+",1fr)";
-  $("#tabbar").innerHTML = views.map(v =>
+  // la barra inferior tiene máximo 5 opciones: "Equipo" (solo admin) se abre desde el botón de cuenta
+  const tabViews = views.filter(v => v.id !== "usuarios");
+  $("#tabbar").style.gridTemplateColumns = "repeat("+tabViews.length+",1fr)";
+  $("#tabbar").innerHTML = tabViews.map(v =>
     '<button data-view="'+v.id+'"'+(state.view===v.id?' aria-current="page"':"")+'>'+
       '<svg class="nav__ico" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">'+v.ico+"</svg>"+
       "<span>"+(v.id==="calendario"?"Agenda":v.id==="cotizaciones"?"Cotiz.":v.id==="usuarios"?"Equipo":v.label)+"</span></button>"
@@ -1076,11 +1166,11 @@ function go(v){
 /* ============ vistas ============ */
 function render(){
   renderNav();
-  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega" };
+  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte" };
   $("#viewTitle").textContent = t[state.view];
   const d = hoy();
   $("#todayLabel").textContent = DOW[(d.getDay()+6)%7].replace(/^./,c=>c.toUpperCase())+" "+d.getDate()+" de "+MESES[d.getMonth()]+" de "+d.getFullYear();
-  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia })[state.view]();
+  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte })[state.view]();
   wire();
   if(state.view === "guia"){
     const p = pedidos.find(x => x.id === state.vistaGuiaId);
@@ -1088,6 +1178,17 @@ function render(){
       const back = $("#btnVolverGuia"); if(back) back.onclick = () => volverDeGuia(p.id);
       wireExport($("#theSheetGuia"), p, "#btnPrintGuia");
     }
+  }
+  if(state.view === "ficha"){
+    const p = pedidos.find(x => x.id === state.vistaFichaId);
+    if(p){
+      const back = $("#btnVolverFicha"); if(back) back.onclick = () => volverDeFicha(p.id);
+      wireExport($("#theSheetFicha"), p, "#btnPrintFicha");
+    }
+  }
+  if(state.view === "corte"){
+    const back = $("#btnVolverCorte"); if(back) back.onclick = () => go("pedidos");
+    wireExport($("#theSheetCorte"), { id:"orden-de-corte", cliente:"orden-de-corte" }, "#btnPrintCorte");
   }
   if(state.view === "cotizaciones" && state.cotiz.modo !== "lista" && !state.cotiz.wired){
     state.cotiz.wired = true;
@@ -1317,6 +1418,7 @@ function vPedidos(){
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
         '<div class="muted" style="font-size:12.5px"><b class="num">'+lista.length+"</b> pedido"+(lista.length===1?"":"s")+
           (lista.length ? " · "+nf(lista.reduce((s,p) => s+p.cantidad,0))+" unidades" : "")+"</div>"+
+        '<button class="btn btn--ghost btn--sm" id="btnOrdenCorte">Orden de corte</button>'+
         '<button class="btn btn--ghost btn--sm" id="btnExportPedidos" style="margin-left:auto">Exportar CSV</button>'+
       "</div>"+
     "</div>"+
@@ -1359,13 +1461,11 @@ function vCalendario(){
   }
   const mesesTot = pedidos.filter(p => activo(p) && p.compromiso.startsWith(y+"-"+String(mo+1).padStart(2,"0"))).length;
 
-  /* carga por responsable esta semana: cuántos pedidos activos con entrega en los próximos 7 días
-     (o ya atrasados) tiene cada persona — para detectar sobrecarga antes de que llegue la fecha */
-  const NIVEL_RESP_TXT = { alta:"Sobrecargado", media:"Carga normal", baja:"Disponible", cero:"Disponible" };
-  const nivelResp = n => n >= 3 ? "alta" : n >= 1 ? "media" : "cero";
+  /* trabajo asignado por responsable esta semana: solo el conteo — sin calificar
+     "sobrecargado/normal/disponible" hasta que Santa Isabel defina una regla de capacidad */
   const cargaResp = RESPONSABLES.map(nombre => {
-    const n = pedidos.filter(p => p.responsable === nombre && activo(p) && (atrasado(p) || diasDesdeHoy(p.compromiso) <= 6)).length;
-    return { nombre, n, nivel: nivelResp(n) };
+    const asignados = pedidos.filter(p => p.responsable === nombre && activo(p) && (atrasado(p) || diasDesdeHoy(p.compromiso) <= 6));
+    return { nombre, n: asignados.length, unidades: asignados.reduce((s,p) => s+p.cantidad, 0) };
   });
 
   /* en móvil, una lista de los próximos días en vez de la grilla mensual completa: menos denso, más fácil de leer con el pulgar */
@@ -1401,17 +1501,22 @@ function vCalendario(){
   "</section>"+
 
   '<section class="card">'+
-    '<div class="card__head"><h2>Carga por responsable</h2><span class="muted">pedidos activos vencidos o que vencen esta semana</span></div>'+
+    '<div class="card__head"><h2>Trabajo por responsable</h2><span class="muted">pedidos activos vencidos o que vencen esta semana</span></div>'+
     '<div class="carga-resp">'+cargaResp.map(c =>
       '<div class="carga-resp__row"><span class="carga-resp__nombre">'+esc(c.nombre)+"</span>"+
-        '<span class="badge s-'+(c.nivel==="alta"?"atrasado":c.nivel==="media"?"produccion":"terminado")+'">'+NIVEL_RESP_TXT[c.nivel]+"</span>"+
-        '<span class="carga-resp__n">'+c.n+" pedido"+(c.n===1?"":"s")+"</span>"+
+        '<span class="carga-resp__n">'+c.n+" pedido"+(c.n===1?"":"s")+" · "+nf(c.unidades)+" unidades</span>"+
       "</div>"
     ).join("")+"</div>"+
+    '<div class="card__body" style="padding-top:0"><span class="muted" style="font-size:11.5px">La carga por capacidad (disponible/normal/sobrecargado) queda pendiente hasta definir una regla con el taller.</span></div>'+
   "</section>";
 }
 
 /* ================= Usuarios (solo admin) ================= */
+async function cargarMoldes(cliente, pedidoId){
+  try{ state.moldesPorCliente[cliente] = await api("/pedidos/"+pedidoId+"/moldes"); }
+  catch(e){ state.moldesPorCliente[cliente] = []; toast(e.message); }
+  if(state.pedidoAbierto === pedidoId) abrirPedido(pedidoId, "preparacion");
+}
 let usuariosLista = null;
 async function cargarUsuarios(){
   try{ usuariosLista = await api("/usuarios"); }
@@ -1421,10 +1526,10 @@ async function cargarUsuarios(){
 function vUsuarios(){
   if(usuariosLista === null){ cargarUsuarios(); return '<div class="empty">Cargando usuarios…</div>'; }
   const filas = usuariosLista.map(u => (
-    '<div class="row" style="cursor:default;flex-wrap:wrap;gap:10px">'+
+    '<div class="row urow">'+
       '<span class="row__main"><span class="row__t">'+esc(u.nombre)+(u.id===usuarioActual.id?' <span class="muted">(vos)</span>':"")+"</span>"+
       '<span class="row__s">'+esc(u.email)+" · "+(u.rol==="admin"?"Administrador":"Operador")+"</span></span>"+
-      '<span class="row__r" style="flex-direction:row;align-items:center;gap:8px">'+
+      '<span class="row__r urow__acciones">'+
         '<span class="badge '+(u.activo?"s-terminado":"s-atrasado")+'">'+(u.activo?"Activo":"Inactivo")+"</span>"+
         '<button class="btn btn--ghost btn--sm" data-reset-usuario="'+u.id+'" data-nombre="'+esc(u.nombre)+'">Restablecer contraseña</button>'+
         (u.id!==usuarioActual.id ? '<button class="btn '+(u.activo?"btn--danger":"btn--ghost")+' btn--sm" data-toggle-usuario="'+u.id+'" data-activo="'+u.activo+'">'+(u.activo?"Desactivar":"Reactivar")+"</button>" : "")+
@@ -1868,6 +1973,7 @@ function wire(){
   page.querySelectorAll("[data-reset-usuario]").forEach(b => b.onclick = () => abrirModalResetPw(b.dataset.resetUsuario, b.dataset.nombre));
 
   const bep = page.querySelector("#btnExportPedidos"); if(bep) bep.onclick = exportarPedidosCSV;
+  const boc = page.querySelector("#btnOrdenCorte"); if(boc) boc.onclick = () => { state.view = "corte"; state.entrando = true; render(); window.scrollTo({ top:0 }); };
   const bec = page.querySelector("#btnExportCotizaciones"); if(bec) bec.onclick = exportarCotizacionesCSV;
   const bes = page.querySelector("#btnExportSemana"); if(bes) bes.onclick = exportarSemanaCSV;
   const beca = page.querySelector("#btnExportCalendario"); if(beca) beca.onclick = exportarCalendarioCSV;
@@ -1897,14 +2003,14 @@ function debounce(fn,ms){ let t; return function(){ clearTimeout(t); t = setTime
 /* ---- drawer ---- */
 const scrim = $("#scrim"), drawer = $("#drawer"), modal = $("#modal");
 /* varios overlays comparten un mismo scrim; se oculta recién cuando ninguno queda abierto */
-const OVERLAY_IDS = ["drawer","modal","actsheet","modalUsuario","modalResetPw","modalMiCuenta","modalMuestra","modalProduccion"];
+const OVERLAY_IDS = ["drawer","modal","actsheet","modalUsuario","modalResetPw","modalMiCuenta","modalMuestra","modalProduccion","modalMolde","modalCurva"];
 function otroOverlayAbierto(exceptoId){
   return OVERLAY_IDS.some(id => id !== exceptoId && $("#"+id).dataset.open === "true");
 }
 function abrirDrawer(){ scrim.dataset.open = "true"; drawer.dataset.open = "true"; drawer.focus(); }
 function cerrarDrawer(){ drawer.dataset.open = "false"; if(!otroOverlayAbierto("drawer")) scrim.dataset.open = "false"; state.pedidoAbierto = null; }
 $("#drawerClose").onclick = cerrarDrawer;
-function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalMuestra(); cerrarModalProduccion(); }
+function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalMuestra(); cerrarModalProduccion(); cerrarModalMolde(); cerrarModalCurva(); }
 scrim.onclick = cerrarTodosLosOverlays;
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ cerrarTodosLosOverlays(); cerrarFabMenu(); } });
 
@@ -1915,36 +2021,80 @@ function paneChecklistHTML(p){
   return '<div class="notice notice--'+(faltan===0?"baja":"media")+'"><h3>'+(faltan===0?"Listo para producción":"Faltan "+faltan+" requisito"+(faltan===1?"":"s"))+"</h3>"+
       (faltan===0 ? "Se completaron los "+total+" requisitos de preparación." : "Es informativo: el pedido puede pasar a producción igual, sin completarlo.")+
     "</div>"+
-    '<div class="chk-list">'+p.checklist.map(c => (
-      '<button class="chk-item" data-chk="'+c.item+'" data-hecho="'+c.hecho+'">'+
-        '<span class="chk-item__box'+(c.hecho?" is-on":"")+'">'+(c.hecho?ico(ICN.check):"")+"</span>"+
-        '<span class="chk-item__txt"><span class="chk-item__label">'+esc(c.label)+"</span>"+
-          (c.hecho ? '<span class="chk-item__meta">'+fechaCorta(c.fecha)+(c.responsable?" · "+esc(c.responsable):"")+"</span>"
+    '<div class="chk-list">'+p.checklist.map((c,i) => (
+      '<div class="chk-row" data-chk-id="'+c.id+'">'+
+      '<div class="chk-item">'+
+        '<button type="button" class="chk-item__box'+(c.hecho?" is-on":"")+'" data-chk="'+c.id+'" data-hecho="'+c.hecho+'" aria-label="Marcar hecho">'+(c.hecho?ico(ICN.check):"")+"</button>"+
+        '<span class="chk-item__txt">'+
+          '<input class="chk-item__label-input" data-chk-label="'+c.id+'" value="'+esc(c.label)+'">'+
+          (c.hecho ? '<span class="chk-item__meta">'+fechaCorta(c.fecha)+(c.responsable?" · "+esc(c.responsable):"")+(c.cantidad?" · "+esc(c.cantidad):"")+"</span>"
                    : '<span class="chk-item__meta muted">Pendiente</span>')+
         "</span>"+
-      "</button>"
-    )).join("")+"</div>";
+        '<span class="chk-item__order">'+
+          '<button type="button" class="chk-order-btn" data-chk-up="'+c.id+'"'+(i===0?" disabled":"")+' aria-label="Subir">'+ico(ICN.up||'<path d="M6 15l6-6 6 6"/>')+"</button>"+
+          '<button type="button" class="chk-order-btn" data-chk-down="'+c.id+'"'+(i===total-1?" disabled":"")+' aria-label="Bajar">'+ico(ICN.down||'<path d="M6 9l6 6 6-6"/>')+"</button>"+
+          '<button type="button" class="chk-order-btn chk-order-btn--del" data-chk-del="'+c.id+'" aria-label="Eliminar ítem">'+ico(ICN.trash||'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')+"</button>"+
+        "</span>"+
+      "</div>"+
+      (c.hecho ? '<div class="chk-row__recep">'+
+        '<input class="input" data-chk-cantidad="'+c.id+'" placeholder="Cantidad recibida (ej. 250 m)" value="'+esc(c.cantidad||"")+'">'+
+        '<input class="input" data-chk-notas="'+c.id+'" placeholder="Notas (ej. condición, fecha de compra)" value="'+esc(c.notas||"")+'">'+
+      "</div>" : "")+
+      "</div>"
+    )).join("")+"</div>"+
+    '<div class="chk-add"><input class="input" id="chk-nuevo-label" placeholder="Nuevo ítem del checklist…">'+
+      '<button type="button" class="btn btn--ghost btn--sm" id="btnChkAgregar">+ Agregar</button></div>';
+}
+function moldeCardHTML(m){
+  return '<div class="muestra-card">'+
+    '<div class="muestra-card__h"><b>Molde</b><span class="muted" style="font-size:11.5px">'+fechaCorta((m.creadoEn||"").slice(0,10)||isoOff(0))+"</span></div>"+
+    (m.responsable ? '<div class="muted" style="font-size:12px;margin-top:2px">'+esc(m.responsable)+"</div>" : "")+
+    (m.notas ? '<div style="font-size:13px;margin-top:6px">'+esc(m.notas)+"</div>" : "")+
+    (m.fotos && m.fotos.length ? '<div class="muestra-card__fotos">'+m.fotos.map(f=>'<img src="'+f+'">').join("")+"</div>" : "")+
+  "</div>";
+}
+function paneMoldesHTML(p){
+  const lista = state.moldesPorCliente[p.cliente];
+  return '<div class="card__head" style="padding:0 0 8px"><h2 style="font-size:14.5px">Moldes de '+esc(p.cliente)+"</h2>"+
+      '<span class="muted" style="font-size:11.5px">se archivan por cliente para reusarlos en pedidos futuros</span></div>'+
+    '<button class="btn btn--ghost btn--sm" id="btnNuevoMolde" style="align-self:flex-start;margin-bottom:10px">+ Archivar molde</button>'+
+    (lista === undefined ? '<div class="empty">Cargando…</div>'
+      : lista.length ? '<div class="muestras-list">'+lista.map(moldeCardHTML).join("")+"</div>"
+      : '<div class="empty">Todavía no hay moldes archivados para este cliente.</div>');
 }
 function muestraCardHTML(m){
   const cls = m.estado==="Aprobada"?"s-terminado":m.estado==="Rechazada"?"s-atrasado":"s-preparacion";
   return '<div class="muestra-card">'+
     '<div class="muestra-card__h"><b>Muestra '+m.version+'</b><span class="badge '+cls+'">'+m.estado+"</span></div>"+
     '<div class="muted" style="font-size:12px;margin-top:2px">'+fechaCorta(m.fecha)+(m.responsable?" · "+esc(m.responsable):"")+"</div>"+
-    (m.cambiosSolicitados ? '<div style="font-size:13px;margin-top:8px"><b>Cambios solicitados:</b> '+esc(m.cambiosSolicitados)+"</div>" : "")+
-    (m.comentariosCliente ? '<div style="font-size:13px;margin-top:4px"><b>Comentarios del cliente:</b> '+esc(m.comentariosCliente)+"</div>" : "")+
+    (m.tallaAprobada ? '<div style="font-size:13px;margin-top:8px"><b>Talla aprobada:</b> '+esc(m.tallaAprobada)+"</div>" : "")+
+    (m.materiales ? '<div style="font-size:13px;margin-top:4px"><b>Materiales:</b> '+esc(m.materiales)+"</div>" : "")+
+    (m.cambiosSolicitados ? '<div style="font-size:13px;margin-top:4px"><b>Cambios solicitados:</b> '+esc(m.cambiosSolicitados)+"</div>" : "")+
+    (m.comentariosCliente ? '<div style="font-size:13px;margin-top:4px"><b>Observaciones:</b> '+esc(m.comentariosCliente)+"</div>" : "")+
     (m.aprobadoPor ? '<div class="muted" style="font-size:11.5px;margin-top:6px">Aprobada por '+esc(m.aprobadoPor)+"</div>" : "")+
     (m.fotos && m.fotos.length ? '<div class="muestra-card__fotos">'+m.fotos.map(f=>'<img src="'+f+'">').join("")+"</div>" : "")+
-    (m.estado === "Pendiente" ? '<div class="muestra-card__acciones">'+
-      '<button class="btn btn--primary btn--sm" data-muestra-aprobar="'+m.version+'">Aprobar</button>'+
-      '<button class="btn btn--danger btn--sm" data-muestra-rechazar="'+m.version+'">Rechazar</button>'+
-    "</div>" : "")+
+    '<div class="muestra-card__acciones">'+
+      (m.estado === "Pendiente" ? '<button class="btn btn--primary btn--sm" data-muestra-aprobar="'+m.version+'">Aprobar</button>'+
+        '<button class="btn btn--danger btn--sm" data-muestra-rechazar="'+m.version+'">Rechazar</button>' : "")+
+      '<button type="button" class="btn btn--ghost btn--sm" data-ficha="'+m.version+'">Ficha técnica</button>'+
+    "</div>"+
   "</div>";
 }
 function paneMuestraHTML(p){
+  if(!p.requiereMuestra){
+    return '<div class="notice notice--baja"><h3>Este pedido no requiere muestra</h3>'+
+        "Puede pasar a producción sin necesidad de aprobar ninguna versión."+
+      "</div>"+
+      '<button type="button" class="seemore" id="btnActivarMuestra" style="margin-top:10px">¿Sí necesita muestra después de todo? Activar</button>'+
+      (p.muestras.length ? '<div class="muestras-list" style="margin-top:14px">'+p.muestras.slice().reverse().map(muestraCardHTML).join("")+"</div>" : "");
+  }
   const aprobada = p.muestras.find(m => m.estado === "Aprobada");
   return (aprobada ? '<div class="notice notice--baja"><h3>Muestra final aprobada</h3>Versión '+aprobada.version+", aprobada por "+esc(aprobada.aprobadoPor||"—")+".</div>"
-    : '<div class="notice notice--media"><h3>Sin muestra final aprobada</h3>La producción completa no puede iniciar hasta aprobar una versión.</div>')+
-  '<button class="btn btn--primary btn--sm" id="btnNuevaMuestra" style="margin:12px 0">+ Nueva versión de muestra</button>'+
+    : '<div class="notice notice--media"><h3>Sin muestra final aprobada</h3>Este pedido requiere muestra: la producción completa no puede iniciar hasta aprobar una versión.</div>')+
+  '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0">'+
+    '<button class="btn btn--primary btn--sm" id="btnNuevaMuestra">+ Nueva versión de muestra</button>'+
+    '<button type="button" class="seemore" id="btnDesactivarMuestra">Este pedido no necesita muestra</button>'+
+  "</div>"+
   '<div class="muestras-list">'+
     (p.muestras.length ? p.muestras.slice().reverse().map(muestraCardHTML).join("") : '<div class="empty">Todavía no hay versiones de muestra.</div>')+
   "</div>";
@@ -1996,6 +2146,94 @@ function guiaSheetHTML(p){
   (p.obs ? '<div><h4 class="lbl">Observaciones</h4><p style="font-size:12.5px;color:var(--ink-2)">'+esc(p.obs)+"</p></div>" : "")+
   '<hr class="sheet__stitch">'+
   '<div class="sheet__foot"><span>Taller Santa Isabel</span><span class="signature">Conforme cliente</span></div>';
+}
+/* ---- ficha técnica de una muestra: la tarjeta impresa (estilo, talla, materiales,
+   descripción/observaciones, fotos), reusando el mismo patrón de impresión que la guía ---- */
+function fichaSheetHTML(p, m){
+  return '<div class="sheet__head">'+
+    '<div class="sheet__brand"><b>Santa Isabel</b><span>Taller de confección</span></div>'+
+    '<div class="sheet__doc"><div class="id">'+p.id+'</div><div>Ficha técnica · Muestra '+m.version+"</div></div>"+
+  "</div>"+
+  '<hr class="sheet__stitch">'+
+  '<dl class="sheet__client">'+
+    "<div><dt>Cliente / marca</dt><dd>"+esc(p.cliente)+"</dd></div>"+
+    "<div><dt>Estilo</dt><dd>"+esc(p.producto)+"</dd></div>"+
+    "<div><dt>Talla aprobada</dt><dd>"+(esc(m.tallaAprobada) || "—")+"</dd></div>"+
+    "<div><dt>Fecha</dt><dd>"+fechaLarga(m.fecha)+(m.aprobadoPor ? " · aprobada por "+esc(m.aprobadoPor) : "")+"</dd></div>"+
+  "</dl>"+
+  (m.fotos && m.fotos.length ? '<div class="muestra-card__fotos" style="margin-top:10px">'+m.fotos.map(f=>'<img src="'+f+'" style="width:110px;height:110px">').join("")+"</div>" : "")+
+  (m.materiales ? '<div style="margin-top:12px"><h4 class="lbl">Materiales</h4><p style="font-size:12.5px;color:var(--ink-2)">'+esc(m.materiales)+"</p></div>" : "")+
+  (m.cambiosSolicitados ? '<div style="margin-top:10px"><h4 class="lbl">Cambios solicitados</h4><p style="font-size:12.5px;color:var(--ink-2)">'+esc(m.cambiosSolicitados)+"</p></div>" : "")+
+  (m.comentariosCliente ? '<div style="margin-top:10px"><h4 class="lbl">Observaciones</h4><p style="font-size:12.5px;color:var(--ink-2)">'+esc(m.comentariosCliente)+"</p></div>" : "")+
+  '<hr class="sheet__stitch">'+
+  '<div class="sheet__foot"><span>Taller Santa Isabel</span><span class="signature">Registrado '+fechaCorta(m.fecha)+"</span></div>";
+}
+function vFicha(){
+  const p = pedidos.find(x => x.id === state.vistaFichaId);
+  const m = p && p.muestras.find(x => x.version === state.vistaFichaVersion);
+  if(!p || !m) return '<div class="empty">Ficha no encontrada.</div>';
+  return '<div style="display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto;width:100%">'+
+    '<button class="qback" id="btnVolverFicha">← Volver al pedido</button>'+
+    '<div class="sheet__actions"><button class="btn btn--primary btn--sm" id="btnPrintFicha" title="Abre el diálogo de impresión: elegí “Guardar como PDF” para descargarla">Exportar a PDF</button></div>'+
+    '<div class="exportNotice" id="exportNotice">'+
+      '<span>Esta vista previa no deja abrir una pestaña ni imprimir directamente por seguridad del navegador. '+
+      '<b>Abrí este artifact en su propia pestaña</b> (el ícono de expandir o "Abrir" arriba del panel) y ahí tocá otra vez '+
+      '<b>Exportar a PDF</b> — o usá <kbd>Ctrl</kbd>+<kbd>P</kbd> (<kbd>Cmd</kbd>+<kbd>P</kbd> en Mac).</span>'+
+      '<button class="exportNotice__close" id="exportNoticeClose" aria-label="Cerrar aviso">×</button>'+
+    "</div>"+
+    '<div class="qsheet-wrap"><div class="sheet sheet--static" id="theSheetFicha">'+fichaSheetHTML(p, m)+"</div></div>"+
+  "</div>";
+}
+function abrirFicha(pedidoId, version){
+  cerrarDrawer();
+  state.vistaFichaId = pedidoId; state.vistaFichaVersion = version;
+  state.view = "ficha"; state.entrando = true;
+  render(); window.scrollTo({ top:0 });
+}
+function volverDeFicha(pedidoId){
+  state.view = "pedidos"; state.entrando = true; render();
+  setTimeout(() => abrirPedido(pedidoId, "muestra"), 60);
+}
+/* ---- orden de corte: un solo documento para el día que viene el cortador, con
+   todos los pedidos listos (checklist completo) desglosados por talla/color ---- */
+function ordenCortePedidos(){
+  return pedidos.filter(p => p.estado === "Preparación" && p.checklist.every(c => c.hecho))
+    .sort((a,b) => a.compromiso.localeCompare(b.compromiso));
+}
+function ordenCorteItemHTML(p){
+  const curva = (p.curva||[]).filter(r => Number(r.cant) > 0);
+  const colores = (p.colores||[]).filter(r => Number(r.cant) > 0);
+  return '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--line)">'+
+    '<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><b>'+esc(p.cliente)+" · "+esc(p.producto)+'</b><span class="muted num" style="font-size:11.5px">'+p.id+"</span></div>"+
+    '<div class="muted" style="font-size:11.5px;margin-top:2px">'+nf(p.cantidad)+" unidades · comprometido "+fechaCorta(p.compromiso)+"</div>"+
+    (curva.length ? '<table class="sheet-t" style="margin-top:8px"><thead><tr><th></th><th>Talla</th><th class="r">Cantidad</th></tr></thead><tbody>'+
+      curva.map(r => '<tr><td style="width:24px"><span style="display:inline-block;width:15px;height:15px;border:1.5px solid var(--ink-3);border-radius:3px"></span></td><td>'+esc(r.talla)+'</td><td class="r">'+nf(r.cant)+"</td></tr>").join("")+
+    "</tbody></table>" : "")+
+    (colores.length ? '<table class="sheet-t" style="margin-top:6px"><thead><tr><th></th><th>Color</th><th class="r">Cantidad</th></tr></thead><tbody>'+
+      colores.map(r => '<tr><td style="width:24px"><span style="display:inline-block;width:15px;height:15px;border:1.5px solid var(--ink-3);border-radius:3px"></span></td><td>'+esc(r.color||"—")+'</td><td class="r">'+nf(r.cant)+"</td></tr>").join("")+
+    "</tbody></table>" : "")+
+    (!curva.length && !colores.length ? '<div class="muted" style="font-size:11.5px;margin-top:6px">Sin desglose por talla/color registrado — cortar contra el total.</div>' : "")+
+  "</div>";
+}
+function vOrdenCorte(){
+  const lista = ordenCortePedidos();
+  return '<div style="display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto;width:100%">'+
+    '<button class="qback" id="btnVolverCorte">← Volver a Pedidos</button>'+
+    '<div class="sheet__actions"><button class="btn btn--primary btn--sm" id="btnPrintCorte">Exportar a PDF</button></div>'+
+    '<div class="exportNotice" id="exportNotice">'+
+      '<span>Esta vista previa no deja abrir una pestaña ni imprimir directamente por seguridad del navegador. '+
+      '<b>Abrí este artifact en su propia pestaña</b> y ahí tocá otra vez <b>Exportar a PDF</b> — o usá <kbd>Ctrl</kbd>+<kbd>P</kbd>.</span>'+
+      '<button class="exportNotice__close" id="exportNoticeClose" aria-label="Cerrar aviso">×</button>'+
+    "</div>"+
+    '<div class="qsheet-wrap"><div class="sheet sheet--static" id="theSheetCorte">'+
+      '<div class="sheet__head"><div class="sheet__brand"><b>Santa Isabel</b><span>Taller de confección</span></div>'+
+        '<div class="sheet__doc"><div>Orden de corte</div><div>'+fechaLarga(isoOff(0))+"</div></div>"+
+      "</div>"+
+      '<hr class="sheet__stitch">'+
+      (lista.length ? lista.map(ordenCorteItemHTML).join("")
+        : '<div class="empty">No hay pedidos con el checklist completo esperando corte.</div>')+
+    "</div></div>"+
+  "</div>";
 }
 function vGuia(){
   const p = pedidos.find(x => x.id === state.vistaGuiaId);
@@ -2074,6 +2312,8 @@ function abrirPedido(id, tabIni){
         "<dt>Comprometida</dt><dd>"+fechaLarga(p.compromiso)+' <span class="muted">('+relativo(p.compromiso)+")</span></dd>"+
         "<dt>Responsable</dt><dd>"+(esc(p.responsable) || '<span class="muted">Sin asignar</span>')+"</dd>"+
         "<dt>Etapa</dt><dd>"+(esc(p.etapa) || '<span class="muted">Sin asignar</span>')+"</dd>"+
+        "<dt>¿Requiere muestra?</dt><dd>"+(p.requiereMuestra ? "Sí" : "No")+
+          ' <button type="button" class="seemore" id="btnToggleRequiereMuestra" style="display:inline;margin-left:6px">cambiar</button></dd>'+
       "</dl>"+
       '<button type="button" class="seemore" id="btnVerMasPedido" aria-expanded="false">Ver más detalles</button>'+
       '<dl class="dl" id="pedidoMas" style="display:none">'+
@@ -2081,6 +2321,10 @@ function abrirPedido(id, tabIni){
         "<dt>Solicitada</dt><dd>"+fechaLarga(p.solicitada)+"</dd>"+
         "<dt>Carga del día</dt><dd>"+NIVEL_TXT[c.nivel]+' <span class="muted">· '+c.n+" pedido"+(c.n===1?"":"s")+"</span></dd>"+
         "<dt>Observaciones</dt><dd>"+(esc(p.obs) || '<span class="muted">—</span>')+"</dd>"+
+        "<dt>Desglose talla/color</dt><dd>"+
+          ((p.curva&&p.curva.length) ? esc(p.curva.map(r=>r.talla+": "+r.cant).join(" · ")) : '<span class="muted">Sin registrar</span>')+
+          ((p.colores&&p.colores.length) ? "<br>"+esc(p.colores.map(r=>(r.color||"—")+": "+r.cant).join(" · ")) : "")+
+          ' <button type="button" class="seemore" id="btnEditarCurva" style="display:inline;margin-left:6px">editar</button></dd>'+
       "</dl>"+
       "<div>"+
         '<div class="eyebrow" style="margin-bottom:12px">Recorrido del pedido</div>'+
@@ -2089,7 +2333,9 @@ function abrirPedido(id, tabIni){
         "</div>"+
       "</div>"+
     "</div>"+
-    '<div class="dpane" data-pane="preparacion" data-active="'+(tab==="preparacion")+'">'+paneChecklistHTML(p)+"</div>"+
+    '<div class="dpane" data-pane="preparacion" data-active="'+(tab==="preparacion")+'">'+paneChecklistHTML(p)+
+      '<div style="margin-top:18px;padding-top:14px;border-top:1.5px dashed var(--line-2)">'+paneMoldesHTML(p)+"</div>"+
+    "</div>"+
     '<div class="dpane" data-pane="muestra" data-active="'+(tab==="muestra")+'">'+paneMuestraHTML(p)+"</div>"+
     '<div class="dpane" data-pane="produccion" data-active="'+(tab==="produccion")+'">'+paneProduccionHTML(p)+"</div>"+
     '<div class="dpane" data-pane="entrega" data-active="'+(tab==="entrega")+'">'+paneEntregaHTML(p)+"</div>"+
@@ -2123,18 +2369,86 @@ function abrirPedido(id, tabIni){
   if(abrirCot) abrirCot.onclick = () => { cerrarDrawer(); abrirCotiz("ver", abrirCot.dataset.openCotiz); };
 
   $("#drawerBody").querySelectorAll("[data-chk]").forEach(b => b.onclick = () => toggleChecklist(p, b.dataset.chk, b.dataset.hecho === "true"));
+  $("#drawerBody").querySelectorAll("[data-chk-cantidad],[data-chk-notas]").forEach(el => el.onchange = () => guardarRecepcion(p, el.dataset.chkCantidad || el.dataset.chkNotas));
+  $("#drawerBody").querySelectorAll("[data-chk-label]").forEach(el => {
+    el.onchange = () => renombrarChecklist(p, el.dataset.chkLabel, el.value);
+    el.onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); el.blur(); } };
+  });
+  $("#drawerBody").querySelectorAll("[data-chk-up]").forEach(b => b.onclick = () => moverChecklist(p, b.dataset.chkUp, -1));
+  $("#drawerBody").querySelectorAll("[data-chk-down]").forEach(b => b.onclick = () => moverChecklist(p, b.dataset.chkDown, 1));
+  $("#drawerBody").querySelectorAll("[data-chk-del]").forEach(b => b.onclick = () => borrarChecklist(p, b.dataset.chkDel));
+  const btnChkAgregar = $("#btnChkAgregar");
+  if(btnChkAgregar) btnChkAgregar.onclick = () => agregarChecklist(p);
   const btnNuevaMuestra = $("#btnNuevaMuestra"); if(btnNuevaMuestra) btnNuevaMuestra.onclick = () => abrirModalMuestra(p.id);
   $("#drawerBody").querySelectorAll("[data-muestra-aprobar]").forEach(b => b.onclick = () => actualizarEstadoMuestra(p, b.dataset.muestraAprobar, "Aprobada"));
   $("#drawerBody").querySelectorAll("[data-muestra-rechazar]").forEach(b => b.onclick = () => actualizarEstadoMuestra(p, b.dataset.muestraRechazar, "Rechazada"));
+  $("#drawerBody").querySelectorAll("[data-ficha]").forEach(b => b.onclick = () => abrirFicha(p.id, Number(b.dataset.ficha)));
   $("#drawerBody").querySelectorAll("[data-prod]").forEach(b => b.onclick = () => abrirModalProduccion(p.id, b.dataset.prod));
   const btnGuia = $("#btnGenerarGuia"); if(btnGuia) btnGuia.onclick = () => generarGuia(p);
   const btnEntregado = $("#btnMarcarEntregado"); if(btnEntregado) btnEntregado.onclick = () => cambiarEstado(p, "Entregado");
+  const btnToggleRM = $("#btnToggleRequiereMuestra"); if(btnToggleRM) btnToggleRM.onclick = () => cambiarRequiereMuestra(p, !p.requiereMuestra);
+  const btnEditarCurva = $("#btnEditarCurva"); if(btnEditarCurva) btnEditarCurva.onclick = () => abrirModalCurva(p);
+  const btnActivarM = $("#btnActivarMuestra"); if(btnActivarM) btnActivarM.onclick = () => cambiarRequiereMuestra(p, true);
+  const btnDesactivarM = $("#btnDesactivarMuestra"); if(btnDesactivarM) btnDesactivarM.onclick = () => cambiarRequiereMuestra(p, false);
+  const btnNuevoMolde = $("#btnNuevoMolde"); if(btnNuevoMolde) btnNuevoMolde.onclick = () => abrirModalMolde(p.id);
+  if(state.moldesPorCliente[p.cliente] === undefined && !state.moldesCargando.has(p.cliente)){
+    state.moldesCargando.add(p.cliente); cargarMoldes(p.cliente, p.id);
+  }
 
   abrirDrawer();
 }
 async function toggleChecklist(p, slug, hechoActual){
   try{
     const actualizado = await api("/pedidos/"+p.id+"/checklist/"+slug, { method:"PATCH", body: JSON.stringify({ hecho: !hechoActual }) });
+    Object.assign(p, actualizado);
+    render(); abrirPedido(p.id, "preparacion");
+  } catch(e){ toast(e.message); }
+}
+/* recepción de insumos: cantidad/notas se guardan sin desmarcar el ítem */
+async function guardarRecepcion(p, slug){
+  const cantidad = $('[data-chk-cantidad="'+slug+'"]').value.trim();
+  const notas = $('[data-chk-notas="'+slug+'"]').value.trim();
+  try{
+    const actualizado = await api("/pedidos/"+p.id+"/checklist/"+slug, { method:"PATCH", body: JSON.stringify({ hecho:true, cantidad, notas }) });
+    Object.assign(p, actualizado);
+    toast("Recepción guardada.");
+    render(); abrirPedido(p.id, "preparacion");
+  } catch(e){ toast(e.message); }
+}
+async function renombrarChecklist(p, itemId, label){
+  label = label.trim();
+  if(!label){ render(); abrirPedido(p.id, "preparacion"); return; } // no se deja vacío: se revierte al re-render
+  try{
+    const actualizado = await api("/pedidos/"+p.id+"/checklist/"+itemId, { method:"PATCH", body: JSON.stringify({ label }) });
+    Object.assign(p, actualizado);
+    render(); abrirPedido(p.id, "preparacion");
+  } catch(e){ toast(e.message); }
+}
+async function moverChecklist(p, itemId, dir){
+  const lista = p.checklist.slice().sort((a,b) => a.orden - b.orden);
+  const idx = lista.findIndex(c => String(c.id) === String(itemId));
+  const j = idx + dir;
+  if(idx < 0 || j < 0 || j >= lista.length) return;
+  [lista[idx], lista[j]] = [lista[j], lista[idx]];
+  try{
+    const actualizado = await api("/pedidos/"+p.id+"/checklist-orden", { method:"PATCH", body: JSON.stringify({ orden: lista.map(c => c.id) }) });
+    Object.assign(p, actualizado);
+    render(); abrirPedido(p.id, "preparacion");
+  } catch(e){ toast(e.message); }
+}
+async function borrarChecklist(p, itemId){
+  try{
+    const actualizado = await api("/pedidos/"+p.id+"/checklist/"+itemId, { method:"DELETE" });
+    Object.assign(p, actualizado);
+    render(); abrirPedido(p.id, "preparacion");
+  } catch(e){ toast(e.message); }
+}
+async function agregarChecklist(p){
+  const input = $("#chk-nuevo-label");
+  const label = input.value.trim();
+  if(!label){ input.focus(); return; }
+  try{
+    const actualizado = await api("/pedidos/"+p.id+"/checklist", { method:"POST", body: JSON.stringify({ label }) });
     Object.assign(p, actualizado);
     render(); abrirPedido(p.id, "preparacion");
   } catch(e){ toast(e.message); }
@@ -2154,6 +2468,14 @@ async function cambiarEstado(p, nuevo){
     Object.assign(p, actualizado);
     toast(p.id+" · "+p.cliente+" ahora está en "+nuevo);
     render(); abrirPedido(p.id);
+  } catch(e){ toast(e.message); }
+}
+async function cambiarRequiereMuestra(p, requiere){
+  try{
+    const actualizado = await api("/pedidos/"+p.id+"/requiere-muestra", { method:"PATCH", body:JSON.stringify({ requiereMuestra:requiere }) });
+    Object.assign(p, actualizado);
+    toast(p.id+" · ¿Requiere muestra? → "+(requiere?"Sí":"No"));
+    render(); abrirPedido(p.id, "resumen");
   } catch(e){ toast(e.message); }
 }
 
@@ -2182,6 +2504,7 @@ function abrirModal(fecha){
   $("#f-compromiso").value = fecha || isoOff(30);
   $("#f-solicitada").value = fecha || isoOff(30);
   state.confirmAlta = false;
+  $("#f-requiere-muestra").querySelectorAll("[data-val]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.val === "si")));
   $("#formMas").style.display = "none";
   $("#btnVerMasForm").setAttribute("aria-expanded","false");
   $("#btnVerMasForm").textContent = "Ver más detalles (prioridad, fecha solicitada, observaciones)";
@@ -2189,6 +2512,9 @@ function abrirModal(fecha){
   scrim.dataset.open = "true"; modal.dataset.open = "true";
   setTimeout(() => $("#f-cliente").focus(), 60);
 }
+$("#f-requiere-muestra").querySelectorAll("[data-val]").forEach(b => b.onclick = () => {
+  $("#f-requiere-muestra").querySelectorAll("[data-val]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+});
 $("#btnVerMasForm").onclick = () => {
   const abierto = $("#btnVerMasForm").getAttribute("aria-expanded") === "true";
   $("#btnVerMasForm").setAttribute("aria-expanded", String(!abierto));
@@ -2297,6 +2623,8 @@ formMuestra.addEventListener("submit", async e => {
     const p = pedidos.find(x => x.id === pedidoId);
     const actualizado = await api("/pedidos/"+pedidoId+"/muestras", { method:"POST", body: JSON.stringify({
       responsable: $("#ms-responsable").value.trim(),
+      tallaAprobada: $("#ms-talla").value.trim(),
+      materiales: $("#ms-materiales").value.trim(),
       cambiosSolicitados: $("#ms-cambios").value.trim(),
       comentariosCliente: $("#ms-comentarios").value.trim(),
       fotos: formMuestra._fotos
@@ -2305,6 +2633,78 @@ formMuestra.addEventListener("submit", async e => {
     cerrarModalMuestra();
     toast("Muestra registrada.");
     render(); abrirPedido(pedidoId, "muestra");
+  } catch(err){ toast(err.message); } finally { btn.disabled = false; }
+});
+
+/* ---- modal: desglose por talla/color (lo usa la orden de corte) ---- */
+const modalCurva = $("#modalCurva"), formCurva = $("#formCurva");
+function abrirModalCurva(p){
+  formCurva.dataset.pedidoId = p.id;
+  $("#cv-tallas").value = (p.curva||[]).map(r => r.talla+", "+r.cant).join("\n");
+  $("#cv-colores").value = (p.colores||[]).map(r => (r.color||"")+", "+r.cant).join("\n");
+  scrim.dataset.open = "true"; modalCurva.dataset.open = "true";
+}
+function cerrarModalCurva(){ modalCurva.dataset.open = "false"; if(!otroOverlayAbierto("modalCurva")) scrim.dataset.open = "false"; }
+$("#modalCurvaClose").onclick = cerrarModalCurva;
+$("#btnCurvaCancel").onclick = cerrarModalCurva;
+function parseLineasCurva(texto, primerCampo){
+  return texto.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+    const [a, b] = l.split(",");
+    return { [primerCampo]: (a||"").trim(), cant: Number((b||"0").trim()) || 0 };
+  }).filter(r => r.cant > 0);
+}
+formCurva.addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("#btnCurvaSave"); btn.disabled = true;
+  try{
+    const pedidoId = formCurva.dataset.pedidoId;
+    const p = pedidos.find(x => x.id === pedidoId);
+    const actualizado = await api("/pedidos/"+pedidoId+"/curva", { method:"PATCH", body: JSON.stringify({
+      curva: parseLineasCurva($("#cv-tallas").value, "talla"),
+      colores: parseLineasCurva($("#cv-colores").value, "color")
+    }) });
+    Object.assign(p, actualizado);
+    cerrarModalCurva();
+    toast("Desglose guardado.");
+    render(); abrirPedido(pedidoId, "resumen");
+  } catch(err){ toast(err.message); } finally { btn.disabled = false; }
+});
+
+/* ---- modal: archivar molde (patrón) para el cliente del pedido ---- */
+const modalMolde = $("#modalMolde"), formMolde = $("#formMolde");
+formMolde._fotos = [];
+function abrirModalMolde(pedidoId){
+  formMolde.reset();
+  formMolde.dataset.pedidoId = pedidoId;
+  formMolde._fotos = [];
+  $("#md-fotos-preview").innerHTML = "";
+  scrim.dataset.open = "true"; modalMolde.dataset.open = "true";
+}
+function cerrarModalMolde(){ modalMolde.dataset.open = "false"; if(!otroOverlayAbierto("modalMolde")) scrim.dataset.open = "false"; }
+$("#modalMoldeClose").onclick = cerrarModalMolde;
+$("#btnMoldeCancel").onclick = cerrarModalMolde;
+$("#md-fotos-btn").onclick = () => $("#md-fotos").click();
+$("#md-fotos").onchange = async e => {
+  const files = [...e.target.files].slice(0,6);
+  const leer = f => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+  formMolde._fotos = await Promise.all(files.map(leer));
+  $("#md-fotos-preview").innerHTML = formMolde._fotos.map(f => '<img src="'+f+'">').join("");
+};
+formMolde.addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("#btnMoldeSave"); btn.disabled = true;
+  try{
+    const pedidoId = formMolde.dataset.pedidoId;
+    const p = pedidos.find(x => x.id === pedidoId);
+    const molde = await api("/pedidos/"+pedidoId+"/moldes", { method:"POST", body: JSON.stringify({
+      responsable: $("#md-responsable").value.trim(),
+      notas: $("#md-notas").value.trim(),
+      fotos: formMolde._fotos
+    }) });
+    (state.moldesPorCliente[p.cliente] ||= []).unshift(molde);
+    cerrarModalMolde();
+    toast("Molde archivado.");
+    abrirPedido(pedidoId, "preparacion");
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });
 
@@ -2403,10 +2803,11 @@ form.addEventListener("submit", async e => {
   if(!cliente || !producto || !cantidad || !compromiso){ toast("Completá cliente, prenda, cantidad y fecha comprometida."); return; }
   const btnSave = $("#btnSave"); btnSave.disabled = true;
   try{
+    const requiereMuestra = $("#f-requiere-muestra").querySelector('[aria-pressed="true"]').dataset.val === "si";
     const p = await crearPedido({
       cliente, producto, cantidad, compromiso, solicitada:$("#f-solicitada").value || compromiso,
       prioridad:$("#f-prioridad").value, responsable:$("#f-responsable").value.trim(),
-      etapa:$("#f-etapa").value, obs:$("#f-obs").value.trim()
+      etapa:$("#f-etapa").value, obs:$("#f-obs").value.trim(), requiereMuestra
     });
     cerrarModal();
     refrescarDatalists();
@@ -2470,6 +2871,44 @@ $("#btnLogout").onclick = async () => {
   location.href = "/login.html";
 };
 
+/* mi cuenta: en móvil la barra lateral no existe, así que el perfil vive en el botón de la barra superior */
+$("#btnAcct").onclick = async () => {
+  const rol = usuarioActual.rol === "admin" ? "Administrador" : "Operador";
+  const val = await abrirActionSheet(usuarioActual.nombre, [
+    ...(usuarioActual.rol === "admin" ? [{ val:"usuarios", label:"Gestionar usuarios" }] : []),
+    { val:"pw", label:"Cambiar contraseña" },
+    { val:"out", label:"Cerrar sesión" }
+  ], esc(usuarioActual.email)+" · "+rol);
+  if(val === "usuarios") go("usuarios");
+  if(val === "pw") abrirModalMiCuenta();
+  if(val === "out") $("#btnLogout").click();
+};
+
+/* botón "ver contraseña" en todos los campos de contraseña */
+(function(){
+  const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  document.querySelectorAll('input[type="password"]').forEach(inp => {
+    const wrap = document.createElement("span"); wrap.className = "pw";
+    inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pw__toggle"; b.innerHTML = EYE;
+    b.setAttribute("aria-label","Mostrar contraseña"); b.setAttribute("aria-pressed","false");
+    b.onclick = () => {
+      const show = inp.type === "password";
+      inp.type = show ? "text" : "password";
+      b.innerHTML = show ? EYE_OFF : EYE;
+      b.setAttribute("aria-pressed", String(show));
+      b.setAttribute("aria-label", show ? "Ocultar contraseña" : "Mostrar contraseña");
+    };
+    wrap.appendChild(b);
+  });
+  // al cerrar/abrir un formulario, la contraseña vuelve a estar oculta
+  document.querySelectorAll("form").forEach(f => f.addEventListener("reset", () => setTimeout(() => {
+    f.querySelectorAll(".pw").forEach(w => { const i = w.querySelector("input"); if(i.type === "text"){ w.querySelector(".pw__toggle").click(); } });
+  }, 0)));
+})();
+
 async function boot(){
   try{
     usuarioActual = await api("/auth/me");
@@ -2479,6 +2918,7 @@ async function boot(){
   }
   $("#userNombre").textContent = usuarioActual.nombre;
   $("#userEmail").textContent = usuarioActual.email;
+  $("#btnAcct").textContent = (usuarioActual.nombre || "?").trim().charAt(0).toUpperCase();
 
   const [pd, ct] = await Promise.all([ api("/pedidos"), api("/cotizaciones") ]);
   pedidos = pd; cotizaciones = ct;
@@ -2487,6 +2927,13 @@ async function boot(){
   $("#bootOverlay").remove();
 }
 boot();
+/* en móvil la fila de chips scrollea: centrar el chip activo para que nunca quede tapado */
+new MutationObserver(() => {
+  document.querySelectorAll(".chips").forEach(c => {
+    const a = c.querySelector('.chip[aria-pressed="true"]');
+    if(a && c.scrollWidth > c.clientWidth) c.scrollLeft = a.offsetLeft - (c.clientWidth - a.offsetWidth) / 2;
+  });
+}).observe(document.getElementById("page") || document.body, { childList:true, subtree:true });
 })();
 </script>
 </body>

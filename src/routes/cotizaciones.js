@@ -103,10 +103,10 @@ router.post("/:id/aprobar", async (req, res) => {
     const compromiso = new Date(Date.now() + 42*86400000).toISOString().slice(0,10);
 
     await client.query(
-      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación','Normal','','', $8, $9, $10, $11)`,
+      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,curva,colores,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación','Normal','','', $8, $9, $10, $11, $12, $13)`,
       [pedidoId, q.cliente, q.prenda, unidades, registro, compromiso, compromiso,
-       "Generado desde cotización "+id, id, unidades, req.session.userId]
+       "Generado desde cotización "+id, id, unidades, JSON.stringify(q.curva || []), JSON.stringify(q.colores || []), req.session.userId]
     );
     await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,'Pedido registrado')", [pedidoId, registro]);
     await sembrarChecklist(client, pedidoId);
@@ -128,6 +128,8 @@ router.post("/:id/aprobar", async (req, res) => {
         obs: pr.obs, origenCotizacion: pr.origen_cotizacion,
         cotizUnidades: pr.cotiz_unidades != null ? Number(pr.cotiz_unidades) : null,
         guiaGeneradaEn: null,
+        requiereMuestra: pr.requiere_muestra,
+        curva: pr.curva || [], colores: pr.colores || [],
         hist: [{ fecha: registro, texto:"Pedido registrado" }],
         checklist: checklistRow.rows.map(c => ({ item:c.item, label:CHECKLIST_LABEL[c.item] || c.item, orden:c.orden, hecho:c.hecho, fecha:c.fecha, responsable:c.responsable })),
         muestras: [],

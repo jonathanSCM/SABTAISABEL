@@ -15,7 +15,7 @@ const loginLimiter = rateLimit({
 });
 
 router.post("/login", loginLimiter, async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, password, recordar } = req.body || {};
   if(!email || !password) return res.status(400).json({ error:"Faltan credenciales." });
 
   const r = await pool.query(
@@ -31,6 +31,8 @@ router.post("/login", loginLimiter, async (req, res) => {
   req.session.regenerate(err => {
     if(err) return res.status(500).json({ error:"No se pudo iniciar sesión." });
     req.session.userId = u.id;
+    // "recuérdame": cookie persistente 30 días; sin marcar, la cookie muere al cerrar el navegador
+    req.session.cookie.maxAge = recordar ? 1000 * 60 * 60 * 24 * 30 : null;
     req.session.save(() => {
       res.json({ id:u.id, nombre:u.nombre, email:u.email, rol:u.rol });
     });

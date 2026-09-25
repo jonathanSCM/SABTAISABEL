@@ -19,15 +19,19 @@ function filaPedido(row, hist, checklist, muestras, produccion){
     obs: row.obs, origenCotizacion: row.origen_cotizacion,
     cotizUnidades: row.cotiz_unidades != null ? Number(row.cotiz_unidades) : null,
     guiaGeneradaEn: row.guia_generada_en,
+    requiereMuestra: row.requiere_muestra,
+    curva: row.curva || [], colores: row.colores || [],
     hist: hist || [],
     checklist: (checklist || []).map(c => ({
-      item: c.item, label: CHECKLIST_LABEL[c.item] || c.item, orden: c.orden,
-      hecho: c.hecho, fecha: c.fecha, responsable: c.responsable
+      id: c.id, item: c.item, label: c.label || CHECKLIST_LABEL[c.item] || c.item, orden: c.orden,
+      hecho: c.hecho, fecha: c.fecha, responsable: c.responsable,
+      cantidad: c.cantidad, notas: c.notas
     })).sort((a,b) => a.orden - b.orden),
     muestras: (muestras || []).map(m => ({
       version: m.version, estado: m.estado, fecha: m.fecha, responsable: m.responsable,
       cambiosSolicitados: m.cambios_solicitados, comentariosCliente: m.comentarios_cliente,
-      fotos: m.fotos, aprobadoPor: m.aprobado_por, aprobadoEn: m.aprobado_en
+      fotos: m.fotos, aprobadoPor: m.aprobado_por, aprobadoEn: m.aprobado_en,
+      tallaAprobada: m.talla_aprobada, materiales: m.materiales
     })).sort((a,b) => a.version - b.version),
     produccion: (produccion || []).map(t => ({
       etapa: t.etapa, label: ETAPA_LABEL[t.etapa] || t.etapa, orden: t.orden,
@@ -41,8 +45,8 @@ async function pedidoCompleto(client, id){
   const p = await client.query("SELECT * FROM pedidos WHERE id = $1", [id]);
   if(!p.rows[0]) return null;
   const h = await client.query("SELECT fecha, texto, creado_en FROM pedido_historial WHERE pedido_id = $1 ORDER BY id ASC", [id]);
-  const c = await client.query("SELECT item, orden, hecho, fecha, responsable FROM pedido_checklist WHERE pedido_id = $1", [id]);
-  const m = await client.query("SELECT version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en FROM pedido_muestras WHERE pedido_id = $1 ORDER BY version ASC", [id]);
+  const c = await client.query("SELECT id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist WHERE pedido_id = $1", [id]);
+  const m = await client.query("SELECT version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales FROM pedido_muestras WHERE pedido_id = $1 ORDER BY version ASC", [id]);
   const t = await client.query("SELECT etapa, orden, tipo, responsable, estado, fecha_prevista, fecha_real FROM pedido_produccion WHERE pedido_id = $1", [id]);
   return filaPedido(p.rows[0], h.rows, c.rows, m.rows, t.rows);
 }
@@ -51,8 +55,8 @@ router.get("/", async (req, res) => {
   const pedidos = await pool.query("SELECT * FROM pedidos ORDER BY compromiso ASC");
   const [hist, checklist, muestras, produccion] = await Promise.all([
     pool.query("SELECT pedido_id, fecha, texto, creado_en FROM pedido_historial ORDER BY id ASC"),
-    pool.query("SELECT pedido_id, item, orden, hecho, fecha, responsable FROM pedido_checklist"),
-    pool.query("SELECT pedido_id, version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en FROM pedido_muestras ORDER BY version ASC"),
+    pool.query("SELECT id, pedido_id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist"),
+    pool.query("SELECT pedido_id, version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales FROM pedido_muestras ORDER BY version ASC"),
     pool.query("SELECT pedido_id, etapa, orden, tipo, responsable, estado, fecha_prevista, fecha_real FROM pedido_produccion")
   ]);
   const porPedido = (rows) => { const m = {}; for(const r of rows) (m[r.pedido_id] ||= []).push(r); return m; };
@@ -74,12 +78,15 @@ router.post("/", async (req, res) => {
     const seqRes = await client.query("SELECT nextval('pedido_seq') AS n");
     const id = "PD-"+String(seqRes.rows[0].n).padStart(4,"0");
     const registro = isoHoy();
+    const requiereMuestra = b.requiereMuestra !== false; // por defecto Sí, salvo que se pida explícitamente que no
     await client.query(
-      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación',$8,$9,$10,$11,$12,$13,$14)`,
+      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,requiere_muestra,curva,colores,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
       [id, b.cliente, b.producto, Number(b.cantidad), registro, b.solicitada || b.compromiso, b.compromiso,
        b.prioridad || "Normal", b.responsable || "", b.etapa || "", b.obs || "",
-       b.origenCotizacion || null, b.cotizUnidades != null ? Number(b.cotizUnidades) : null, req.session.userId]
+       b.origenCotizacion || null, b.cotizUnidades != null ? Number(b.cotizUnidades) : null, requiereMuestra,
+       JSON.stringify(Array.isArray(b.curva) ? b.curva : []), JSON.stringify(Array.isArray(b.colores) ? b.colores : []),
+       req.session.userId]
     );
     await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,'Pedido registrado')", [id, registro]);
     await sembrarChecklist(client, id);
@@ -103,7 +110,7 @@ router.patch("/:id/estado", async (req, res) => {
   const client = await pool.connect();
   try{
     await client.query("BEGIN");
-    const cur = await client.query("SELECT estado FROM pedidos WHERE id = $1 FOR UPDATE", [id]);
+    const cur = await client.query("SELECT estado, requiere_muestra FROM pedidos WHERE id = $1 FOR UPDATE", [id]);
     if(!cur.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido no encontrado." }); }
     const actualIdx = ESTADOS.indexOf(cur.rows[0].estado);
     const nuevoIdx = ESTADOS.indexOf(nuevo);
@@ -111,11 +118,11 @@ router.patch("/:id/estado", async (req, res) => {
       await client.query("ROLLBACK");
       return res.status(409).json({ error:"Los estados se avanzan o retroceden de a un paso a la vez, sin saltos." });
     }
-    if(nuevo === "En producción"){
+    if(nuevo === "En producción" && cur.rows[0].requiere_muestra){
       const aprobada = await client.query("SELECT 1 FROM pedido_muestras WHERE pedido_id = $1 AND estado = 'Aprobada' LIMIT 1", [id]);
       if(!aprobada.rows[0]){
         await client.query("ROLLBACK");
-        return res.status(409).json({ error:"No se puede pasar a producción sin una muestra final aprobada." });
+        return res.status(409).json({ error:"Este pedido requiere muestra — no se puede pasar a producción sin una muestra final aprobada." });
       }
     }
     await client.query("UPDATE pedidos SET estado = $1, updated_at = now() WHERE id = $2", [nuevo, id]);
@@ -132,29 +139,135 @@ router.patch("/:id/estado", async (req, res) => {
   }
 });
 
-/* ---- checklist de preparación: informativo, no bloquea nada ---- */
-router.patch("/:id/checklist/:slug", async (req, res) => {
-  const { id, slug } = req.params;
-  const hecho = !!(req.body && req.body.hecho);
-  const item = CHECKLIST_ITEMS.find(i => i.slug === slug);
-  if(!item) return res.status(400).json({ error:"Ítem de checklist inválido." });
+/* ---- ¿requiere muestra? se puede definir o cambiar en cualquier momento antes de producción ---- */
+router.patch("/:id/requiere-muestra", async (req, res) => {
+  const { id } = req.params;
+  const requiere = !!(req.body && req.body.requiereMuestra);
+  const r = await pool.query("UPDATE pedidos SET requiere_muestra = $1, updated_at = now() WHERE id = $2 RETURNING id", [requiere, id]);
+  if(!r.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
+  await pool.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
+    [id, isoHoy(), "¿Requiere muestra? → "+(requiere ? "Sí" : "No")]);
+  res.json(await pedidoCompleto(pool, id));
+});
 
+/* ---- curva (desglose por talla/color): informativa, la usa la orden de corte ---- */
+router.patch("/:id/curva", async (req, res) => {
+  const { id } = req.params;
+  const b = req.body || {};
+  const r = await pool.query(
+    "UPDATE pedidos SET curva=$1, colores=$2, updated_at=now() WHERE id=$3 RETURNING id",
+    [JSON.stringify(Array.isArray(b.curva) ? b.curva : []), JSON.stringify(Array.isArray(b.colores) ? b.colores : []), id]
+  );
+  if(!r.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
+  res.json(await pedidoCompleto(pool, id));
+});
+
+/* ---- checklist de preparación: informativo, no bloquea nada ----
+   editable y ordenable por el usuario: se agregan/renombran/borran ítems libremente
+   y se reordenan con subir/bajar. Se direcciona por el id numérico de la fila, no por
+   un slug fijo, porque los ítems que agrega el usuario no tienen un slug conocido. */
+router.post("/:id/checklist", async (req, res) => {
+  const { id } = req.params;
+  const label = (req.body && req.body.label || "").trim();
+  if(!label) return res.status(400).json({ error:"El ítem necesita un nombre." });
   const client = await pool.connect();
   try{
     await client.query("BEGIN");
-    const r = await client.query(
-      `UPDATE pedido_checklist SET hecho=$1, fecha=$2, responsable=$3 WHERE pedido_id=$4 AND item=$5 RETURNING 1`,
-      [hecho, hecho ? isoHoy() : null, hecho ? (req.user.nombre || "") : "", id, slug]
+    const ped = await client.query("SELECT id FROM pedidos WHERE id=$1 FOR UPDATE", [id]);
+    if(!ped.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido no encontrado." }); }
+    const ordenRes = await client.query("SELECT COALESCE(MAX(orden),0)+1 AS n FROM pedido_checklist WHERE pedido_id=$1", [id]);
+    await client.query(
+      `INSERT INTO pedido_checklist (pedido_id,item,label,orden)
+       VALUES ($1, 'custom-'||substr(md5(random()::text),1,10), $2, $3)`,
+      [id, label, ordenRes.rows[0].n]
     );
-    if(!r.rowCount){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido o ítem no encontrado." }); }
     await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
-      [id, isoHoy(), "Checklist: "+item.label+(hecho ? " marcado" : " desmarcado")]);
+      [id, isoHoy(), "Checklist: se agregó \""+label+"\""]);
+    await client.query("COMMIT");
+    res.status(201).json(await pedidoCompleto(pool, id));
+  } catch(err){
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error:"No se pudo agregar el ítem." });
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/:id/checklist/:itemId", async (req, res) => {
+  const { id, itemId } = req.params;
+  const b = req.body || {};
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const cur = await client.query("SELECT * FROM pedido_checklist WHERE pedido_id=$1 AND id=$2 FOR UPDATE", [id, itemId]);
+    if(!cur.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Ítem no encontrado." }); }
+    const actual = cur.rows[0];
+    const label = b.label != null ? String(b.label).trim() || actual.label : actual.label;
+    const hecho = b.hecho != null ? !!b.hecho : actual.hecho;
+    const cantidad = b.cantidad != null ? String(b.cantidad) : actual.cantidad;
+    const notas = b.notas != null ? String(b.notas) : actual.notas;
+    await client.query(
+      `UPDATE pedido_checklist SET label=$1, hecho=$2, fecha=$3, responsable=$4, cantidad=$5, notas=$6
+       WHERE pedido_id=$7 AND id=$8`,
+      [label, hecho, hecho ? (actual.fecha || isoHoy()) : null, hecho ? (actual.responsable || req.user.nombre || "") : "",
+       cantidad, notas, id, itemId]
+    );
+    if(hecho !== actual.hecho){
+      await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
+        [id, isoHoy(), "Checklist: "+label+(hecho ? " marcado"+(cantidad ? " ("+cantidad+")" : "") : " desmarcado")]);
+    } else if(label !== actual.label){
+      await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
+        [id, isoHoy(), "Checklist: \""+actual.label+"\" renombrado a \""+label+"\""]);
+    }
     await client.query("COMMIT");
     res.json(await pedidoCompleto(pool, id));
   } catch(err){
     await client.query("ROLLBACK");
     console.error(err);
     res.status(500).json({ error:"No se pudo actualizar el checklist." });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/:id/checklist/:itemId", async (req, res) => {
+  const { id, itemId } = req.params;
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const r = await client.query("DELETE FROM pedido_checklist WHERE pedido_id=$1 AND id=$2 RETURNING label", [id, itemId]);
+    if(!r.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Ítem no encontrado." }); }
+    await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
+      [id, isoHoy(), "Checklist: se quitó \""+r.rows[0].label+"\""]);
+    await client.query("COMMIT");
+    res.json(await pedidoCompleto(pool, id));
+  } catch(err){
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error:"No se pudo quitar el ítem." });
+  } finally {
+    client.release();
+  }
+});
+
+/* reordenar: recibe la lista completa de ids del checklist en el orden final */
+router.patch("/:id/checklist-orden", async (req, res) => {
+  const { id } = req.params;
+  const orden = Array.isArray(req.body && req.body.orden) ? req.body.orden : null;
+  if(!orden) return res.status(400).json({ error:"Falta el orden." });
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    for(let i=0;i<orden.length;i++){
+      await client.query("UPDATE pedido_checklist SET orden=$1 WHERE pedido_id=$2 AND id=$3", [i+1, id, orden[i]]);
+    }
+    await client.query("COMMIT");
+    res.json(await pedidoCompleto(pool, id));
+  } catch(err){
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error:"No se pudo reordenar el checklist." });
   } finally {
     client.release();
   }
@@ -173,9 +286,10 @@ router.post("/:id/muestras", async (req, res) => {
     const version = vRes.rows[0].n;
     const fotos = Array.isArray(b.fotos) ? b.fotos.slice(0,6) : [];
     await client.query(
-      `INSERT INTO pedido_muestras (pedido_id,version,estado,fecha,responsable,cambios_solicitados,comentarios_cliente,fotos)
-       VALUES ($1,$2,'Pendiente',$3,$4,$5,$6,$7)`,
-      [id, version, isoHoy(), b.responsable || "", b.cambiosSolicitados || "", b.comentariosCliente || "", JSON.stringify(fotos)]
+      `INSERT INTO pedido_muestras (pedido_id,version,estado,fecha,responsable,cambios_solicitados,comentarios_cliente,fotos,talla_aprobada,materiales)
+       VALUES ($1,$2,'Pendiente',$3,$4,$5,$6,$7,$8,$9)`,
+      [id, version, isoHoy(), b.responsable || "", b.cambiosSolicitados || "", b.comentariosCliente || "", JSON.stringify(fotos),
+       b.tallaAprobada || "", b.materiales || ""]
     );
     await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
       [id, isoHoy(), "Muestra "+version+" registrada"]);
@@ -188,6 +302,20 @@ router.post("/:id/muestras", async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+/* ---- ficha técnica de la muestra: campos editables aun después de creada
+   (estilo/talla/materiales/observaciones), tal como pidió el taller ---- */
+router.patch("/:id/muestras/:version/ficha", async (req, res) => {
+  const { id, version } = req.params;
+  const b = req.body || {};
+  const r = await pool.query(
+    `UPDATE pedido_muestras SET talla_aprobada=$1, materiales=$2, comentarios_cliente=$3, cambios_solicitados=$4
+     WHERE pedido_id=$5 AND version=$6 RETURNING 1`,
+    [b.tallaAprobada || "", b.materiales || "", b.comentariosCliente || "", b.cambiosSolicitados || "", id, version]
+  );
+  if(!r.rowCount) return res.status(404).json({ error:"Muestra no encontrada." });
+  res.json(await pedidoCompleto(pool, id));
 });
 
 router.patch("/:id/muestras/:version/estado", async (req, res) => {
@@ -273,6 +401,36 @@ router.patch("/:id/produccion/:slug", async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+/* ---- moldes (patrones): se archivan por cliente y se reusan en pedidos futuros ---- */
+router.get("/:id/moldes", async (req, res) => {
+  const ped = await pool.query("SELECT cliente FROM pedidos WHERE id=$1", [req.params.id]);
+  if(!ped.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
+  const r = await pool.query(
+    "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, created_at FROM moldes WHERE cliente=$1 ORDER BY created_at DESC",
+    [ped.rows[0].cliente]
+  );
+  res.json(r.rows.map(m => ({
+    id:m.id, cliente:m.cliente, prenda:m.prenda, pedidoId:m.pedido_id, notas:m.notas,
+    fotos:m.fotos, responsable:m.responsable, creadoEn:m.created_at
+  })));
+});
+
+router.post("/:id/moldes", async (req, res) => {
+  const { id } = req.params;
+  const b = req.body || {};
+  const ped = await pool.query("SELECT cliente, producto FROM pedidos WHERE id=$1", [id]);
+  if(!ped.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
+  const fotos = Array.isArray(b.fotos) ? b.fotos.slice(0,6) : [];
+  const r = await pool.query(
+    `INSERT INTO moldes (cliente,prenda,pedido_id,notas,fotos,responsable,created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, cliente, prenda, pedido_id, notas, fotos, responsable, created_at`,
+    [ped.rows[0].cliente, b.prenda || ped.rows[0].producto, id, b.notas || "", JSON.stringify(fotos), b.responsable || "", req.session.userId]
+  );
+  await pool.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,'Molde archivado')", [id, isoHoy()]);
+  const m = r.rows[0];
+  res.status(201).json({ id:m.id, cliente:m.cliente, prenda:m.prenda, pedidoId:m.pedido_id, notas:m.notas, fotos:m.fotos, responsable:m.responsable, creadoEn:m.created_at });
 });
 
 /* ---- guía de entrega: se puede generar/reimprimir una vez el pedido está Terminado o Entregado ---- */

@@ -15,8 +15,8 @@ const CHECKLIST_LABEL = Object.fromEntries(CHECKLIST_ITEMS.map(i => [i.slug, i.l
 async function sembrarChecklist(client, pedidoId){
   for(let i=0;i<CHECKLIST_ITEMS.length;i++){
     await client.query(
-      "INSERT INTO pedido_checklist (pedido_id,item,orden) VALUES ($1,$2,$3) ON CONFLICT (pedido_id,item) DO NOTHING",
-      [pedidoId, CHECKLIST_ITEMS[i].slug, i+1]
+      "INSERT INTO pedido_checklist (pedido_id,item,label,orden) VALUES ($1,$2,$3,$4) ON CONFLICT (pedido_id,item) DO NOTHING",
+      [pedidoId, CHECKLIST_ITEMS[i].slug, CHECKLIST_ITEMS[i].label, i+1]
     );
   }
 }
