@@ -24,6 +24,20 @@ estático anterior (`../demo-SantaIsabel`), que se dejó intacto como referencia
   semana y Calendario — siempre respeta los filtros/búsqueda aplicados en
   pantalla.
 - **Usuarios y roles** (admin/operador), cambio de contraseña, sesiones reales.
+- **Checklist y etapas de producción editables y ordenables** por pedido
+  (agregar, renombrar, borrar, subir/bajar), porque no todas las prendas son iguales.
+- **Hojas por etapa para imprimir** ("Imprimir hojas del pedido"): cada etapa
+  de producción sale en **su propia hoja Carta** con instrucciones largas, fotos
+  con leyenda, materiales, puntos de control y bloque de entrega, para
+  entregársela solo a su encargado. Se elige qué imprimir (portada, una o varias
+  etapas, lista de compras). Si una hoja pasa de una página, el encabezado se
+  repite. Sin precios.
+- **Fotos por etapa** (hasta 8): se reducen en el navegador y se guardan en la
+  tabla `pedido_adjuntos` (fuera del JSON del pedido, con caché del navegador).
+  Hacer respaldo de la base de datos incluye las fotos.
+- **Lista de compras (avíos)**, moldes por cliente, ficha técnica de muestra,
+  recepción de insumos y orden de corte semanal.
+- Datos de ejemplo detallados: `npm run db:seed:detalle` (idempotente).
 
 ## Arquitectura
 

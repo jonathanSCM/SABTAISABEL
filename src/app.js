@@ -10,6 +10,7 @@ const pedidosRoutes = require("./routes/pedidos");
 const cotizacionesRoutes = require("./routes/cotizaciones");
 const usuariosRoutes = require("./routes/usuarios");
 const moldesRoutes = require("./routes/moldes");
+const adjuntosRoutes = require("./routes/adjuntos");
 
 const app = express();
 app.disable("x-powered-by");
@@ -36,6 +37,7 @@ app.use("/api/pedidos", pedidosRoutes);
 app.use("/api/cotizaciones", cotizacionesRoutes);
 app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/moldes", moldesRoutes);
+app.use("/api/adjuntos", adjuntosRoutes);
 
 app.use(express.static(path.join(__dirname, "..", "public")));
 

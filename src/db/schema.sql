@@ -141,6 +141,21 @@ CREATE TABLE IF NOT EXISTS pedido_produccion (
   fecha_real DATE,
   UNIQUE(pedido_id, etapa)
 );
+-- instrucciones internas por etapa: texto libre y detallado ("en corte, cortar tal
+-- por cual, por cuánto"), editable, para imprimir la hoja de esa sola etapa y
+-- entregársela solo a su encargado (sin el resto del pedido)
+ALTER TABLE pedido_produccion ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT '';
+
+-- etapas de producción editables y personalizables por pedido: no todas las prendas
+-- llevan las mismas etapas, así que se pueden agregar/renombrar/borrar/reordenar
+-- igual que el checklist. "etapa" sigue existiendo solo para las 5 de fábrica.
+ALTER TABLE pedido_produccion ADD COLUMN IF NOT EXISTS label TEXT NOT NULL DEFAULT '';
+ALTER TABLE pedido_produccion ALTER COLUMN etapa DROP NOT NULL;
+UPDATE pedido_produccion SET label = CASE etapa
+  WHEN 'corte' THEN 'Corte' WHEN 'costura' THEN 'Costura'
+  WHEN 'bordado' THEN 'Bordado/Sublimado' WHEN 'acabado' THEN 'Acabado'
+  WHEN 'planchado' THEN 'Planchado' ELSE label END
+WHERE label = '';
 
 -- guía de entrega: se genera cuando el pedido está Terminado; no es una tabla
 -- aparte, solo se recuerda cuándo se generó por primera vez
@@ -149,6 +164,11 @@ ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS guia_generada_en TIMESTAMPTZ;
 -- la muestra es opcional por pedido: si no la requiere, el paso a producción
 -- no se bloquea aunque no haya ninguna muestra aprobada
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS requiere_muestra BOOLEAN NOT NULL DEFAULT true;
+
+-- lista de compras (avíos): qué comprar, cuánto y de qué color, para imprimir y
+-- entregarle al encargado de compras una hoja aparte. Vive junto a producción,
+-- no junto al checklist, porque a veces se compra sobre la marcha durante producción.
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS compras JSONB NOT NULL DEFAULT '[]';
 
 -- desglose del pedido por talla y color (curva), necesario para la orden de corte:
 -- Lucho corta contra esto, no contra el total de unidades. Se copia de la cotización
@@ -175,3 +195,25 @@ CREATE TABLE IF NOT EXISTS session (
   expire TIMESTAMP(6) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_session_expire ON session(expire);
+
+-- hojas por etapa: materiales que usa esa etapa y puntos de control (casilleros a
+-- marcar al imprimir), además de las instrucciones largas (columna notas)
+ALTER TABLE pedido_produccion ADD COLUMN IF NOT EXISTS materiales JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE pedido_produccion ADD COLUMN IF NOT EXISTS controles JSONB NOT NULL DEFAULT '[]';
+
+-- fotos de cada etapa. Se guardan aparte (no dentro del JSON del pedido) para que
+-- listar pedidos no cargue megas de imágenes; el navegador las pide por URL y las cachea.
+CREATE TABLE IF NOT EXISTS pedido_adjuntos (
+  id SERIAL PRIMARY KEY,
+  pedido_id TEXT NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+  etapa_id INT REFERENCES pedido_produccion(id) ON DELETE CASCADE,
+  nombre TEXT NOT NULL DEFAULT '',
+  leyenda TEXT NOT NULL DEFAULT '',
+  mime TEXT NOT NULL,
+  bytes BYTEA NOT NULL,
+  orden INT NOT NULL DEFAULT 0,
+  created_by INT REFERENCES usuarios(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_adjuntos_pedido ON pedido_adjuntos(pedido_id);
+CREATE INDEX IF NOT EXISTS idx_adjuntos_etapa ON pedido_adjuntos(etapa_id);

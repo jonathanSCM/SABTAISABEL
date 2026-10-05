@@ -11,7 +11,7 @@ router.use(requireAuth);
 
 function isoHoy(){ const d = new Date(); return d.toISOString().slice(0,10); }
 
-function filaPedido(row, hist, checklist, muestras, produccion){
+function filaPedido(row, hist, checklist, muestras, produccion, adjuntos){
   return {
     id: row.id, cliente: row.cliente, producto: row.producto, cantidad: row.cantidad,
     registro: row.registro, solicitada: row.solicitada, compromiso: row.compromiso,
@@ -20,7 +20,7 @@ function filaPedido(row, hist, checklist, muestras, produccion){
     cotizUnidades: row.cotiz_unidades != null ? Number(row.cotiz_unidades) : null,
     guiaGeneradaEn: row.guia_generada_en,
     requiereMuestra: row.requiere_muestra,
-    curva: row.curva || [], colores: row.colores || [],
+    curva: row.curva || [], colores: row.colores || [], compras: row.compras || [],
     hist: hist || [],
     checklist: (checklist || []).map(c => ({
       id: c.id, item: c.item, label: c.label || CHECKLIST_LABEL[c.item] || c.item, orden: c.orden,
@@ -34,9 +34,12 @@ function filaPedido(row, hist, checklist, muestras, produccion){
       tallaAprobada: m.talla_aprobada, materiales: m.materiales
     })).sort((a,b) => a.version - b.version),
     produccion: (produccion || []).map(t => ({
-      etapa: t.etapa, label: ETAPA_LABEL[t.etapa] || t.etapa, orden: t.orden,
+      id: t.id, etapa: t.etapa, label: t.label || ETAPA_LABEL[t.etapa] || t.etapa, orden: t.orden,
       tipo: t.tipo, responsable: t.responsable, estado: t.estado,
-      fechaPrevista: t.fecha_prevista, fechaReal: t.fecha_real
+      fechaPrevista: t.fecha_prevista, fechaReal: t.fecha_real, notas: t.notas,
+      materiales: t.materiales || [], controles: t.controles || [],
+      fotos: (adjuntos || []).filter(a => a.etapa_id === t.id).sort((a,b) => a.orden - b.orden || a.id - b.id)
+        .map(a => ({ id:a.id, leyenda:a.leyenda, nombre:a.nombre }))
     })).sort((a,b) => a.orden - b.orden)
   };
 }
@@ -47,24 +50,27 @@ async function pedidoCompleto(client, id){
   const h = await client.query("SELECT fecha, texto, creado_en FROM pedido_historial WHERE pedido_id = $1 ORDER BY id ASC", [id]);
   const c = await client.query("SELECT id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist WHERE pedido_id = $1", [id]);
   const m = await client.query("SELECT version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales FROM pedido_muestras WHERE pedido_id = $1 ORDER BY version ASC", [id]);
-  const t = await client.query("SELECT etapa, orden, tipo, responsable, estado, fecha_prevista, fecha_real FROM pedido_produccion WHERE pedido_id = $1", [id]);
-  return filaPedido(p.rows[0], h.rows, c.rows, m.rows, t.rows);
+  const t = await client.query("SELECT id, etapa, label, orden, tipo, responsable, estado, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion WHERE pedido_id = $1", [id]);
+  const ad = await client.query("SELECT id, etapa_id, leyenda, nombre, orden FROM pedido_adjuntos WHERE pedido_id = $1", [id]);
+  return filaPedido(p.rows[0], h.rows, c.rows, m.rows, t.rows, ad.rows);
 }
 
 router.get("/", async (req, res) => {
   const pedidos = await pool.query("SELECT * FROM pedidos ORDER BY compromiso ASC");
-  const [hist, checklist, muestras, produccion] = await Promise.all([
+  const [hist, checklist, muestras, produccion, adjuntos] = await Promise.all([
     pool.query("SELECT pedido_id, fecha, texto, creado_en FROM pedido_historial ORDER BY id ASC"),
     pool.query("SELECT id, pedido_id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist"),
     pool.query("SELECT pedido_id, version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales FROM pedido_muestras ORDER BY version ASC"),
-    pool.query("SELECT pedido_id, etapa, orden, tipo, responsable, estado, fecha_prevista, fecha_real FROM pedido_produccion")
+    pool.query("SELECT id, pedido_id, etapa, label, orden, tipo, responsable, estado, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion"),
+    pool.query("SELECT id, pedido_id, etapa_id, leyenda, nombre, orden FROM pedido_adjuntos")
   ]);
   const porPedido = (rows) => { const m = {}; for(const r of rows) (m[r.pedido_id] ||= []).push(r); return m; };
   const histPorPedido = porPedido(hist.rows);
   const checkPorPedido = porPedido(checklist.rows);
   const muestrasPorPedido = porPedido(muestras.rows);
   const produccionPorPedido = porPedido(produccion.rows);
-  res.json(pedidos.rows.map(p => filaPedido(p, histPorPedido[p.id], checkPorPedido[p.id], muestrasPorPedido[p.id], produccionPorPedido[p.id])));
+  const adjuntosPorPedido = porPedido(adjuntos.rows);
+  res.json(pedidos.rows.map(p => filaPedido(p, histPorPedido[p.id], checkPorPedido[p.id], muestrasPorPedido[p.id], produccionPorPedido[p.id], adjuntosPorPedido[p.id])));
 });
 
 router.post("/", async (req, res) => {
@@ -159,6 +165,20 @@ router.patch("/:id/curva", async (req, res) => {
     [JSON.stringify(Array.isArray(b.curva) ? b.curva : []), JSON.stringify(Array.isArray(b.colores) ? b.colores : []), id]
   );
   if(!r.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
+  res.json(await pedidoCompleto(pool, id));
+});
+
+/* ---- lista de compras (avíos): qué comprar, cuánto y de qué color — se imprime
+   aparte para entregársela solo al encargado de compras ---- */
+router.patch("/:id/compras", async (req, res) => {
+  const { id } = req.params;
+  const b = req.body || {};
+  const r = await pool.query(
+    "UPDATE pedidos SET compras=$1, updated_at=now() WHERE id=$2 RETURNING id",
+    [JSON.stringify(Array.isArray(b.compras) ? b.compras : []), id]
+  );
+  if(!r.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
+  await pool.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,'Lista de compras actualizada')", [id, isoHoy()]);
   res.json(await pedidoCompleto(pool, id));
 });
 
@@ -357,40 +377,84 @@ router.patch("/:id/muestras/:version/estado", async (req, res) => {
   }
 });
 
-/* ---- producción por etapa: interno/tercerizado, informativo (no bloquea nada) ---- */
+/* ---- producción por etapa: interno/tercerizado, informativo (no bloquea nada) ----
+   editable y ordenable por el usuario, igual que el checklist: no todas las prendas
+   llevan las mismas etapas, así que se agregan/renombran/borran/reordenan libremente.
+   Se direcciona por el id numérico de la fila, no por el slug fijo. */
 const ESTADOS_TAREA = ["Pendiente","En proceso","Completado"];
-router.patch("/:id/produccion/:slug", async (req, res) => {
-  const { id, slug } = req.params;
+
+router.post("/:id/produccion", async (req, res) => {
+  const { id } = req.params;
+  const label = (req.body && req.body.label || "").trim();
+  if(!label) return res.status(400).json({ error:"La etapa necesita un nombre." });
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const ped = await client.query("SELECT id FROM pedidos WHERE id=$1 FOR UPDATE", [id]);
+    if(!ped.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido no encontrado." }); }
+    const ordenRes = await client.query("SELECT COALESCE(MAX(orden),0)+1 AS n FROM pedido_produccion WHERE pedido_id=$1", [id]);
+    await client.query(
+      `INSERT INTO pedido_produccion (pedido_id,etapa,label,orden)
+       VALUES ($1, 'custom-'||substr(md5(random()::text),1,10), $2, $3)`,
+      [id, label, ordenRes.rows[0].n]
+    );
+    await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
+      [id, isoHoy(), "Producción: se agregó la etapa \""+label+"\""]);
+    await client.query("COMMIT");
+    res.status(201).json(await pedidoCompleto(pool, id));
+  } catch(err){
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error:"No se pudo agregar la etapa." });
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/:id/produccion/:itemId", async (req, res) => {
+  const { id, itemId } = req.params;
   const b = req.body || {};
-  const etapa = ETAPAS_PRODUCCION.find(e => e.slug === slug);
-  if(!etapa) return res.status(400).json({ error:"Etapa de producción inválida." });
   if(b.tipo && !["Interno","Tercerizado"].includes(b.tipo)) return res.status(400).json({ error:"Tipo inválido." });
   if(b.estado && !ESTADOS_TAREA.includes(b.estado)) return res.status(400).json({ error:"Estado de tarea inválido." });
 
   const client = await pool.connect();
   try{
     await client.query("BEGIN");
-    const cur = await client.query("SELECT * FROM pedido_produccion WHERE pedido_id=$1 AND etapa=$2 FOR UPDATE", [id, slug]);
+    const cur = await client.query("SELECT * FROM pedido_produccion WHERE pedido_id=$1 AND id=$2 FOR UPDATE", [id, itemId]);
     if(!cur.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido o etapa no encontrada." }); }
     const actual = cur.rows[0];
+    const label = b.label != null ? String(b.label).trim() || actual.label : actual.label;
     const tipo = b.tipo || actual.tipo;
     const responsable = b.responsable != null ? b.responsable : actual.responsable;
     const estado = b.estado || actual.estado;
     const fechaPrevista = b.fechaPrevista !== undefined ? (b.fechaPrevista || null) : actual.fecha_prevista;
     let fechaReal = b.fechaReal !== undefined ? (b.fechaReal || null) : actual.fecha_real;
     if(estado === "Completado" && !fechaReal) fechaReal = isoHoy();
+    const notas = b.notas != null ? String(b.notas) : actual.notas;
+    const materiales = Array.isArray(b.materiales)
+      ? b.materiales.map(m => ({ item:String(m.item||"").trim(), cantidad:String(m.cantidad||"").trim(), color:String(m.color||"").trim() })).filter(m => m.item)
+      : actual.materiales;
+    const controles = Array.isArray(b.controles) ? b.controles.map(c => String(c).trim()).filter(Boolean) : actual.controles;
 
     await client.query(
-      "UPDATE pedido_produccion SET tipo=$1, responsable=$2, estado=$3, fecha_prevista=$4, fecha_real=$5 WHERE pedido_id=$6 AND etapa=$7",
-      [tipo, responsable, estado, fechaPrevista, fechaReal, id, slug]
+      "UPDATE pedido_produccion SET label=$1, tipo=$2, responsable=$3, estado=$4, fecha_prevista=$5, fecha_real=$6, notas=$7, materiales=$8, controles=$9 WHERE pedido_id=$10 AND id=$11",
+      [label, tipo, responsable, estado, fechaPrevista, fechaReal, notas, JSON.stringify(materiales), JSON.stringify(controles), id, itemId]
     );
     if(estado !== actual.estado){
       await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
-        [id, isoHoy(), "Producción · "+etapa.label+" → "+estado]);
+        [id, isoHoy(), "Producción · "+label+" → "+estado]);
     }
     if(tipo !== actual.tipo || responsable !== actual.responsable){
       await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
-        [id, isoHoy(), "Producción · "+etapa.label+": "+tipo+(responsable ? " ("+responsable+")" : "")]);
+        [id, isoHoy(), "Producción · "+label+": "+tipo+(responsable ? " ("+responsable+")" : "")]);
+    }
+    if(notas !== actual.notas){
+      await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
+        [id, isoHoy(), "Producción · "+label+": instrucciones actualizadas"]);
+    }
+    if(label !== actual.label){
+      await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
+        [id, isoHoy(), "Producción: \""+actual.label+"\" renombrada a \""+label+"\""]);
     }
     await client.query("COMMIT");
     res.json(await pedidoCompleto(pool, id));
@@ -401,6 +465,95 @@ router.patch("/:id/produccion/:slug", async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+router.delete("/:id/produccion/:itemId", async (req, res) => {
+  const { id, itemId } = req.params;
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const r = await client.query("DELETE FROM pedido_produccion WHERE pedido_id=$1 AND id=$2 RETURNING label", [id, itemId]);
+    if(!r.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Etapa no encontrada." }); }
+    await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,$3)",
+      [id, isoHoy(), "Producción: se quitó la etapa \""+r.rows[0].label+"\""]);
+    await client.query("COMMIT");
+    res.json(await pedidoCompleto(pool, id));
+  } catch(err){
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error:"No se pudo quitar la etapa." });
+  } finally {
+    client.release();
+  }
+});
+
+/* reordenar: recibe la lista completa de ids de producción en el orden final */
+router.patch("/:id/produccion-orden", async (req, res) => {
+  const { id } = req.params;
+  const orden = Array.isArray(req.body && req.body.orden) ? req.body.orden : null;
+  if(!orden) return res.status(400).json({ error:"Falta el orden." });
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    for(let i=0;i<orden.length;i++){
+      await client.query("UPDATE pedido_produccion SET orden=$1 WHERE pedido_id=$2 AND id=$3", [i+1, id, orden[i]]);
+    }
+    await client.query("COMMIT");
+    res.json(await pedidoCompleto(pool, id));
+  } catch(err){
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error:"No se pudo reordenar la producción." });
+  } finally {
+    client.release();
+  }
+});
+
+/* ---- fotos de una etapa: se suben como archivo binario (ya comprimido por el
+   navegador), no como base64 dentro de JSON. Máximo 8 por etapa. ---- */
+const MAX_FOTOS_ETAPA = 8;
+router.post("/:id/produccion/:itemId/fotos", express.raw({ type:"image/*", limit:"6mb" }), async (req, res) => {
+  const { id, itemId } = req.params;
+  const mime = (req.headers["content-type"] || "").split(";")[0];
+  if(!/^image\/(jpeg|png|webp)$/.test(mime)) return res.status(400).json({ error:"Solo se aceptan fotos JPG, PNG o WebP." });
+  if(!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error:"La foto llegó vacía." });
+  const e = await pool.query("SELECT id FROM pedido_produccion WHERE pedido_id=$1 AND id=$2", [id, itemId]);
+  if(!e.rows[0]) return res.status(404).json({ error:"Etapa no encontrada." });
+  const cnt = await pool.query("SELECT COUNT(*)::int AS n, COALESCE(MAX(orden),0)+1 AS sig FROM pedido_adjuntos WHERE etapa_id=$1", [itemId]);
+  if(cnt.rows[0].n >= MAX_FOTOS_ETAPA) return res.status(409).json({ error:"Máximo "+MAX_FOTOS_ETAPA+" fotos por etapa." });
+  let nombre = "";
+  try{ nombre = decodeURIComponent(req.headers["x-nombre"] || "").slice(0,120); }catch(_){}
+  await pool.query(
+    "INSERT INTO pedido_adjuntos (pedido_id,etapa_id,nombre,mime,bytes,orden,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+    [id, itemId, nombre, mime, req.body, cnt.rows[0].sig, req.session.userId]
+  );
+  res.status(201).json(await pedidoCompleto(pool, id));
+});
+
+router.patch("/:id/fotos/:fotoId", async (req, res) => {
+  const { id, fotoId } = req.params;
+  const r = await pool.query("UPDATE pedido_adjuntos SET leyenda=$1 WHERE pedido_id=$2 AND id=$3 RETURNING id",
+    [String(req.body && req.body.leyenda || "").slice(0,200), id, fotoId]);
+  if(!r.rows[0]) return res.status(404).json({ error:"Foto no encontrada." });
+  res.json(await pedidoCompleto(pool, id));
+});
+
+router.delete("/:id/fotos/:fotoId", async (req, res) => {
+  const { id, fotoId } = req.params;
+  const r = await pool.query("DELETE FROM pedido_adjuntos WHERE pedido_id=$1 AND id=$2 RETURNING id", [id, fotoId]);
+  if(!r.rows[0]) return res.status(404).json({ error:"Foto no encontrada." });
+  res.json(await pedidoCompleto(pool, id));
+});
+
+/* reordenar las fotos de una etapa: lista completa de ids en el orden final */
+router.patch("/:id/produccion/:itemId/fotos-orden", async (req, res) => {
+  const { id, itemId } = req.params;
+  const orden = Array.isArray(req.body && req.body.orden) ? req.body.orden : null;
+  if(!orden) return res.status(400).json({ error:"Falta el orden." });
+  for(let i=0;i<orden.length;i++){
+    await pool.query("UPDATE pedido_adjuntos SET orden=$1 WHERE pedido_id=$2 AND etapa_id=$3 AND id=$4", [i+1, id, itemId, orden[i]]);
+  }
+  res.json(await pedidoCompleto(pool, id));
 });
 
 /* ---- moldes (patrones): se archivan por cliente y se reusan en pedidos futuros ---- */

@@ -9,6 +9,7 @@
     "dev": "node --watch src/server.js",
     "db:migrate": "node src/db/migrate.js",
     "db:seed": "node src/db/seed.js",
+    "db:seed:detalle": "node src/db/seed-detalle.js",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop santa-isabel",
     "pm2:restart": "pm2 restart santa-isabel",

@@ -117,7 +117,7 @@ router.post("/:id/aprobar", async (req, res) => {
     const updated = await pool.query("SELECT * FROM cotizaciones WHERE id=$1", [id]);
     const pedidoRow = await pool.query("SELECT * FROM pedidos WHERE id=$1", [pedidoId]);
     const checklistRow = await pool.query("SELECT item, orden, hecho, fecha, responsable FROM pedido_checklist WHERE pedido_id=$1 ORDER BY orden", [pedidoId]);
-    const produccionRow = await pool.query("SELECT etapa, orden, tipo, responsable, estado, fecha_prevista, fecha_real FROM pedido_produccion WHERE pedido_id=$1 ORDER BY orden", [pedidoId]);
+    const produccionRow = await pool.query("SELECT id, etapa, label, orden, tipo, responsable, estado, fecha_prevista, fecha_real, notas FROM pedido_produccion WHERE pedido_id=$1 ORDER BY orden", [pedidoId]);
     const pr = pedidoRow.rows[0];
     res.json({
       cotizacion: fila(updated.rows[0]),
@@ -133,7 +133,7 @@ router.post("/:id/aprobar", async (req, res) => {
         hist: [{ fecha: registro, texto:"Pedido registrado" }],
         checklist: checklistRow.rows.map(c => ({ item:c.item, label:CHECKLIST_LABEL[c.item] || c.item, orden:c.orden, hecho:c.hecho, fecha:c.fecha, responsable:c.responsable })),
         muestras: [],
-        produccion: produccionRow.rows.map(t => ({ etapa:t.etapa, label:ETAPA_LABEL[t.etapa] || t.etapa, orden:t.orden, tipo:t.tipo, responsable:t.responsable, estado:t.estado, fechaPrevista:t.fecha_prevista, fechaReal:t.fecha_real }))
+        produccion: produccionRow.rows.map(t => ({ id:t.id, etapa:t.etapa, label:t.label || ETAPA_LABEL[t.etapa] || t.etapa, orden:t.orden, tipo:t.tipo, responsable:t.responsable, estado:t.estado, fechaPrevista:t.fecha_prevista, fechaReal:t.fecha_real, notas:t.notas, materiales:[], controles:[], fotos:[] }))
       }
     });
   } catch(err){

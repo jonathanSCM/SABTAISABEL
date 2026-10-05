@@ -14,8 +14,8 @@ const ETAPA_LABEL = Object.fromEntries(ETAPAS_PRODUCCION.map(e => [e.slug, e.lab
 async function sembrarProduccion(client, pedidoId){
   for(let i=0;i<ETAPAS_PRODUCCION.length;i++){
     await client.query(
-      "INSERT INTO pedido_produccion (pedido_id,etapa,orden) VALUES ($1,$2,$3) ON CONFLICT (pedido_id,etapa) DO NOTHING",
-      [pedidoId, ETAPAS_PRODUCCION[i].slug, i+1]
+      "INSERT INTO pedido_produccion (pedido_id,etapa,label,orden) VALUES ($1,$2,$3,$4) ON CONFLICT (pedido_id,etapa) DO NOTHING",
+      [pedidoId, ETAPAS_PRODUCCION[i].slug, ETAPAS_PRODUCCION[i].label, i+1]
     );
   }
 }
