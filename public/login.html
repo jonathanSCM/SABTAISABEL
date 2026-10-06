@@ -6,28 +6,69 @@
 <title>Ingresar — Santa Isabel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
 :root{
-  --paper:#FBF7F2; --surface:#FFFFFF; --line:#E7DBC8; --line-2:#D6C4A9;
-  --ink:#2A211D; --ink-2:#6E6058; --ink-3:#9C9088;
-  --rose:#9C3B4C; --rose-ink:#7A2D3B;
-  --crit:#A24E4A; --crit-soft:#F4E4E3;
-  --shadow:0 20px 50px -28px rgba(42,33,29,.30); --r:7px;
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  /* superficies */
+  --paper:#EBECEE; --surface:#FFFFFF; --surface-2:#F6F7F9; --surface-3:#EEF0F4; --nav-bg:#FFFFFF;
+  --line:#E4E9F0; --line-2:#D5DCE6;
+  /* texto */
+  --ink:#172033; --ink-2:#667085; --ink-3:#7C8799;
+  /* color primario: acciones, navegación activa, links, foco */
+  --primary:#2563EB; --primary-hover:#1D4ED8; --primary-active:#1E40AF; --primary-soft:#E8F0FF;
+  /* colores semánticos: solo para estados */
+  --info:#2563EB; --info-soft:#E8F0FF;
+  --production:#7C3AED; --production-soft:#F1EAFF;
+  --success:#16A34A; --success-soft:#EAF7EE;
+  --warning:#D97706; --warning-soft:#FFF5E5;
+  --danger:#DC3545; --danger-soft:#FDECEE;
+  --neutral:#667085; --neutral-soft:#EEF0F4;
+  --shadow:0 2px 8px rgba(16,24,40,.05); --shadow-hover:0 4px 14px rgba(16,24,40,.08);
+  --shadow-lg:0 12px 32px rgba(16,24,40,.14); --scrim:rgba(8,17,31,.45);
+  --r:16px; --r-md:12px; --r-lg:20px;
+  /* alias de los nombres antiguos: así no hay que tocar cada componente */
+  --rose:var(--primary); --rose-ink:var(--primary-hover); --rose-soft:var(--primary-soft);
+  --gold:var(--warning); --gold-soft:var(--warning-soft);
+  --ok:var(--success); --ok-soft:var(--success-soft);
+  --warn:var(--warning); --warn-soft:var(--warning-soft);
+  --crit:var(--danger); --crit-soft:var(--danger-soft);
+  --run:var(--info); --run-soft:var(--info-soft);
+  --done:var(--neutral); --done-soft:var(--neutral-soft);
 }
 @media (prefers-color-scheme:dark){
-  :root{
-    --paper:#1C1613; --surface:#241D19; --line:#3B322B; --line-2:#4C4038;
-    --ink:#F2E9E1; --ink-2:#C2B3A7; --ink-3:#8B7C71;
-    --rose:#E0949F; --rose-ink:#F0B8C0;
-    --crit:#CC7B75; --crit-soft:#2E1F1E;
-    --shadow:0 20px 60px -28px rgba(0,0,0,.7);
+  :root:not([data-theme="light"]){
+  --paper:#08111F; --surface:#101C2B; --surface-2:#152235; --surface-3:#1B2A40; --nav-bg:#0D1726;
+  --line:#26364A; --line-2:#33465E;
+  --ink:#F8FAFC; --ink-2:#B9C3D1; --ink-3:#8290A3;
+  --primary:#3B82F6; --primary-hover:#60A5FA; --primary-active:#93C5FD; --primary-soft:rgba(59,130,246,.15);
+  --info:#3B82F6; --info-soft:rgba(59,130,246,.16);
+  --production:#A855F7; --production-soft:rgba(168,85,247,.16);
+  --success:#22C55E; --success-soft:rgba(34,197,94,.16);
+  --warning:#F59E0B; --warning-soft:rgba(245,158,11,.16);
+  --danger:#F43F5E; --danger-soft:rgba(244,63,94,.16);
+  --neutral:#8290A3; --neutral-soft:rgba(130,144,163,.16);
+  --shadow:none; --shadow-hover:none; --shadow-lg:0 12px 32px rgba(0,0,0,.5); --scrim:rgba(0,0,0,.6);
   }
 }
+:root[data-theme="dark"]{
+  --paper:#08111F; --surface:#101C2B; --surface-2:#152235; --surface-3:#1B2A40; --nav-bg:#0D1726;
+  --line:#26364A; --line-2:#33465E;
+  --ink:#F8FAFC; --ink-2:#B9C3D1; --ink-3:#8290A3;
+  --primary:#3B82F6; --primary-hover:#60A5FA; --primary-active:#93C5FD; --primary-soft:rgba(59,130,246,.15);
+  --info:#3B82F6; --info-soft:rgba(59,130,246,.16);
+  --production:#A855F7; --production-soft:rgba(168,85,247,.16);
+  --success:#22C55E; --success-soft:rgba(34,197,94,.16);
+  --warning:#F59E0B; --warning-soft:rgba(245,158,11,.16);
+  --danger:#F43F5E; --danger-soft:rgba(244,63,94,.16);
+  --neutral:#8290A3; --neutral-soft:rgba(130,144,163,.16);
+  --shadow:none; --shadow-hover:none; --shadow-lg:0 12px 32px rgba(0,0,0,.5); --scrim:rgba(0,0,0,.6);
+}
+
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%}
 body{
-  background:var(--paper); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif;
+  background:var(--paper); color:var(--ink); font-family:var(--font);
   display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;
 }
 .card{
@@ -36,17 +77,17 @@ body{
 }
 .brand{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:26px;text-align:center}
 .brand__mark{width:44px;height:44px;color:var(--rose)}
-.brand__name{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:-.01em}
-.brand__sub{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.brand__name{font-family:var(--font);font-size:20px;font-weight:700;letter-spacing:-.01em}
+.brand__sub{font-family:var(--font);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.field label{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase}
-.input{padding:11px 13px;border:1px solid var(--line-2);border-radius:var(--r);background:var(--surface);font-size:14px;color:var(--ink);width:100%}
+.field label{font-family:var(--font);font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase}
+.input{padding:11px 13px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--surface);font-size:14px;color:var(--ink);width:100%}
 .input:focus{border-color:var(--rose);outline:none}
 .btn{
-  width:100%;padding:12px;border-radius:999px;border:0;background:var(--rose);color:#fff;font-weight:600;
+  width:100%;padding:12px;border-radius:var(--r-md);border:0;background:var(--primary);color:#fff;font-weight:600;
   font-size:14px;cursor:pointer;margin-top:6px;min-height:44px;
 }
-.btn:hover{background:var(--rose-ink)}
+.btn:hover{background:var(--primary-hover)}
 .btn:disabled{opacity:.6;cursor:default}
 .err{background:var(--crit-soft);color:var(--crit);border-radius:var(--r);padding:10px 13px;font-size:13px;margin-bottom:16px;display:none}
 .pw{position:relative}
