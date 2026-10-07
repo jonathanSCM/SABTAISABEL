@@ -108,7 +108,7 @@ router.post("/:id/aprobar", async (req, res) => {
       [pedidoId, q.cliente, q.prenda, unidades, registro, compromiso, compromiso,
        "Generado desde cotización "+id, id, unidades, JSON.stringify(q.curva || []), JSON.stringify(q.colores || []), req.session.userId]
     );
-    await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto) VALUES ($1,$2,'Pedido registrado')", [pedidoId, registro]);
+    await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,'Pedido registrado',$3,$4)", [pedidoId, registro, req.user.id, req.user.nombre]);
     await sembrarChecklist(client, pedidoId);
     await sembrarProduccion(client, pedidoId);
     await client.query("UPDATE cotizaciones SET estado='Aprobada', pedido_id=$1, updated_at=now() WHERE id=$2", [pedidoId, id]);

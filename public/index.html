@@ -452,6 +452,34 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
 .hist li{list-style:none;padding:0 0 14px;position:relative;font-size:13px}
 .hist li::before{content:"";position:absolute;left:-20px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--line-2);border:2px solid var(--surface)}
 .hist li:last-child::before{background:var(--rose)}
+.ficha-det{margin:0 22px 4px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2)}
+.ficha-det>summary{cursor:pointer;padding:11px 14px;font-size:13px;list-style:none}
+.ficha-det>summary::-webkit-details-marker{display:none}
+.ficha-det>summary::before{content:"▸";display:inline-block;margin-right:8px;color:var(--primary);transition:transform .15s}
+.ficha-det[open]>summary::before{transform:rotate(90deg)}
+.ficha-det>div{padding:2px 14px 14px}
+.ficha-sec{margin-top:14px}
+.ficha-dos{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.ficha-ul,.ficha-docs{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.ficha-docs{list-style:none;padding-left:0}
+.ficha-docs a{color:var(--primary);font-weight:600;text-decoration:none}
+.ficha-docs a:hover{text-decoration:underline}
+.ficha-p{margin:0 0 6px;font-size:13px;line-height:1.55;white-space:pre-wrap}
+@media (max-width:520px){ .ficha-dos{grid-template-columns:1fr} .ficha-det{margin:0 14px 4px} }
+.hoja-ul{margin:0;padding-left:18px;font-size:12.5px}
+.hoja-p{margin:0 0 5px;font-size:12.5px;line-height:1.55;white-space:pre-wrap}
+.plan-grupo{margin-bottom:14px;break-inside:avoid}
+.plan-grupo__h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 10px;background:var(--surface-2);border-radius:var(--r-md) var(--r-md) 0 0;border:1px solid var(--line);border-bottom:0}
+.hoja--plan .sheet-t{font-size:12px}
+.plan-grupo .sheet-t{table-layout:fixed}
+.plan-grupo .sheet-t th:nth-child(1){width:78px} .plan-grupo .sheet-t th:nth-child(3){width:19%}
+.plan-grupo .sheet-t th:nth-child(4){width:70px} .plan-grupo .sheet-t th:nth-child(5),.plan-grupo .sheet-t th:nth-child(6){width:78px}
+.hoja-fotos--chicas img{max-height:150px}
+.hist__row{display:flex;gap:8px;align-items:baseline;font-size:12px;margin-top:3px;flex-wrap:wrap}
+.hist__row>span:first-child{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.hist__chg s{color:var(--ink-3)} .hist__chg i{color:var(--ink-3);font-style:normal}
+.chk-order-btn--go{color:var(--primary)}
+.chk-order-btn--go:hover{background:var(--primary-soft);color:var(--primary)}
 .hist time{display:block;font-size:10.5px;color:var(--ink-3);font-family:var(--font);margin-top:2px}
 
 /* detalle de pedido por bloques: una sola jerarquía (título, estado, acción principal)
@@ -849,9 +877,11 @@ table.sheet-t td.r,table.sheet-t th.r{text-align:right;font-family:var(--font)}
 .hoja-cierre__g{padding-bottom:16px}
 .hoja--portada{padding:26px 30px}
 @media (max-width:640px){ .hoja{padding:16px 14px} .hoja-datos{grid-template-columns:1fr 1fr} .hoja-dos,.hoja-fotos,.hoja-ctrl,.hoja-cierre__g{grid-template-columns:1fr} }
+@page plan{ size:letter landscape; margin:11mm 12mm; }
 @media print{
   @page{ size:letter; margin:12mm 13mm; }
   .paq-noprint,.paq-panel{display:none!important}
+  .hoja--plan{page:plan}
   .paq{max-width:none;gap:0}
   .hoja{border:0;border-radius:0;box-shadow:none;padding:0;margin:0;font-size:12.5px}
   .hoja + .hoja{break-before:page}
@@ -1155,6 +1185,17 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
   <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnCurvaCancel">Cancelar</button><button type="submit" form="formCurva" class="btn btn--primary" id="btnCurvaSave">Guardar</button></div>
 </div>
 
+<div class="modal" id="modalTransfer" role="dialog" aria-modal="true" aria-labelledby="modalTransferTitle">
+  <div class="modal__h"><h2 id="modalTransferTitle">Terminar y pasar a…</h2><button class="btn btn--ghost btn--sm" id="modalTransferClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <form class="form" id="formTransfer" novalidate>
+    <div class="field full"><label>Etapa que termina</label><div class="input" id="tr-actual" style="background:var(--surface-2)"></div></div>
+    <div class="field full"><label for="tr-siguiente">Siguiente etapa</label><select class="input" id="tr-siguiente"></select></div>
+    <div class="field full"><label for="tr-responsable" id="tr-responsable-label">Nuevo responsable</label><input class="input" id="tr-responsable" list="responsables" placeholder="¿Quién recibe el pedido?"></div>
+    <p class="muted" style="font-size:11.5px;margin:0;grid-column:1/-1">Queda registrado en el historial: quién lo hizo, cuándo, la etapa anterior y la nueva, y el responsable anterior y el nuevo.</p>
+  </form>
+  <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnTransferCancel">Cancelar</button><button type="submit" form="formTransfer" class="btn btn--primary" id="btnTransferSave">Transferir</button></div>
+</div>
+
 <div class="modal" id="modalCompras" role="dialog" aria-modal="true" aria-labelledby="modalComprasTitle">
   <div class="modal__h"><h2 id="modalComprasTitle">Lista de compras (avíos)</h2><button class="btn btn--ghost btn--sm" id="modalComprasClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
   <form class="form" id="formCompras" novalidate>
@@ -1181,6 +1222,7 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
 
 <div class="modal" id="modalProduccion" role="dialog" aria-modal="true" aria-labelledby="modalProduccionTitle">
   <div class="modal__h"><h2 id="modalProduccionTitle">Etapa de producción</h2><button class="btn btn--ghost btn--sm" id="modalProduccionClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <details class="ficha-det" id="pr-ficha"><summary><b>Ficha del pedido</b> <span class="muted" id="pr-ficha-resumen"></span></summary><div id="pr-ficha-cuerpo"></div></details>
   <form class="form" id="formProduccion" novalidate>
     <div class="field"><label for="pr-tipo">Tipo</label><select class="input" id="pr-tipo"><option value="Interno">Interno</option><option value="Tercerizado">Tercerizado</option></select></div>
     <div class="field"><label for="pr-estado">Estado</label><select class="input" id="pr-estado"><option>Pendiente</option><option>En proceso</option><option>Completado</option></select></div>
@@ -1205,6 +1247,7 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
     </div>
   </form>
   <div class="modal__f">
+    <button type="button" class="btn btn--primary btn--sm" id="btnProduccionTransferir">Terminar y pasar a…</button>
     <button type="button" class="btn btn--ghost btn--sm" id="btnProduccionImprimir" style="margin-right:auto">Imprimir la hoja de esta etapa</button>
     <button type="button" class="btn btn--ghost" id="btnProduccionCancel">Cancelar</button>
     <button type="submit" form="formProduccion" class="btn btn--primary" id="btnProduccionSave">Guardar</button>
@@ -1324,7 +1367,7 @@ const state = {
   view:"tablero",
   filtros:{ estado:"Todos", cliente:"Todos", rango:"Todas", texto:"" },
   mes:(function(){ const d = hoy(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
-  pedidoAbierto:null, entrando:true, recien:null, confirmAlta:false, semanaModo:"estado", qTexto:"", qFiltro:"todas", qOrden:"reciente", qVista:null,
+  pedidoAbierto:null, entrando:true, recien:null, confirmAlta:false, semanaModo:"estado", qTexto:"", qFiltro:"todas", qOrden:"reciente", qVista:null, planSemana:0, planAtrasados:false,
   vistaGuiaId:null, vistaFichaId:null, vistaFichaVersion:null,
   vistaPaqueteId:null, paqueteSel:[],
   moldesPorCliente:{}, moldesCargando:new Set(),
@@ -1384,11 +1427,11 @@ function go(v){
 /* ============ vistas ============ */
 function render(){
   renderNav();
-  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte", paquete:"Hojas del pedido" };
+  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte", paquete:"Hojas del pedido", plan:"Planificación semanal" };
   $("#viewTitle").textContent = t[state.view];
   const d = hoy();
   $("#todayLabel").textContent = DOW[(d.getDay()+6)%7].replace(/^./,c=>c.toUpperCase())+" "+d.getDate()+" de "+MESES[d.getMonth()]+" de "+d.getFullYear();
-  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte, paquete:vPaquete })[state.view]();
+  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte, paquete:vPaquete, plan:vPlan })[state.view]();
   wire();
   if(state.view === "guia"){
     const p = pedidos.find(x => x.id === state.vistaGuiaId);
@@ -1407,6 +1450,19 @@ function render(){
   if(state.view === "corte"){
     const back = $("#btnVolverCorte"); if(back) back.onclick = () => go("pedidos");
     wireExport($("#theSheetCorte"), { id:"orden-de-corte", cliente:"orden-de-corte" }, "#btnPrintCorte");
+  }
+  if(state.view === "plan"){
+    const d = planDatos(state.planSemana, state.planAtrasados);
+    const redibujar = () => { const y = window.scrollY; render(); window.scrollTo({ top:y }); };
+    const back = $("#btnVolverPlan"); if(back) back.onclick = () => go("semana");
+    $("#btnPlanPrev").onclick = () => { state.planSemana--; redibujar(); };
+    $("#btnPlanNext").onclick = () => { state.planSemana++; redibujar(); };
+    $("#btnPlanHoy").onclick = () => { state.planSemana = 0; redibujar(); };
+    $("#chkPlanAtr").onchange = e => { state.planAtrasados = e.target.checked; redibujar(); };
+    $("#btnPlanCSV").onclick = () => descargarCSV("planificacion-semanal-"+d.r.desde+".csv", PLAN_CSV_HEADERS, planCSVRows(d));
+    $("#btnPlanCompartir").onclick = compartirPlan;
+    $("#btnPlanWA").onclick = () => window.open("https://wa.me/?text="+encodeURIComponent(planTexto(d)), "_blank", "noopener");
+    wireExport(null, { id:"planificacion", cliente:d.r.desde }, "#btnPlanImprimir", "Plan");
   }
   if(state.view === "paquete"){
     const p = pedidos.find(x => x.id === state.vistaPaqueteId);
@@ -1568,6 +1624,112 @@ function filaQ(q){
 }
 
 /* ---- Esta semana ---- */
+/* ================= Planificación semanal: imprimir, descargar y compartir =================
+   Resume el trabajo planificado de una semana: tareas (etapas de producción) por responsable
+   y pedidos con su fecha comprometida. Un solo resumen para imprimir, bajar en CSV o compartir. */
+function planRango(offset){
+  const d = hoy(); const lunes = addDays(d, -((d.getDay()+6)%7) + offset*7);
+  return { desde: iso(lunes), hasta: iso(addDays(lunes, 6)) };
+}
+function planFechaRango(r){ return fechaCorta(r.desde)+" – "+fechaCorta(r.hasta); }
+function planDatos(offset, conAtrasados){
+  const r = planRango(offset);
+  const act = pedidos.filter(activo);
+  const tareas = [];
+  act.forEach(p => p.produccion.forEach(t => {
+    if(t.estado === "Completado") return;
+    const enSemana = t.fechaPrevista && t.fechaPrevista >= r.desde && t.fechaPrevista <= r.hasta;
+    const atrasadaT = conAtrasados && t.fechaPrevista && t.fechaPrevista < r.desde;
+    if(enSemana || atrasadaT || (offset === 0 && t.estado === "En proceso")){
+      tareas.push({ responsable:t.responsable || p.responsable || "Sin asignar", pedido:p, etapa:t.label, estadoEtapa:t.estado,
+        tipo:t.tipo, prevista:t.fechaPrevista || "", unidades:p.cantidad });
+    }
+  }));
+  tareas.sort((a,b) => (a.prevista || "9").localeCompare(b.prevista || "9") || a.pedido.id.localeCompare(b.pedido.id));
+  const porResp = {};
+  tareas.forEach(t => (porResp[t.responsable] ||= []).push(t));
+  const nombres = Object.keys(porResp).sort((a,b) => a === "Sin asignar" ? 1 : b === "Sin asignar" ? -1 : a.localeCompare(b));
+  const peds = act.filter(p => (p.compromiso >= r.desde && p.compromiso <= r.hasta) || (conAtrasados && p.compromiso < r.desde && atrasado(p)))
+    .sort((a,b) => a.compromiso.localeCompare(b.compromiso));
+  return { r, tareas, porResp, nombres, peds, unidades: peds.reduce((s,p) => s + p.cantidad, 0) };
+}
+function planTexto(d){
+  const L = ["Planificación semanal · Santa Isabel", planFechaRango(d.r), ""];
+  if(!d.nombres.length) L.push("Sin tareas planificadas.");
+  d.nombres.forEach(n => {
+    const ts = d.porResp[n];
+    L.push(n+" ("+ts.length+" tarea"+(ts.length===1?"":"s")+")");
+    ts.forEach(t => L.push("• "+t.pedido.id+" "+t.pedido.cliente+" · "+t.etapa+" · "+nf(t.unidades)+" und"+(t.prevista ? " · prevista "+fechaCorta(t.prevista) : "")));
+    L.push("");
+  });
+  L.push("Entregas comprometidas ("+d.peds.length+" pedido"+(d.peds.length===1?"":"s")+" · "+nf(d.unidades)+" und)");
+  d.peds.forEach(p => L.push("• "+fechaCorta(p.compromiso)+" · "+p.id+" "+p.cliente+" · "+p.producto+" · "+nf(p.cantidad)+" und"));
+  return L.join("\n");
+}
+const PLAN_CSV_HEADERS = ["Responsable","Pedido","Cliente","Prenda","Etapa","Tipo","Unidades","Fecha prevista","Entrega comprometida","Estado de la etapa"];
+function planCSVRows(d){
+  return d.tareas.map(t => ({ "Responsable":t.responsable, "Pedido":t.pedido.id, "Cliente":t.pedido.cliente, "Prenda":t.pedido.producto,
+    "Etapa":t.etapa, "Tipo":t.tipo, "Unidades":t.unidades, "Fecha prevista":t.prevista, "Entrega comprometida":t.pedido.compromiso, "Estado de la etapa":t.estadoEtapa }));
+}
+function planHojaHTML(d){
+  const th = (...c) => "<tr>"+c.map(x => "<th"+(x.r?' class="r"':"")+">"+(x.t||x)+"</th>").join("")+"</tr>";
+  return hojaEnvoltorio(
+    '<div class="hoja-head"><div class="hoja-head__brand"><b>Santa Isabel</b><span>Taller de confección</span></div>'+
+      '<div class="hoja-head__doc"><div class="hoja-head__t">Planificación semanal</div><div class="hoja-head__id">'+planFechaRango(d.r)+"</div></div></div>",
+    '<dl class="hoja-datos"><div><dt>Tareas</dt><dd>'+d.tareas.length+"</dd></div><div><dt>Responsables</dt><dd>"+d.nombres.length+
+      "</dd></div><div><dt>Pedidos a entregar</dt><dd>"+d.peds.length+"</dd></div><div><dt>Unidades a entregar</dt><dd>"+nf(d.unidades)+"</dd></div></dl>"+
+    '<h4 class="hoja-h">Trabajo por responsable</h4>'+
+    (d.nombres.length ? d.nombres.map(n => {
+      const ts = d.porResp[n], und = ts.reduce((s,t) => s + t.unidades, 0);
+      return '<div class="plan-grupo"><div class="plan-grupo__h"><b>'+esc(n)+'</b><span class="muted">'+ts.length+" tarea"+(ts.length===1?"":"s")+" · "+nf(und)+' und</span></div>'+
+        '<table class="sheet-t"><thead>'+th("Pedido","Cliente / prenda","Etapa",{t:"Unidades",r:1},"Prevista","Entrega")+"</thead><tbody>"+
+        ts.map(t => "<tr><td><b>"+t.pedido.id+"</b></td><td>"+esc(t.pedido.cliente)+' <span class="muted">· '+esc(t.pedido.producto)+"</span></td><td>"+esc(t.etapa)+
+          (t.tipo === "Tercerizado" ? ' <span class="fi-chip">Tercerizado</span>' : "")+'</td><td class="r">'+nf(t.unidades)+"</td><td>"+(t.prevista ? fechaCorta(t.prevista) : "—")+"</td><td>"+fechaCorta(t.pedido.compromiso)+"</td></tr>").join("")+
+        "</tbody></table></div>";
+    }).join("") : '<p class="hoja-vacio">No hay tareas planificadas para esta semana.</p>')+
+    '<h4 class="hoja-h">Entregas comprometidas</h4>'+
+    (d.peds.length ? '<table class="sheet-t"><thead>'+th("Fecha","Pedido","Cliente / prenda",{t:"Unidades",r:1},"Estado","Etapa actual","Responsable")+"</thead><tbody>"+
+      d.peds.map(p => "<tr><td>"+fechaCorta(p.compromiso)+(atrasado(p) ? ' <span class="fi-chip">Atrasado</span>' : "")+"</td><td><b>"+p.id+"</b></td><td>"+esc(p.cliente)+' <span class="muted">· '+esc(p.producto)+'</span></td><td class="r">'+nf(p.cantidad)+"</td><td>"+p.estado+"</td><td>"+(esc(p.etapa)||"—")+"</td><td>"+(esc(p.responsable)||"—")+"</td></tr>").join("")+
+      "</tbody></table>" : '<p class="hoja-vacio">No hay entregas comprometidas en esta semana.</p>')
+  ).replace('<section class="hoja">', '<section class="hoja hoja--plan">');
+}
+function vPlan(){
+  const d = planDatos(state.planSemana, state.planAtrasados);
+  return '<div class="paq">'+
+    '<button class="qback paq-noprint" id="btnVolverPlan">← Volver a Esta semana</button>'+
+    '<div class="paq-panel paq-noprint">'+
+      '<div class="paq-panel__t">Planificación semanal</div>'+
+      '<div class="paq-acc"><button class="btn btn--ghost btn--sm" id="btnPlanPrev" aria-label="Semana anterior">←</button>'+
+        '<b style="min-width:150px;text-align:center">'+planFechaRango(d.r)+(state.planSemana===0 ? " (esta semana)" : "")+"</b>"+
+        '<button class="btn btn--ghost btn--sm" id="btnPlanNext" aria-label="Semana siguiente">→</button>'+
+        '<button class="btn btn--ghost btn--sm" id="btnPlanHoy">Esta semana</button>'+
+        '<label class="paq-opt" style="margin-left:auto"><input type="checkbox" id="chkPlanAtr"'+(state.planAtrasados?" checked":"")+"> Incluir atrasados</label></div>"+
+      '<div class="paq-acc"><button class="btn btn--primary btn--sm" id="btnPlanImprimir">Imprimir / PDF</button>'+
+        '<button class="btn btn--ghost btn--sm" id="btnPlanCSV">Descargar CSV</button>'+
+        '<button class="btn btn--ghost btn--sm" id="btnPlanCompartir">Compartir</button>'+
+        '<button class="btn btn--ghost btn--sm" id="btnPlanWA">WhatsApp</button></div>'+
+      '<div class="muted" style="font-size:11.5px">Imprimir abre el diálogo del navegador (elige "Guardar como PDF" para descargarlo). Compartir usa el menú del celular; si no existe, copia el resumen.</div>'+
+    "</div>"+
+    '<div class="exportNotice" id="exportNotice"><span>Esta vista previa no deja imprimir directamente. Abre la app en su propia pestaña y vuelve a tocar <b>Imprimir</b>, o usa <kbd>Ctrl</kbd>+<kbd>P</kbd>.</span>'+
+      '<button class="exportNotice__close" id="exportNoticeClose" aria-label="Cerrar aviso">×</button></div>'+
+    planHojaHTML(d)+"</div>";
+}
+function abrirPlan(offset){
+  state.planSemana = offset || 0; state.view = "plan"; state.entrando = true; render(); window.scrollTo({ top:0 });
+}
+async function compartirPlan(){
+  const d = planDatos(state.planSemana, state.planAtrasados), texto = planTexto(d);
+  const archivo = new File(["﻿"+toCSV(PLAN_CSV_HEADERS, planCSVRows(d))], "planificacion-"+d.r.desde+".csv", { type:"text/csv" });
+  try{
+    if(navigator.share){
+      const data = { title:"Planificación semanal Santa Isabel", text:texto };
+      if(navigator.canShare && navigator.canShare({ files:[archivo] })) data.files = [archivo];
+      await navigator.share(data); return;
+    }
+    await navigator.clipboard.writeText(texto); toast("Resumen copiado. Pégalo donde quieras compartirlo.");
+  } catch(e){ if(e && e.name !== "AbortError") toast("No se pudo compartir: "+e.message); }
+}
+
 function vSemana(){
   const modo = state.semanaModo || "estado";
   const toggle = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">'+
@@ -1575,7 +1737,8 @@ function vSemana(){
       '<button class="chip" data-semmodo="estado" aria-pressed="'+(modo==="estado")+'">Por estado</button>'+
       '<button class="chip" data-semmodo="responsable" aria-pressed="'+(modo==="responsable")+'">Por responsable</button>'+
     "</div>"+
-    '<button class="btn btn--ghost btn--sm" id="btnExportSemana" style="margin-left:auto">Exportar CSV</button>'+
+    '<button class="btn btn--primary btn--sm" id="btnPlanSemanal" style="margin-left:auto">Planificación semanal</button>'+
+    '<button class="btn btn--ghost btn--sm" id="btnExportSemana">Exportar CSV</button>'+
   "</div>";
   if(modo === "responsable") return toggle + vSemanaPorResponsable();
   return toggle + vSemanaPorEstado();
@@ -2312,6 +2475,7 @@ function wire(){
   const boc = page.querySelector("#btnOrdenCorte"); if(boc) boc.onclick = () => { state.view = "corte"; state.entrando = true; render(); window.scrollTo({ top:0 }); };
   const bec = page.querySelector("#btnExportCotizaciones"); if(bec) bec.onclick = exportarCotizacionesCSV;
   const bes = page.querySelector("#btnExportSemana"); if(bes) bes.onclick = exportarSemanaCSV;
+  const bps = page.querySelector("#btnPlanSemanal"); if(bps) bps.onclick = () => abrirPlan(0);
   const beca = page.querySelector("#btnExportCalendario"); if(beca) beca.onclick = exportarCalendarioCSV;
 
   page.querySelectorAll("[data-accion]").forEach(b => b.onclick = (e) => {
@@ -2339,17 +2503,79 @@ function debounce(fn,ms){ let t; return function(){ clearTimeout(t); t = setTime
 /* ---- drawer ---- */
 const scrim = $("#scrim"), drawer = $("#drawer"), modal = $("#modal");
 /* varios overlays comparten un mismo scrim; se oculta recién cuando ninguno queda abierto */
-const OVERLAY_IDS = ["drawer","modal","actsheet","modalUsuario","modalResetPw","modalMiCuenta","modalMuestra","modalProduccion","modalMolde","modalCurva","modalCompras"];
+const OVERLAY_IDS = ["drawer","modal","actsheet","modalUsuario","modalResetPw","modalMiCuenta","modalMuestra","modalProduccion","modalMolde","modalCurva","modalCompras","modalTransfer"];
 function otroOverlayAbierto(exceptoId){
   return OVERLAY_IDS.some(id => id !== exceptoId && $("#"+id).dataset.open === "true");
 }
 function abrirDrawer(){ scrim.dataset.open = "true"; drawer.dataset.open = "true"; drawer.focus(); }
 function cerrarDrawer(){ drawer.dataset.open = "false"; if(!otroOverlayAbierto("drawer")) scrim.dataset.open = "false"; state.pedidoAbierto = null; }
 $("#drawerClose").onclick = cerrarDrawer;
-function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalMuestra(); cerrarModalProduccion(); cerrarModalMolde(); cerrarModalCurva(); cerrarModalCompras(); }
+function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalMuestra(); cerrarModalProduccion(); cerrarModalMolde(); cerrarModalCurva(); cerrarModalCompras(); cerrarModalTransfer(); }
 scrim.onclick = cerrarTodosLosOverlays;
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ cerrarTodosLosOverlays(); cerrarFabMenu(); } });
 
+/* ================= Ficha técnica única del pedido =================
+   Una sola fuente para toda la producción: la leen la pestaña "Ficha", cada etapa
+   (desde su propia tarea) y la hoja impresa. Junta lo que ya está cargado en el pedido
+   (tallas, colores, muestra aprobada, lista de compras, observaciones, documentos). */
+function fichaDatos(p){
+  const curva = (p.curva||[]).filter(r => Number(r.cant) > 0);
+  const colores = (p.colores||[]).filter(r => Number(r.cant) > 0);
+  const m = p.muestras.find(x => x.estado === "Aprobada") || p.muestras[p.muestras.length-1] || null;
+  const materiales = [];
+  if(m && m.materiales) materiales.push({ item:"Materiales de la muestra", detalle:m.materiales });
+  (p.compras||[]).forEach(c => materiales.push({ item:c.item, detalle:[c.cantidad, c.color].filter(Boolean).join(" · ") }));
+  const specs = [];
+  if(m && m.tallaAprobada) specs.push({ k:"Talla aprobada", v:m.tallaAprobada });
+  if(m && m.cambiosSolicitados) specs.push({ k:"Cambios solicitados", v:m.cambiosSolicitados });
+  if(m && m.comentariosCliente) specs.push({ k:"Observaciones de la muestra", v:m.comentariosCliente });
+  return { curva, colores, muestra:m, materiales, specs, obs:p.obs || "", imagenes:(m && m.fotos) || [], documentos:p.documentos || [] };
+}
+function kbTexto(n){ return n >= 1048576 ? (n/1048576).toFixed(1)+" MB" : Math.max(1, Math.round(n/1024))+" KB"; }
+function fichaResumenLinea(p){
+  const f = fichaDatos(p);
+  return nf(p.cantidad)+" und · "+f.curva.length+" talla"+(f.curva.length===1?"":"s")+" · "+f.colores.length+" color"+(f.colores.length===1?"":"es")+
+    " · "+f.documentos.length+" documento"+(f.documentos.length===1?"":"s");
+}
+function fichaCuerpoHTML(p, opts){
+  opts = opts || {};
+  const f = fichaDatos(p);
+  const tabla = (h, filas) => '<table class="sheet-t"><thead><tr><th>'+h+'</th><th class="r">Cantidad</th></tr></thead><tbody>'+filas+"</tbody></table>";
+  const sec = (t, c) => '<div class="ficha-sec"><h4 class="lbl">'+t+"</h4>"+c+"</div>";
+  return (f.curva.length || f.colores.length ? sec("Tallas y colores", '<div class="ficha-dos">'+
+      (f.curva.length ? tabla("Talla", f.curva.map(r => "<tr><td>"+esc(r.talla)+'</td><td class="r">'+nf(r.cant)+"</td></tr>").join("")) : "<div></div>")+
+      (f.colores.length ? tabla("Color", f.colores.map(r => "<tr><td>"+esc(r.color||"—")+'</td><td class="r">'+nf(r.cant)+"</td></tr>").join("")) : "<div></div>")+"</div>")
+    : sec("Tallas y colores", '<p class="muted" style="font-size:12px">Sin desglose por talla y color. Se carga desde Resumen → Desglose.</p>'))+
+    (f.materiales.length ? sec("Materiales", '<ul class="ficha-ul">'+f.materiales.map(m => "<li><b>"+esc(m.item)+"</b>"+(m.detalle ? " — "+esc(m.detalle) : "")+"</li>").join("")+"</ul>") : "")+
+    ((f.specs.length || f.obs) ? sec("Especificaciones y observaciones",
+      (f.obs ? '<p class="ficha-p">'+esc(f.obs)+"</p>" : "")+
+      f.specs.map(x => '<p class="ficha-p"><b>'+esc(x.k)+":</b> "+esc(x.v)+"</p>").join("")) : "")+
+    (f.imagenes.length ? sec("Imágenes de referencia", '<div class="muestra-card__fotos">'+f.imagenes.map(i => '<img src="'+i+'" alt="">').join("")+"</div>") : "")+
+    sec("Documentos de referencia", (f.documentos.length ? '<ul class="ficha-docs">'+f.documentos.map(d =>
+      '<li><a href="/api/adjuntos/'+d.id+'" target="_blank" rel="noopener">'+esc(d.nombre)+'</a> <span class="muted">'+kbTexto(d.tamano)+"</span>"+
+      (opts.editable ? ' <button type="button" class="chk-order-btn chk-order-btn--del" data-doc-del="'+d.id+'" aria-label="Quitar documento">'+ico('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')+"</button>" : "")+"</li>").join("")+"</ul>"
+      : '<p class="muted" style="font-size:12px">Sin documentos de referencia.</p>')+
+      (opts.editable ? '<input type="file" id="doc-input" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv" multiple style="display:none">'+
+        '<button type="button" class="btn btn--ghost btn--sm" id="btnDocAgregar">+ Agregar documento</button>'+
+        '<span class="muted" style="font-size:11px;margin-left:8px">PDF, imagen, Word o Excel · hasta 12 MB</span>' : ""));
+}
+function paneFichaHTML(p){
+  return '<div class="notice notice--baja"><h3>Ficha técnica única</h3>Es la misma información para todas las etapas: cada responsable la ve desde su tarea y sale en su hoja impresa.</div>'+
+    fichaCuerpoHTML(p, { editable:true });
+}
+async function subirDocumentos(p, files){
+  for(const file of files){
+    if(file.size > 12*1024*1024){ toast(file.name+" pesa más de 12 MB."); continue; }
+    try{
+      const r = await fetch("/api/pedidos/"+p.id+"/documentos", { method:"POST", credentials:"same-origin",
+        headers:{ "Content-Type":file.type || "application/octet-stream", "x-nombre":encodeURIComponent(file.name) }, body:file });
+      const d = await r.json().catch(() => ({}));
+      if(!r.ok) throw new Error(d.error || "No se pudo subir el documento.");
+      Object.assign(p, d);
+    } catch(err){ toast(err.message); break; }
+  }
+  render(); abrirPedido(p.id, "ficha");
+}
 function paneChecklistHTML(p){
   const total = p.checklist.length;
   const hechos = p.checklist.filter(c => c.hecho).length;
@@ -2454,6 +2680,7 @@ function paneProduccionHTML(p){
         '<span class="badge '+ESTADO_PROD_CLASE[t.estado]+'">'+t.estado+"</span>"+
       "</button>"+
       '<span class="prod-item__order">'+
+        '<button type="button" class="chk-order-btn chk-order-btn--go" data-prod-transf="'+t.id+'" aria-label="Terminar y pasar a la siguiente etapa" title="Terminar y pasar a…">'+ico('<path d="M5 12h14M13 6l6 6-6 6"/>')+"</button>"+
         '<button type="button" class="chk-order-btn" data-prod-up="'+t.id+'"'+(i===0?" disabled":"")+' aria-label="Subir">'+ico(ICN.up||'<path d="M6 15l6-6 6 6"/>')+"</button>"+
         '<button type="button" class="chk-order-btn" data-prod-down="'+t.id+'"'+(i===total-1?" disabled":"")+' aria-label="Bajar">'+ico(ICN.down||'<path d="M6 9l6 6 6-6"/>')+"</button>"+
         '<button type="button" class="chk-order-btn chk-order-btn--del" data-prod-del="'+t.id+'" aria-label="Eliminar etapa">'+ico(ICN.trash||'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')+"</button>"+
@@ -2664,13 +2891,21 @@ function hojaEnvoltorio(encabezado, cuerpo){
   /* thead que se repite en cada página si la hoja ocupa más de una */
   return '<section class="hoja"><table class="hoja-t"><thead><tr><td>'+encabezado+"</td></tr></thead><tbody><tr><td>"+cuerpo+"</td></tr></tbody></table></section>";
 }
+/* lo que la ficha única aporta a la hoja de cada etapa: materiales, especificaciones, imágenes y documentos */
+function hojaFichaExtras(p){
+  const f = fichaDatos(p);
+  return (f.materiales.length ? '<h4 class="hoja-h">Materiales del pedido</h4><ul class="hoja-ul">'+f.materiales.map(m => "<li><b>"+esc(m.item)+"</b>"+(m.detalle ? " — "+esc(m.detalle) : "")+"</li>").join("")+"</ul>" : "")+
+    ((f.specs.length || f.obs) ? '<h4 class="hoja-h">Especificaciones</h4>'+(f.obs ? '<p class="hoja-p">'+esc(f.obs)+"</p>" : "")+f.specs.map(x => '<p class="hoja-p"><b>'+esc(x.k)+":</b> "+esc(x.v)+"</p>").join("") : "")+
+    (f.imagenes.length ? '<h4 class="hoja-h">Imágenes de referencia</h4><div class="hoja-fotos hoja-fotos--chicas">'+f.imagenes.map((i,k) => '<figure><img src="'+i+'" alt=""><figcaption>Referencia '+(k+1)+"</figcaption></figure>").join("")+"</div>" : "")+
+    (f.documentos.length ? '<h4 class="hoja-h">Documentos de referencia</h4><ul class="hoja-ul">'+f.documentos.map(d => "<li>"+esc(d.nombre)+' <span class="muted">(consultar en el sistema)</span></li>').join("")+"</ul>" : "");
+}
 function hojaEtapaHTML(p, t){
   const fotos = t.fotos || [], mats = t.materiales || [], ctrls = t.controles || [];
   const dd = (a,b) => "<div><dt>"+a+"</dt><dd>"+b+"</dd></div>";
   const cuerpo = hojaDatos(p,
       dd(t.tipo === "Tercerizado" ? "Proveedor" : "Responsable", esc(t.responsable) || '<span class="muted">Sin asignar</span>')+
       dd("Tipo", t.tipo)+dd("Fecha prevista", t.fechaPrevista ? fechaLarga(t.fechaPrevista) : "—")+dd("Estado", t.estado))+
-    hojaDesglose(p)+
+    hojaDesglose(p)+hojaFichaExtras(p)+
     '<h4 class="hoja-h">Instrucciones</h4>'+
     (t.notas ? '<div class="hoja-instr">'+esc(t.notas)+"</div>" : '<p class="hoja-vacio">Sin instrucciones registradas para esta etapa.</p>')+
     (fotos.length ? '<h4 class="hoja-h">Fotos de referencia</h4><div class="hoja-fotos">'+fotos.map((f,i) =>
@@ -2812,6 +3047,18 @@ async function generarGuia(p){
   } catch(e){ toast(e.message); }
 }
 
+/* una línea del historial: qué pasó, cuándo, quién lo hizo y, si cambió algo, de qué a qué */
+function histItemHTML(h){
+  const flecha = (a, b) => '<span class="hist__chg">'+(a ? "<s>"+esc(a)+"</s>" : '<i>sin asignar</i>')+" → <b>"+(b ? esc(b) : "<i>sin asignar</i>")+"</b></span>";
+  let cambios = "";
+  if(h.tipo === "estado" || h.tipo === "etapa_estado" || h.tipo === "etapa_tipo") cambios = '<div class="hist__row"><span>'+(h.tipo === "estado" ? "Estado" : esc(h.etapa || "Etapa"))+"</span>"+flecha(h.anterior, h.nuevo)+"</div>";
+  else if(h.tipo === "responsable") cambios = '<div class="hist__row"><span>Responsable · '+esc(h.etapa)+"</span>"+flecha(h.resp_anterior, h.resp_nuevo)+"</div>";
+  else if(h.tipo === "transferencia") cambios = '<div class="hist__row"><span>Etapa</span>'+flecha(h.anterior, h.nuevo)+"</div>"+
+    '<div class="hist__row"><span>Responsable</span>'+flecha(h.resp_anterior, h.resp_nuevo)+"</div>";
+  const hora = h.creado_en ? " · "+new Date(h.creado_en).toLocaleTimeString("es-BO",{hour:"2-digit",minute:"2-digit"}) : "";
+  return "<li>"+esc(h.texto)+cambios+"<time>"+fechaLarga(h.fecha)+hora+" · "+(h.usuario ? "por "+esc(h.usuario) : "sistema")+"</time></li>";
+}
+
 function abrirPedido(id, tabIni){
   const p = pedidos.find(x => x.id === id);
   if(!p) return;
@@ -2840,6 +3087,7 @@ function abrirPedido(id, tabIni){
       '<button class="dtab" data-tab="resumen" role="tab" aria-selected="'+(tab==="resumen")+'">Resumen</button>'+
       '<button class="dtab" data-tab="preparacion" role="tab" aria-selected="'+(tab==="preparacion")+'">Preparación</button>'+
       '<button class="dtab" data-tab="muestra" role="tab" aria-selected="'+(tab==="muestra")+'">Muestra</button>'+
+      '<button class="dtab" data-tab="ficha" role="tab" aria-selected="'+(tab==="ficha")+'">Ficha</button>'+
       '<button class="dtab" data-tab="produccion" role="tab" aria-selected="'+(tab==="produccion")+'">Producción</button>'+
       '<button class="dtab" data-tab="entrega" role="tab" aria-selected="'+(tab==="entrega")+'">Entrega</button>'+
       '<button class="dtab" data-tab="historial" role="tab" aria-selected="'+(tab==="historial")+'">Historial ('+p.hist.length+")</button>"+
@@ -2882,10 +3130,11 @@ function abrirPedido(id, tabIni){
       '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">'+paneMoldesHTML(p)+"</div>"+
     "</div>"+
     '<div class="dpane" data-pane="muestra" data-active="'+(tab==="muestra")+'">'+paneMuestraHTML(p)+"</div>"+
+    '<div class="dpane" data-pane="ficha" data-active="'+(tab==="ficha")+'">'+paneFichaHTML(p)+"</div>"+
     '<div class="dpane" data-pane="produccion" data-active="'+(tab==="produccion")+'">'+paneProduccionHTML(p)+"</div>"+
     '<div class="dpane" data-pane="entrega" data-active="'+(tab==="entrega")+'">'+paneEntregaHTML(p)+"</div>"+
     '<div class="dpane" data-pane="historial" data-active="'+(tab==="historial")+'">'+
-      '<ul class="hist">'+p.hist.map(h => "<li>"+esc(h.texto)+"<time>"+fechaLarga(h.fecha)+(h.creado_en ? " · "+new Date(h.creado_en).toLocaleTimeString("es-BO",{hour:"2-digit",minute:"2-digit"}) : "")+"</time></li>").join("")+"</ul>"+
+      '<ul class="hist">'+p.hist.map(histItemHTML).join("")+"</ul>"+
     "</div>";
 
   const b = $("#drawerBody").querySelector("[data-set]"); if(b) b.onclick = () => cambiarEstado(p, b.dataset.set);
@@ -2933,11 +3182,17 @@ function abrirPedido(id, tabIni){
     el.onchange = () => renombrarProduccion(p, el.dataset.prodLabel, el.value);
     el.onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); el.blur(); } };
   });
+  $("#drawerBody").querySelectorAll("[data-prod-transf]").forEach(b => b.onclick = () => abrirModalTransfer(p.id, b.dataset.prodTransf));
   $("#drawerBody").querySelectorAll("[data-prod-up]").forEach(b => b.onclick = () => moverProduccion(p, b.dataset.prodUp, -1));
   $("#drawerBody").querySelectorAll("[data-prod-down]").forEach(b => b.onclick = () => moverProduccion(p, b.dataset.prodDown, 1));
   $("#drawerBody").querySelectorAll("[data-prod-del]").forEach(b => b.onclick = () => borrarProduccion(p, b.dataset.prodDel));
   const btnProdAgregar = $("#btnProdAgregar");
   if(btnProdAgregar) btnProdAgregar.onclick = () => agregarProduccion(p);
+  const docIn = $("#doc-input");
+  if(docIn){ $("#btnDocAgregar").onclick = () => docIn.click(); docIn.onchange = () => { const fs = [...docIn.files]; docIn.value = ""; subirDocumentos(p, fs); }; }
+  $("#drawerBody").querySelectorAll("[data-doc-del]").forEach(b => b.onclick = async () => {
+    try{ Object.assign(p, await api("/pedidos/"+p.id+"/documentos/"+b.dataset.docDel, { method:"DELETE" })); render(); abrirPedido(p.id, "ficha"); }
+    catch(e){ toast(e.message); } });
   const btnEditarCompras = $("#btnEditarCompras"); if(btnEditarCompras) btnEditarCompras.onclick = () => abrirModalCompras(p);
   const btnImprimirCompras = $("#btnImprimirCompras"); if(btnImprimirCompras) btnImprimirCompras.onclick = () => abrirPaquete(p.id, { solo:"compras" });
   const btnGuia = $("#btnGenerarGuia"); if(btnGuia) btnGuia.onclick = () => generarGuia(p);
@@ -3266,6 +3521,58 @@ formCurva.addEventListener("submit", async e => {
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });
 
+/* ---- modal: terminar la etapa y transferir el pedido a la siguiente ---- */
+const modalTransfer = $("#modalTransfer"), formTransfer = $("#formTransfer");
+function abrirModalTransfer(pedidoId, itemId){
+  const p = pedidos.find(x => x.id === pedidoId); if(!p) return;
+  const lista = p.produccion.slice().sort((a,b) => a.orden - b.orden);
+  const idx = lista.findIndex(t => String(t.id) === String(itemId)); if(idx < 0) return;
+  const actual = lista[idx];
+  formTransfer.dataset.pedidoId = pedidoId; formTransfer.dataset.itemId = itemId;
+  $("#tr-actual").textContent = actual.label+(actual.responsable ? " · "+actual.responsable : "");
+  const siguiente = lista[idx + 1];
+  $("#tr-siguiente").innerHTML = lista.filter(t => t.id !== actual.id).map(t =>
+      '<option value="'+t.id+'" data-tipo="'+t.tipo+'" data-resp="'+esc(t.responsable||"")+'"'+(siguiente && t.id === siguiente.id ? " selected" : "")+">"+esc(t.label)+(t.estado === "Completado" ? " (ya completada)" : "")+"</option>").join("")+
+    '<option value="">Ninguna: era la última etapa</option>';
+  if(!siguiente) $("#tr-siguiente").value = "";
+  sincronizarTransfer();
+  scrim.dataset.open = "true"; modalTransfer.dataset.open = "true";
+  setTimeout(() => $("#tr-responsable").focus(), 80);
+}
+function sincronizarTransfer(){
+  const o = $("#tr-siguiente").selectedOptions[0];
+  const hay = !!(o && o.value);
+  $("#tr-responsable").disabled = !hay;
+  $("#tr-responsable-label").textContent = o && o.dataset.tipo === "Tercerizado" ? "Proveedor que recibe" : "Nuevo responsable";
+  $("#tr-responsable").value = hay ? (o.dataset.resp || "") : "";
+  $("#btnTransferSave").textContent = hay ? "Transferir" : "Terminar etapa";
+}
+$("#tr-siguiente").onchange = sincronizarTransfer;
+function cerrarModalTransfer(){ modalTransfer.dataset.open = "false"; if(!otroOverlayAbierto("modalTransfer")) scrim.dataset.open = "false"; }
+$("#modalTransferClose").onclick = cerrarModalTransfer;
+$("#btnTransferCancel").onclick = cerrarModalTransfer;
+formTransfer.addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("#btnTransferSave"); btn.disabled = true;
+  try{
+    const pedidoId = formTransfer.dataset.pedidoId, itemId = formTransfer.dataset.itemId;
+    const p = pedidos.find(x => x.id === pedidoId);
+    const d = await api("/pedidos/"+pedidoId+"/produccion/"+itemId+"/transferir", { method:"POST", body: JSON.stringify({
+      siguienteId: $("#tr-siguiente").value || null, responsable: $("#tr-responsable").value.trim() }) });
+    const sugiere = d.sugiereTerminado; delete d.sugiereTerminado;
+    Object.assign(p, d);
+    cerrarModalTransfer(); cerrarModalProduccion();
+    toast($("#tr-siguiente").value ? "Pedido transferido." : "Etapa terminada.");
+    render(); abrirPedido(pedidoId, "produccion");
+    if(sugiere){
+      const v = await abrirActionSheet("Todas las etapas están completas", [
+        { val:"si", label:"Pasar el pedido a Terminado" }, { val:"no", label:"Dejarlo en producción por ahora" }]);
+      if(v === "si") cambiarEstado(p, "Terminado");
+    }
+  } catch(err){ toast(err.message); } finally { btn.disabled = false; }
+});
+$("#btnProduccionTransferir").onclick = () => abrirModalTransfer(formProduccion.dataset.pedidoId, formProduccion.dataset.itemId);
+
 /* ---- modal: lista de compras (avíos) — qué, cuánto, de qué color ---- */
 const modalCompras = $("#modalCompras"), formCompras = $("#formCompras");
 function abrirModalCompras(p){
@@ -3352,6 +3659,9 @@ function abrirModalProduccion(pedidoId, itemId){
   $("#pr-fecha-prevista").value = t.fechaPrevista || "";
   $("#pr-fecha-real").value = t.fechaReal || "";
   $("#pr-notas").value = t.notas || "";
+  $("#pr-ficha").open = false;
+  $("#pr-ficha-resumen").textContent = fichaResumenLinea(p);
+  $("#pr-ficha-cuerpo").innerHTML = fichaCuerpoHTML(p);
   $("#pr-materiales").value = (t.materiales||[]).map(m => [m.item, m.cantidad, m.color].filter((x,i) => x || i === 0).join(", ")).join("\n");
   $("#pr-controles").value = (t.controles||[]).join("\n");
   renderFotosEtapa();

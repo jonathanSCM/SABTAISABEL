@@ -41,6 +41,17 @@ estático anterior (`../demo-SantaIsabel`), que se dejó intacto como referencia
   recuerda la elegida), orden (recientes, vencen primero, cliente, total) y
   **alertas de vigencia**: Vencidas, Por vencer (3 días o menos) y Pendientes,
   con contadores que filtran al tocarlos. El CSV exporta lo que se ve.
+- **Transferencia entre etapas**: "Terminar y pasar a…" cierra la etapa actual, deja
+  elegir la siguiente (por defecto la que sigue, pero puede ser cualquiera), asigna al
+  nuevo responsable y actualiza el pedido. Si era la última, sugiere pasar a Terminado.
+- **Trazabilidad**: el historial guarda quién hizo cada cambio, fecha y hora, la etapa
+  o estado anterior y el nuevo, y el responsable anterior y el nuevo.
+- **Ficha técnica única**: pestaña "Ficha" (tallas y colores con cantidades, materiales,
+  especificaciones, imágenes y documentos de referencia: PDF, imagen, Word o Excel) que
+  cada responsable consulta desde su propia etapa y que sale en su hoja impresa.
+- **Planificación semanal** (Esta semana → Planificación semanal): trabajo por
+  responsable y entregas comprometidas, para imprimir (Carta horizontal / PDF),
+  descargar en CSV y compartir (menú del celular, WhatsApp o copiar).
 - Datos de ejemplo detallados: `npm run db:seed:detalle` (idempotente).
 
 ## Arquitectura

@@ -217,3 +217,19 @@ CREATE TABLE IF NOT EXISTS pedido_adjuntos (
 );
 CREATE INDEX IF NOT EXISTS idx_adjuntos_pedido ON pedido_adjuntos(pedido_id);
 CREATE INDEX IF NOT EXISTS idx_adjuntos_etapa ON pedido_adjuntos(etapa_id);
+
+-- trazabilidad: cada cambio guarda quién lo hizo y, cuando aplica, el valor anterior y el nuevo
+-- (estado/etapa y responsable). Los registros viejos quedan con usuario vacío ("Sistema").
+ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS usuario_id INT;
+ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS usuario TEXT NOT NULL DEFAULT '';
+ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'nota';
+ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS etapa TEXT NOT NULL DEFAULT '';
+ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS anterior TEXT NOT NULL DEFAULT '';
+ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS nuevo TEXT NOT NULL DEFAULT '';
+ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS resp_anterior TEXT NOT NULL DEFAULT '';
+ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS resp_nuevo TEXT NOT NULL DEFAULT '';
+
+-- documentos de referencia del pedido (PDF, imágenes, Word/Excel): forman parte de la
+-- ficha técnica única y se consultan desde cada etapa. Comparten tabla con las fotos de
+-- etapa: categoria 'foto' (con etapa_id) o 'documento' (sin etapa).
+ALTER TABLE pedido_adjuntos ADD COLUMN IF NOT EXISTS categoria TEXT NOT NULL DEFAULT 'foto';
