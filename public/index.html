@@ -452,6 +452,21 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
 .hist li{list-style:none;padding:0 0 14px;position:relative;font-size:13px}
 .hist li::before{content:"";position:absolute;left:-20px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--line-2);border:2px solid var(--surface)}
 .hist li:last-child::before{background:var(--rose)}
+/* matriz talla x color */
+.mx-talla{border:1px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:10px;background:var(--surface)}
+.mx-talla__h{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px}
+.mx-talla__h label{display:flex;flex-direction:column;gap:3px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);flex:1 1 90px}
+.mx-talla input{width:100%;min-width:0;padding:9px 11px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--surface);color:var(--ink);font-size:13.5px;font-family:inherit;text-transform:none;letter-spacing:0;font-weight:400}
+.mx-talla input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
+.mx-talla .num{text-align:right}
+.mx-talla__tot{font-size:12.5px;margin-left:auto;align-self:center;white-space:nowrap}
+.mx-cols{display:flex;flex-direction:column;gap:6px}
+.mx-col{display:grid;grid-template-columns:1fr 96px 26px;gap:8px;align-items:center}
+.mx-total{margin-top:8px;font-size:13px;text-align:right}
+.mx-scroll{overflow-x:auto}
+.mx-t th,.mx-t td{white-space:nowrap}
+#modalCurva{width:min(720px,100%)}
+@media (max-width:520px){ .mx-col{grid-template-columns:1fr 80px 26px} }
 .ficha-det{margin:0 22px 4px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2)}
 .ficha-det>summary{cursor:pointer;padding:11px 14px;font-size:13px;list-style:none}
 .ficha-det>summary::-webkit-details-marker{display:none}
@@ -1177,10 +1192,10 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
 </div>
 
 <div class="modal" id="modalCurva" role="dialog" aria-modal="true" aria-labelledby="modalCurvaTitle">
-  <div class="modal__h"><h2 id="modalCurvaTitle">Desglose por talla y color</h2><button class="btn btn--ghost btn--sm" id="modalCurvaClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <div class="modal__h"><h2 id="modalCurvaTitle">Tallas y variantes de color</h2><button class="btn btn--ghost btn--sm" id="modalCurvaClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
   <form class="form" id="formCurva" novalidate>
-    <div class="field full"><label for="cv-tallas">Tallas (una por línea: talla, cantidad)</label><textarea class="input" id="cv-tallas" placeholder="S, 10&#10;M, 12&#10;L, 8" rows="4"></textarea></div>
-    <div class="field full"><label for="cv-colores">Colores (una por línea: color, cantidad)</label><textarea class="input" id="cv-colores" placeholder="Rojo, 5&#10;Azul, 7" rows="4"></textarea></div>
+    <div class="field full"><div id="cv-matriz"></div></div>
+    <div class="field full" id="cv-total-aviso"></div>
   </form>
   <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnCurvaCancel">Cancelar</button><button type="submit" form="formCurva" class="btn btn--primary" id="btnCurvaSave">Guardar</button></div>
 </div>
@@ -1343,6 +1358,99 @@ const ESTADOS_Q = ["Borrador","Enviada","Aprobada","Rechazada"];
 const QCLASE = { "Borrador":"q-borrador","Enviada":"q-enviada","Aprobada":"q-aprobada","Rechazada":"q-rechazada" };
 
 function groupTotal(g){ return g.rows.reduce((s,r)=>s+r.c*r.p,0); }
+/* ================= Matriz talla × color =================
+   [{ talla, consumo, colores:[{ color, cant }] }]. Es la fuente de verdad cuando existe;
+   la curva (total por talla) y los colores (total por color) se derivan de ella, así el
+   costeo y los totales siguen funcionando igual. */
+function matrizFila(r){ return (r.colores||[]).reduce((s,c) => s + (Number(c.cant)||0), 0); }
+function matrizTotal(m){ return (m||[]).reduce((s,r) => s + matrizFila(r), 0); }
+function matrizDerivar(m){
+  const curva = m.map(r => ({ talla:r.talla, consumo:Number(r.consumo)||0, cant:matrizFila(r) }));
+  const por = new Map();
+  m.forEach(r => (r.colores||[]).forEach(c => {
+    const k = String(c.color||"").trim().toLowerCase(), cant = Number(c.cant)||0, prev = por.get(k);
+    if(prev) prev.cant += cant; else por.set(k, { color:String(c.color||"").trim(), cant });
+  }));
+  return { curva, colores:[...por.values()].filter(c => c.cant > 0 || c.color) };
+}
+/* pedidos y cotizaciones viejos tenían tallas y colores por separado: con un solo color (o ninguno)
+   se convierte sin perder nada; con varios no se puede adivinar el reparto y queda "por repartir" */
+function matrizDesdeLegacy(curva, colores){
+  const cols = (colores||[]).filter(c => c.color || Number(c.cant));
+  if(!curva || !curva.length) return { mx:[{ talla:"", consumo:1, colores:[{ color:"", cant:0 }] }], lossy:false };
+  if(cols.length <= 1){
+    return { mx:curva.map(r => ({ talla:r.talla, consumo:r.consumo ?? 1, colores:[{ color:cols[0] ? cols[0].color : "", cant:r.cant }] })), lossy:false };
+  }
+  return { mx:curva.map(r => ({ talla:r.talla, consumo:r.consumo ?? 1, colores:cols.map(c => ({ color:c.color, cant:0 })) })), lossy:true };
+}
+function matrizColoresUnion(m){
+  const orden = [], vistos = new Set();
+  (m||[]).forEach(r => (r.colores||[]).forEach(c => { const k = String(c.color||"").trim().toLowerCase(); if(!vistos.has(k)){ vistos.add(k); orden.push(String(c.color||"").trim()); } }));
+  return orden;
+}
+function matrizCelda(r, color){
+  return (r.colores||[]).filter(c => String(c.color||"").trim().toLowerCase() === color.toLowerCase()).reduce((s,c) => s + (Number(c.cant)||0), 0);
+}
+/* tabla de solo lectura: tallas en filas, colores en columnas, con totales */
+function matrizTablaHTML(m, opt){
+  opt = opt || {};
+  const cols = matrizColoresUnion(m);
+  const totCol = cols.map(c => m.reduce((s,r) => s + matrizCelda(r,c), 0));
+  return '<div class="mx-scroll"><table class="sheet-t mx-t"><thead><tr><th>Talla</th>'+(opt.consumo ? '<th class="r">Consumo</th>' : "")+
+    cols.map(c => '<th class="r">'+(esc(c)||"—")+"</th>").join("")+'<th class="r">Total</th></tr></thead><tbody>'+
+    m.map(r => "<tr><td><b>"+esc(r.talla)+"</b></td>"+(opt.consumo ? '<td class="r">'+Number(r.consumo||0).toLocaleString("es-BO",{minimumFractionDigits:2})+" m</td>" : "")+
+      cols.map(c => '<td class="r">'+(matrizCelda(r,c) || '<span class="muted">·</span>')+"</td>").join("")+'<td class="r"><b>'+matrizFila(r)+"</b></td></tr>").join("")+
+    '<tr class="grp-tot"><td'+(opt.consumo ? ' colspan="2"' : "")+">Total</td>"+totCol.map(n => '<td class="r">'+n+"</td>").join("")+'<td class="r">'+matrizTotal(m)+"</td></tr></tbody></table></div>";
+}
+function matrizResumenHTML(p){
+  if(p.matriz && p.matriz.length) return p.matriz.map(r => "<b>"+esc(r.talla)+"</b>: "+(r.colores||[]).filter(c => c.cant > 0).map(c => esc(c.color||"—")+" "+c.cant).join(" · ")).join("<br>");
+  const t = (p.curva||[]).length ? esc(p.curva.map(r => r.talla+": "+r.cant).join(" · ")) : '<span class="muted">Sin registrar</span>';
+  return t+((p.colores||[]).length ? "<br>"+esc(p.colores.map(r => (r.color||"—")+": "+r.cant).join(" · ")) : "");
+}
+/* editor: una tarjeta por talla, con sus colores y cantidades */
+function montarMatriz(host, mx, opt){
+  opt = opt || {};
+  const aviso = () => opt.aviso ? '<div class="notice notice--media"><h3>Falta repartir por color</h3>'+opt.aviso+"</div>" : "";
+  function totales(){
+    host.querySelectorAll("[data-tot]").forEach(el => { el.textContent = matrizFila(mx[Number(el.dataset.tot)]); });
+    const g = host.querySelector("#mx-grand"); if(g) g.textContent = matrizTotal(mx);
+  }
+  function avisar(){ totales(); if(opt.onChange) opt.onChange(mx); }
+  function pintar(){
+    host.innerHTML = aviso()+mx.map((r,i) => '<div class="mx-talla"><div class="mx-talla__h">'+
+        '<label>Talla<input data-i="'+i+'" data-f="talla" value="'+esc(r.talla)+'" placeholder="Ej. M"></label>'+
+        (opt.consumo ? '<label>Consumo (m)<input data-i="'+i+'" data-f="consumo" class="num" type="number" step="0.01" value="'+(r.consumo ?? 1)+'"></label>' : "")+
+        '<span class="mx-talla__tot">Total <b data-tot="'+i+'">'+matrizFila(r)+"</b>"+(opt.antes && opt.antes[i] != null ? ' <span class="muted">(antes: '+opt.antes[i]+")</span>" : "")+"</span>"+
+        '<button type="button" class="rowdel" data-del-talla="'+i+'" aria-label="Quitar talla">×</button></div>'+
+      '<div class="mx-cols">'+r.colores.map((c,j) => '<div class="mx-col">'+
+          '<input data-i="'+i+'" data-j="'+j+'" data-f="color" placeholder="Color" value="'+esc(c.color)+'">'+
+          '<input data-i="'+i+'" data-j="'+j+'" data-f="cant" class="num" type="number" min="0" step="1" value="'+(c.cant ?? 0)+'" aria-label="Cantidad">'+
+          '<button type="button" class="rowdel" data-del-color="'+i+":"+j+'" aria-label="Quitar color">×</button></div>').join("")+"</div>"+
+      '<button type="button" class="addline" data-add-color="'+i+'">+ Agregar color</button></div>').join("")+
+      '<button type="button" class="addline" id="mx-add-talla">+ Agregar talla</button>'+
+      '<div class="mx-total">Total: <b id="mx-grand">'+matrizTotal(mx)+"</b> unidades</div>";
+    host.querySelectorAll("input[data-f]").forEach(inp => inp.oninput = () => {
+      const r = mx[Number(inp.dataset.i)], f = inp.dataset.f;
+      if(f === "talla") r.talla = inp.value;
+      else if(f === "consumo") r.consumo = Number(inp.value) || 0;
+      else { const c = r.colores[Number(inp.dataset.j)]; if(f === "color") c.color = inp.value; else c.cant = Math.max(0, Math.round(Number(inp.value) || 0)); }
+      avisar();
+    });
+    host.querySelectorAll("[data-del-talla]").forEach(b => b.onclick = () => { mx.splice(Number(b.dataset.delTalla), 1); if(opt.antes) opt.antes.splice(Number(b.dataset.delTalla), 1); pintar(); avisar(); });
+    host.querySelectorAll("[data-del-color]").forEach(b => b.onclick = () => { const [i,j] = b.dataset.delColor.split(":").map(Number); mx[i].colores.splice(j, 1); pintar(); avisar(); });
+    host.querySelectorAll("[data-add-color]").forEach(b => b.onclick = () => { mx[Number(b.dataset.addColor)].colores.push({ color:"", cant:0 }); pintar(); avisar();
+      const ins = host.querySelectorAll('[data-f="color"][data-i="'+b.dataset.addColor+'"]'); if(ins.length) ins[ins.length-1].focus(); });
+    host.querySelector("#mx-add-talla").onclick = () => {
+      const prev = mx[mx.length-1];
+      mx.push({ talla:"", consumo:prev ? prev.consumo : 1, colores:prev && prev.colores.length ? prev.colores.map(c => ({ color:c.color, cant:0 })) : [{ color:"", cant:0 }] });
+      if(opt.antes) opt.antes.push(null);
+      pintar(); avisar(); const ins = host.querySelectorAll('[data-f="talla"]'); ins[ins.length-1].focus();
+    };
+  }
+  pintar();
+  return { totales };
+}
+
 function qUnidades(q){ return q.curva.reduce((s,r)=>s+r.cant,0); }
 function qCostoUnit(q){ return q.groups.reduce((s,g)=>s+groupTotal(g),0); }
 function qTotalProd(q){ return qCostoUnit(q) * qUnidades(q); }
@@ -2070,7 +2178,7 @@ function abrirCotiz(modo, id){
 function draftVacio(){
   return {
     id:null, cliente:"", prenda:"", obs:"", fecha:iso(hoy()), vigencia:15, estado:"Borrador", img:null, pedidoId:null,
-    curva:[{talla:"Única",consumo:1,cant:1}], colores:[{color:"",cant:1}],
+    curva:[{talla:"Única",consumo:1,cant:1}], colores:[{color:"",cant:1}], matriz:[{talla:"Única",consumo:1,colores:[{color:"",cant:1}]}],
     groups:[
       { key:"tela", label:"Tela", rows:[{n:"Tela base", c:1, p:0}] },
       { key:"avios", label:"Avíos", rows:[{n:"Avío", c:1, p:0}] },
@@ -2101,7 +2209,7 @@ function sheetHTML(q, opts){
     (q.img ? '<img class="sheet__img" src="'+q.img+'">' : '<div class="sheet__img sheet__img--ph">Sin imagen de referencia</div>')+
     '<div class="sheet__desc"><h3>'+(esc(q.prenda)||"Prenda sin nombre")+"</h3><p>"+(esc(q.obs)||"")+"</p></div>"+
   "</div>"+
-  '<div><h4 class="lbl">Curva de tallas y variantes de color</h4><div class="curvas">'+
+  ((q.matriz && q.matriz.length) ? '<div><h4 class="lbl">Tallas y variantes de color</h4>'+matrizTablaHTML(q.matriz, { consumo:true })+"</div>" : ('<div><h4 class="lbl">Curva de tallas y variantes de color</h4><div class="curvas">'+
     '<table class="sheet-t"><thead><tr><th>Talla</th><th class="r">Consumo</th><th class="r">Cant.</th></tr></thead><tbody>'+
       (q.curva.length ? q.curva.map(r => "<tr><td>"+esc(r.talla)+"</td><td class=\"r\">"+Number(r.consumo).toLocaleString("es-BO",{minimumFractionDigits:2})+" m</td><td class=\"r\">"+r.cant+"</td></tr>").join("")
         : '<tr><td colspan="3" style="color:var(--ink-3)">Sin tallas</td></tr>')+
@@ -2110,7 +2218,7 @@ function sheetHTML(q, opts){
       (q.colores.length ? q.colores.map(r => "<tr><td>"+esc(r.color)+"</td><td class=\"r\">"+r.cant+"</td></tr>").join("")
         : '<tr><td colspan="2" style="color:var(--ink-3)">Sin variantes</td></tr>')+
     "</tbody></table>"+
-  "</div></div>"+
+  "</div></div>"))+
   q.groups.map(g => { const tot = groupTotal(g);
     return '<div><h4 class="lbl">'+esc(g.label)+'</h4><table class="sheet-t"><thead><tr><th>Nombre</th><th class="r">Consumo</th><th class="r">Precio</th><th class="r">Total</th></tr></thead><tbody>'+
       g.rows.map(r => "<tr><td>"+esc(r.n)+"</td><td class=\"r\">"+r.c+"</td><td class=\"r\">"+money(r.p)+"</td><td class=\"r\">"+money(r.c*r.p)+"</td></tr>").join("")+
@@ -2211,13 +2319,8 @@ function vCotizEditor(){
       "</div>"+
       '<hr class="qstitch">'+
 
-      '<div class="qsection"><div class="qsection__h"><h3>Curva de tallas</h3><span class="n">und.</span></div>'+
-        '<div class="minitable" id="q-curvaTable"><div class="mrow mrow--head"><span>Talla</span><span>Consumo m</span><span>Cantidad</span><span></span></div></div>'+
-        '<button class="addline" id="q-addCurva">+ Agregar talla</button>'+
-      "</div>"+
-      '<div class="qsection"><div class="qsection__h"><h3>Variantes de color</h3></div>'+
-        '<div class="minitable" id="q-colorTable"><div class="mrow mrow--head" style="grid-template-columns:1fr 90px 26px"><span>Color</span><span>Cantidad</span><span></span></div></div>'+
-        '<button class="addline" id="q-addColor">+ Agregar color</button>'+
+      '<div class="qsection"><div class="qsection__h"><h3>Tallas y variantes de color</h3><span class="n" id="q-mxTotal"></span></div>'+
+        '<div id="q-matriz"></div>'+
       "</div>"+
       '<hr class="qstitch">'+
 
@@ -2259,31 +2362,6 @@ function initEditorCotiz(){
 
   function updateSheet(){ qs("#q-sheet").innerHTML = sheetHTML(d); }
 
-  function renderCurva(){
-    const box = qs("#q-curvaTable");
-    box.querySelectorAll(".mrow:not(.mrow--head)").forEach(r=>r.remove());
-    d.curva.forEach((r,i)=>{
-      const el = document.createElement("div"); el.className = "mrow";
-      el.innerHTML = '<input data-f="talla" value="'+esc(r.talla)+'">'+
-        '<input data-f="consumo" class="num" type="number" step="0.01" value="'+r.consumo+'">'+
-        '<input data-f="cant" class="num" type="number" step="1" value="'+r.cant+'">'+
-        '<button class="rowdel" aria-label="Quitar">×</button>';
-      box.appendChild(el);
-      el.querySelectorAll("input").forEach(inp => inp.oninput = () => { r[inp.dataset.f] = inp.dataset.f==="talla"?inp.value:Number(inp.value); updateSheet(); });
-      el.querySelector(".rowdel").onclick = () => { d.curva.splice(i,1); renderCurva(); updateSheet(); };
-    });
-  }
-  function renderColores(){
-    const box = qs("#q-colorTable");
-    box.querySelectorAll(".mrow:not(.mrow--head)").forEach(r=>r.remove());
-    d.colores.forEach((r,i)=>{
-      const el = document.createElement("div"); el.className = "mrow"; el.style.gridTemplateColumns = "1fr 90px 26px";
-      el.innerHTML = '<input data-f="color" value="'+esc(r.color)+'"><input data-f="cant" class="num" type="number" step="1" value="'+r.cant+'"><button class="rowdel" aria-label="Quitar">×</button>';
-      box.appendChild(el);
-      el.querySelectorAll("input").forEach(inp => inp.oninput = () => { r[inp.dataset.f] = inp.dataset.f==="color"?inp.value:Number(inp.value); updateSheet(); });
-      el.querySelector(".rowdel").onclick = () => { d.colores.splice(i,1); renderColores(); updateSheet(); };
-    });
-  }
   function renderGroups(){
     const host = qs("#q-groups"); host.innerHTML = "";
     d.groups.forEach((g,gi)=>{
@@ -2325,8 +2403,6 @@ function initEditorCotiz(){
     r.readAsDataURL(f);
   };
 
-  qs("#q-addCurva").onclick = () => { d.curva.push({talla:"Nueva",consumo:1,cant:1}); renderCurva(); updateSheet(); };
-  qs("#q-addColor").onclick = () => { d.colores.push({color:"Nuevo",cant:1}); renderColores(); updateSheet(); };
 
   qs("#q-cancel").onclick = () => { state.cotiz.modo = "lista"; render(); };
   qs("#q-save").onclick = async () => {
@@ -2349,7 +2425,15 @@ function initEditorCotiz(){
   };
   page.querySelector('[data-back="cotizaciones"]').onclick = () => { state.cotiz.modo = "lista"; render(); };
 
-  renderCurva(); renderColores(); renderGroups(); updateSheet();
+  /* matriz talla x color: totales por talla y por color se derivan al editar */
+  const conv = (d.matriz && d.matriz.length) ? { mx:d.matriz, lossy:false } : matrizDesdeLegacy(d.curva, d.colores);
+  const mx = conv.mx;
+  const aplicarMatriz = () => { d.matriz = mx; Object.assign(d, matrizDerivar(mx)); qs("#q-mxTotal").textContent = matrizTotal(mx)+" und."; };
+  if(!conv.lossy){ aplicarMatriz(); } else { qs("#q-mxTotal").textContent = d.curva.reduce((s,r) => s + r.cant, 0)+" und."; }
+  montarMatriz(qs("#q-matriz"), mx, { consumo:true, antes:conv.lossy ? d.curva.map(r => r.cant) : null,
+    aviso:conv.lossy ? "Esta cotización tenía tallas y colores por separado. Reparte la cantidad de cada talla entre sus colores; mientras no lo hagas se mantienen los totales anteriores." : "",
+    onChange:() => { aplicarMatriz(); updateSheet(); } });
+  renderGroups(); updateSheet();
 }
 
 /* ---- exportar / imprimir (con aviso si corre en iframe con sandbox) ---- */
@@ -2542,7 +2626,8 @@ function fichaCuerpoHTML(p, opts){
   const f = fichaDatos(p);
   const tabla = (h, filas) => '<table class="sheet-t"><thead><tr><th>'+h+'</th><th class="r">Cantidad</th></tr></thead><tbody>'+filas+"</tbody></table>";
   const sec = (t, c) => '<div class="ficha-sec"><h4 class="lbl">'+t+"</h4>"+c+"</div>";
-  return (f.curva.length || f.colores.length ? sec("Tallas y colores", '<div class="ficha-dos">'+
+  const tallasSec = (p.matriz && p.matriz.length) ? sec("Tallas y colores", matrizTablaHTML(p.matriz)) : null;
+  return (tallasSec ? tallasSec : f.curva.length || f.colores.length ? sec("Tallas y colores", '<div class="ficha-dos">'+
       (f.curva.length ? tabla("Talla", f.curva.map(r => "<tr><td>"+esc(r.talla)+'</td><td class="r">'+nf(r.cant)+"</td></tr>").join("")) : "<div></div>")+
       (f.colores.length ? tabla("Color", f.colores.map(r => "<tr><td>"+esc(r.color||"—")+'</td><td class="r">'+nf(r.cant)+"</td></tr>").join("")) : "<div></div>")+"</div>")
     : sec("Tallas y colores", '<p class="muted" style="font-size:12px">Sin desglose por talla y color. Se carga desde Resumen → Desglose.</p>'))+
@@ -2819,7 +2904,7 @@ function completoSheetHTML(p, opts){
   "</dl>"+
 
   ((curva.length || colores.length || p.obs) ? sec("Desglose y observaciones", "",
-    ((curva.length || colores.length) ? '<div class="fi-two">'+
+    ((p.matriz && p.matriz.length) ? matrizTablaHTML(p.matriz) : (curva.length || colores.length) ? '<div class="fi-two">'+
       (curva.length ? tabla('<th>Talla</th><th class="r">Cantidad</th>', curva.map(r=>"<tr><td>"+esc(r.talla)+'</td><td class="r">'+nf(r.cant)+"</td></tr>").join("")) : "<div></div>")+
       (colores.length ? tabla('<th>Color</th><th class="r">Cantidad</th>', colores.map(r=>"<tr><td>"+esc(r.color||"—")+'</td><td class="r">'+nf(r.cant)+"</td></tr>").join("")) : "<div></div>")+
     "</div>" : "")+
@@ -2880,6 +2965,7 @@ function hojaDatos(p, extra){
     (extra||"")+"</dl>";
 }
 function hojaDesglose(p){
+  if(p.matriz && p.matriz.length) return '<h4 class="hoja-h">Desglose por talla y color</h4>'+matrizTablaHTML(p.matriz);
   const curva = (p.curva||[]).filter(r => Number(r.cant) > 0), colores = (p.colores||[]).filter(r => Number(r.cant) > 0);
   if(!curva.length && !colores.length) return "";
   const tabla = (h, filas) => '<table class="sheet-t"><thead><tr><th>'+h+'</th><th class="r">Cantidad</th></tr></thead><tbody>'+filas+"</tbody></table>";
@@ -2978,6 +3064,15 @@ function ordenCortePedidos(){
     .sort((a,b) => a.compromiso.localeCompare(b.compromiso));
 }
 function ordenCorteItemHTML(p){
+  if(p.matriz && p.matriz.length){
+    const caja = '<span style="display:inline-block;width:15px;height:15px;border:1.5px solid var(--ink-3);border-radius:3px"></span>';
+    return '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--line)">'+
+      '<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><b>'+esc(p.cliente)+" · "+esc(p.producto)+'</b><span class="muted num" style="font-size:11.5px">'+p.id+"</span></div>"+
+      '<div class="muted" style="font-size:11.5px;margin-top:2px">'+nf(p.cantidad)+" unidades · comprometido "+fechaCorta(p.compromiso)+"</div>"+
+      '<table class="sheet-t" style="margin-top:8px"><thead><tr><th style="width:24px"></th><th>Talla</th><th>Color</th><th class="r">Cantidad</th></tr></thead><tbody>'+
+      p.matriz.flatMap(r => (r.colores||[]).filter(c => c.cant > 0).map(c => "<tr><td>"+caja+"</td><td><b>"+esc(r.talla)+"</b></td><td>"+(esc(c.color)||"—")+'</td><td class="r">'+nf(c.cant)+"</td></tr>")).join("")+
+      "</tbody></table></div>";
+  }
   const curva = (p.curva||[]).filter(r => Number(r.cant) > 0);
   const colores = (p.colores||[]).filter(r => Number(r.cant) > 0);
   return '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--line)">'+
@@ -3115,8 +3210,7 @@ function abrirPedido(id, tabIni){
         "<dt>Carga del día</dt><dd>"+NIVEL_TXT[c.nivel]+' <span class="muted">· '+c.n+" pedido"+(c.n===1?"":"s")+"</span></dd>"+
         "<dt>Observaciones</dt><dd>"+(esc(p.obs) || '<span class="muted">—</span>')+"</dd>"+
         "<dt>Desglose talla/color</dt><dd>"+
-          ((p.curva&&p.curva.length) ? esc(p.curva.map(r=>r.talla+": "+r.cant).join(" · ")) : '<span class="muted">Sin registrar</span>')+
-          ((p.colores&&p.colores.length) ? "<br>"+esc(p.colores.map(r=>(r.color||"—")+": "+r.cant).join(" · ")) : "")+
+          matrizResumenHTML(p)+
           ' <button type="button" class="seemore" id="btnEditarCurva" style="display:inline;margin-left:6px">editar</button></dd>'+
       "</dl>"+
       "<div>"+
@@ -3487,36 +3581,40 @@ formMuestra.addEventListener("submit", async e => {
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });
 
-/* ---- modal: desglose por talla/color (lo usa la orden de corte) ---- */
+/* ---- modal: matriz talla x color del pedido (la usan la orden de corte, las hojas y la ficha) ---- */
 const modalCurva = $("#modalCurva"), formCurva = $("#formCurva");
+let curvaEstado = null;
 function abrirModalCurva(p){
+  const conv = (p.matriz && p.matriz.length) ? { mx:JSON.parse(JSON.stringify(p.matriz)), lossy:false } : matrizDesdeLegacy(p.curva, p.colores);
+  curvaEstado = { pedidoId:p.id, mx:conv.mx, lossy:conv.lossy, tocado:false };
   formCurva.dataset.pedidoId = p.id;
-  $("#cv-tallas").value = (p.curva||[]).map(r => r.talla+", "+r.cant).join("\n");
-  $("#cv-colores").value = (p.colores||[]).map(r => (r.color||"")+", "+r.cant).join("\n");
+  const pintarAviso = () => {
+    const tot = matrizTotal(curvaEstado.mx);
+    $("#cv-total-aviso").innerHTML = (tot && tot !== p.cantidad)
+      ? '<div class="notice notice--media"><h3>El total no coincide</h3>La matriz suma <b>'+nf(tot)+"</b> y el pedido dice <b>"+nf(p.cantidad)+
+        '</b> unidades.<label class="paq-opt" style="margin-top:8px"><input type="checkbox" id="cv-usar-total"> Usar '+nf(tot)+" como cantidad del pedido</label></div>" : "";
+  };
+  montarMatriz($("#cv-matriz"), curvaEstado.mx, { antes:conv.lossy ? p.curva.map(r => r.cant) : null,
+    aviso:conv.lossy ? "Este pedido tenía tallas y colores por separado. Reparte la cantidad de cada talla entre sus colores." : "",
+    onChange:() => { curvaEstado.tocado = true; pintarAviso(); } });
+  pintarAviso();
   scrim.dataset.open = "true"; modalCurva.dataset.open = "true";
 }
 function cerrarModalCurva(){ modalCurva.dataset.open = "false"; if(!otroOverlayAbierto("modalCurva")) scrim.dataset.open = "false"; }
 $("#modalCurvaClose").onclick = cerrarModalCurva;
 $("#btnCurvaCancel").onclick = cerrarModalCurva;
-function parseLineasCurva(texto, primerCampo){
-  return texto.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
-    const [a, b] = l.split(",");
-    return { [primerCampo]: (a||"").trim(), cant: Number((b||"0").trim()) || 0 };
-  }).filter(r => r.cant > 0);
-}
 formCurva.addEventListener("submit", async e => {
   e.preventDefault();
   const btn = $("#btnCurvaSave"); btn.disabled = true;
   try{
     const pedidoId = formCurva.dataset.pedidoId;
     const p = pedidos.find(x => x.id === pedidoId);
-    const actualizado = await api("/pedidos/"+pedidoId+"/curva", { method:"PATCH", body: JSON.stringify({
-      curva: parseLineasCurva($("#cv-tallas").value, "talla"),
-      colores: parseLineasCurva($("#cv-colores").value, "color")
-    }) });
+    const usar = $("#cv-usar-total") && $("#cv-usar-total").checked;
+    const cuerpo = (curvaEstado.lossy && !curvaEstado.tocado) ? { curva:p.curva, colores:p.colores } : { matriz:curvaEstado.mx, actualizarCantidad:!!usar };
+    const actualizado = await api("/pedidos/"+pedidoId+"/curva", { method:"PATCH", body:JSON.stringify(cuerpo) });
     Object.assign(p, actualizado);
     cerrarModalCurva();
-    toast("Desglose guardado.");
+    toast("Tallas y colores guardados.");
     render(); abrirPedido(pedidoId, "resumen");
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });

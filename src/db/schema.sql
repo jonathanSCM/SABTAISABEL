@@ -233,3 +233,8 @@ ALTER TABLE pedido_historial ADD COLUMN IF NOT EXISTS resp_nuevo TEXT NOT NULL D
 -- ficha técnica única y se consultan desde cada etapa. Comparten tabla con las fotos de
 -- etapa: categoria 'foto' (con etapa_id) o 'documento' (sin etapa).
 ALTER TABLE pedido_adjuntos ADD COLUMN IF NOT EXISTS categoria TEXT NOT NULL DEFAULT 'foto';
+
+-- matriz talla x color: [{ talla, consumo, colores:[{ color, cant }] }]. Cuando existe es la
+-- fuente de verdad; "curva" y "colores" se derivan de ella (totales por talla y por color).
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS matriz JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS matriz JSONB NOT NULL DEFAULT '[]';

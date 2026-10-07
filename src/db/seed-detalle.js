@@ -22,6 +22,7 @@ const DETALLE = {
   },
   "PD-0002": {
     obs:"Reventa para temporada de fiestas. Etiqueta propia de la boutique en cuello.",
+    matriz:[["S",[["Verde esmeralda",3],["Vino",2]]],["M",[["Verde esmeralda",5],["Vino",3]]],["L",[["Verde esmeralda",3],["Vino",2]]],["XL",[["Verde esmeralda",1],["Vino",1]]]],
     curva:[["S",5],["M",8],["L",5],["XL",2]], colores:[["Verde esmeralda",12],["Vino",8]],
     compras:[["Cierre invisible 50 cm","20 unidades","Verde y vino"],["Forro satinado","18 metros","Marfil"],["Etiqueta tejida","20 unidades","Negro"]],
     recibido:{ tela:["40 m crepé elastizado","2 colores, 24 m verde y 16 m vino"], avios:["Cierres y forro","Cierres de 50 cm"], colores:["Verde esmeralda y vino","Muestra física aprobada"], diseno:["Diseño aprobado por la boutique",""], insumos:["Etiquetas tejidas","20 und"], info:["Curva de tallas confirmada",""] },
@@ -51,6 +52,7 @@ const DETALLE = {
   },
   "PD-0010": {
     obs:"Blusa bordada a mano, un solo motivo floral en el pecho. Ver ficha de bordado.",
+    matriz:[["S",[["Blanco",2],["Crudo",1]]],["M",[["Blanco",3],["Crudo",2]]],["L",[["Blanco",2],["Crudo",2]]]],
     curva:[["S",3],["M",5],["L",4]], colores:[["Blanco",7],["Crudo",5]],
     compras:[["Botones nacarados","60 unidades","Perla"],["Hilo de bordar","12 madejas","Rosa, verde, dorado"],["Entretela liviana","4 metros","Blanco"]],
     recibido:{ tela:["22 m algodón pima","Blanco 13 m, crudo 9 m"], avios:["Botones nacarados","Faltaban 20, se compraron después"], colores:["Blanco y crudo",""], diseno:["Motivo floral aprobado","Ver dibujo en ficha"], insumos:["Hilos de bordar","12 madejas"], info:["Curva y colores confirmados",""] },
@@ -100,6 +102,7 @@ const DETALLE = {
   },
   "PD-0017": {
     obs:"Segunda tanda de reventa. Mismo molde que PD-0002, otros colores.",
+    matriz:[["S",[["Mostaza",2],["Negro",2]]],["M",[["Mostaza",4],["Negro",2]]],["L",[["Mostaza",2],["Negro",3]]]],
     curva:[["S",4],["M",6],["L",5]], colores:[["Mostaza",8],["Negro",7]],
     compras:[["Cierre invisible 50 cm","15 unidades","Mostaza y negro"],["Forro satinado","12 metros","Marfil"]],
     recibido:{ tela:["30 m crepé","Mostaza 16 m, negro 14 m"], avios:["Cierres","Pendiente forro"], colores:["Mostaza y negro",""] },
@@ -117,6 +120,7 @@ const DETALLE = {
   },
   "PD-0024": {
     obs:"Blusas bordadas, lote grande. Bordado por proveedor externo (terceriza).",
+    matriz:[["S",[["Blanco",4],["Rosa",2]]],["M",[["Blanco",5],["Rosa",3]]],["L",[["Blanco",3],["Rosa",3]]]],
     curva:[["S",6],["M",8],["L",6]], colores:[["Blanco",12],["Rosa",8]],
     compras:[["Botones nacarados","120 unidades","Perla"],["Entretela liviana","8 metros","Blanco"],["Etiqueta de marca","20 unidades","Negro"]],
     recibido:{ tela:["40 m algodón pima","Blanco 24 m, rosa 16 m"], avios:["Botones recibidos",""], colores:["Blanco y rosa",""], diseno:["Motivo floral enviado al bordador",""] },
@@ -179,9 +183,18 @@ async function main(){
     const idxEstado = orden.indexOf(p.estado);
     const listo = idxEstado >= 1; // ya entró a producción: checklist completo
 
-    await pool.query("UPDATE pedidos SET obs=$1, curva=$2, colores=$3, compras=$4 WHERE id=$5",
-      [d.obs, JSON.stringify(d.curva.map(([talla,cant])=>({talla,consumo:1,cant}))),
-       JSON.stringify(d.colores.map(([color,cant])=>({color,cant}))),
+    // con matriz talla x color, la curva (por talla) y los colores (por color) se derivan de ella
+    let curva = d.curva.map(([talla,cant])=>({talla,consumo:1,cant}));
+    let colores = d.colores.map(([color,cant])=>({color,cant}));
+    let matriz = [];
+    if(d.matriz){
+      matriz = d.matriz.map(([talla,cols])=>({ talla, consumo:1, colores:cols.map(([color,cant])=>({color,cant})) }));
+      curva = matriz.map(r => ({ talla:r.talla, consumo:1, cant:r.colores.reduce((a,c)=>a+c.cant,0) }));
+      const por = {}; matriz.forEach(r => r.colores.forEach(c => { por[c.color] = (por[c.color]||0) + c.cant; }));
+      colores = Object.entries(por).map(([color,cant])=>({color,cant}));
+    }
+    await pool.query("UPDATE pedidos SET obs=$1, curva=$2, colores=$3, matriz=$4, compras=$5 WHERE id=$6",
+      [d.obs, JSON.stringify(curva), JSON.stringify(colores), JSON.stringify(matriz),
        JSON.stringify(d.compras.map(([item,cantidad,color])=>({item,cantidad,color}))), p.id]);
 
     // checklist: lo recibido por ítem; completo si ya está en producción o más allá

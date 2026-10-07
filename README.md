@@ -52,6 +52,11 @@ estático anterior (`../demo-SantaIsabel`), que se dejó intacto como referencia
 - **Planificación semanal** (Esta semana → Planificación semanal): trabajo por
   responsable y entregas comprometidas, para imprimir (Carta horizontal / PDF),
   descargar en CSV y compartir (menú del celular, WhatsApp o copiar).
+- **Matriz talla × color** en cotizaciones y pedidos: por cada talla se cargan sus
+  colores y la cantidad de cada uno (ej. M: Azul 5, Rojo 3, Verde 2). Los totales por
+  talla y por color se derivan solos, y la matriz sale en la hoja de cotización, la
+  ficha, las hojas de etapa y la orden de corte. Los registros viejos se convierten
+  solos si tienen un único color; con varios, avisan que falta repartir.
 - Datos de ejemplo detallados: `npm run db:seed:detalle` (idempotente).
 
 ## Arquitectura

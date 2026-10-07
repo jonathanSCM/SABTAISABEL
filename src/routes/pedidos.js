@@ -3,6 +3,7 @@ const pool = require("../db/pool");
 const requireAuth = require("../middleware/requireAuth");
 const { CHECKLIST_ITEMS, CHECKLIST_LABEL, sembrarChecklist } = require("../db/checklist");
 const { ETAPAS_PRODUCCION, ETAPA_LABEL, sembrarProduccion } = require("../db/produccion");
+const { normalizarMatriz, derivarMatriz } = require("../db/matriz");
 
 const router = express.Router();
 const ESTADOS = ["Preparación","En producción","Terminado","Entregado"];
@@ -31,7 +32,7 @@ function filaPedido(row, hist, checklist, muestras, produccion, adjuntos){
     cotizUnidades: row.cotiz_unidades != null ? Number(row.cotiz_unidades) : null,
     guiaGeneradaEn: row.guia_generada_en,
     requiereMuestra: row.requiere_muestra,
-    curva: row.curva || [], colores: row.colores || [], compras: row.compras || [],
+    curva: row.curva || [], colores: row.colores || [], matriz: row.matriz || [], compras: row.compras || [],
     hist: hist || [],
     checklist: (checklist || []).map(c => ({
       id: c.id, item: c.item, label: c.label || CHECKLIST_LABEL[c.item] || c.item, orden: c.orden,
@@ -99,13 +100,13 @@ router.post("/", async (req, res) => {
     const registro = isoHoy();
     const requiereMuestra = b.requiereMuestra !== false; // por defecto Sí, salvo que se pida explícitamente que no
     await client.query(
-      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,requiere_muestra,curva,colores,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,requiere_muestra,curva,colores,matriz,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
       [id, b.cliente, b.producto, Number(b.cantidad), registro, b.solicitada || b.compromiso, b.compromiso,
        b.prioridad || "Normal", b.responsable || "", b.etapa || "", b.obs || "",
        b.origenCotizacion || null, b.cotizUnidades != null ? Number(b.cotizUnidades) : null, requiereMuestra,
        JSON.stringify(Array.isArray(b.curva) ? b.curva : []), JSON.stringify(Array.isArray(b.colores) ? b.colores : []),
-       req.session.userId]
+       JSON.stringify([]), req.session.userId]
     );
     await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,'Pedido registrado',$3,$4)", [id, registro, req.user.id, req.user.nombre]);
     await sembrarChecklist(client, id);
@@ -172,11 +173,29 @@ router.patch("/:id/requiere-muestra", async (req, res) => {
 router.patch("/:id/curva", async (req, res) => {
   const { id } = req.params;
   const b = req.body || {};
-  const r = await pool.query(
-    "UPDATE pedidos SET curva=$1, colores=$2, updated_at=now() WHERE id=$3 RETURNING id",
-    [JSON.stringify(Array.isArray(b.curva) ? b.curva : []), JSON.stringify(Array.isArray(b.colores) ? b.colores : []), id]
-  );
-  if(!r.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
+  /* con matriz talla x color, los totales por talla y por color se derivan de ella */
+  const matriz = normalizarMatriz(b.matriz);
+  const der = matriz.length ? derivarMatriz(matriz) : null;
+  const curva = der ? der.curva : (Array.isArray(b.curva) ? b.curva : []);
+  const colores = der ? der.colores : (Array.isArray(b.colores) ? b.colores : []);
+  const total = der ? curva.reduce((s, r) => s + r.cant, 0) : null;
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const r = await client.query(
+      "UPDATE pedidos SET curva=$1, colores=$2, matriz=$3, updated_at=now() WHERE id=$4 RETURNING id, cantidad",
+      [JSON.stringify(curva), JSON.stringify(colores), JSON.stringify(matriz), id]);
+    if(!r.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido no encontrado." }); }
+    if(b.actualizarCantidad && total && total !== r.rows[0].cantidad){
+      await client.query("UPDATE pedidos SET cantidad=$1 WHERE id=$2", [total, id]);
+      await histDet(client, req, id, "Cantidad ajustada de "+r.rows[0].cantidad+" a "+total+" unidades según la matriz de tallas y colores",
+        { tipo:"cantidad", anterior:String(r.rows[0].cantidad), nuevo:String(total) });
+    }
+    await client.query("COMMIT");
+  } catch(err){
+    await client.query("ROLLBACK"); console.error(err);
+    return res.status(500).json({ error:"No se pudo guardar el desglose." });
+  } finally { client.release(); }
   res.json(await pedidoCompleto(pool, id));
 });
 

@@ -3,6 +3,7 @@ const pool = require("../db/pool");
 const requireAuth = require("../middleware/requireAuth");
 const { sembrarChecklist, CHECKLIST_LABEL } = require("../db/checklist");
 const { sembrarProduccion, ETAPA_LABEL } = require("../db/produccion");
+const { normalizarMatriz, derivarMatriz } = require("../db/matriz");
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ function fila(row){
   return {
     id: row.id, cliente: row.cliente, prenda: row.prenda, obs: row.obs,
     fecha: row.fecha, vigencia: row.vigencia, estado: row.estado, img: row.img,
-    pedidoId: row.pedido_id, curva: row.curva, colores: row.colores, groups: row.groups,
+    pedidoId: row.pedido_id, curva: row.curva, colores: row.colores, matriz: row.matriz || [], groups: row.groups,
     muestra: Number(row.muestra), molde: Number(row.molde),
     termsProd: row.terms_prod, termsMuestra: row.terms_muestra
   };
@@ -43,12 +44,15 @@ router.post("/", async (req, res) => {
   const seqRes = await pool.query("SELECT nextval('cotizacion_seq') AS n");
   const id = "COT-"+String(seqRes.rows[0].n).padStart(4,"0");
   const vigencia = b.vigencia || 15;
-  const und = qUnidades(b.curva);
+  const matriz = normalizarMatriz(b.matriz);
+  const der = matriz.length ? derivarMatriz(matriz) : null;
+  const curva = der ? der.curva : (b.curva || []), colores = der ? der.colores : (b.colores || []);
+  const und = qUnidades(curva);
   const r = await pool.query(
-    `INSERT INTO cotizaciones (id,cliente,prenda,obs,fecha,vigencia,estado,img,curva,colores,groups,muestra,molde,terms_prod,terms_muestra,created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,'Borrador',$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+    `INSERT INTO cotizaciones (id,cliente,prenda,obs,fecha,vigencia,estado,img,curva,colores,matriz,groups,muestra,molde,terms_prod,terms_muestra,created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,'Borrador',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
     [id, b.cliente || "", b.prenda || "", b.obs || "", b.fecha || isoHoy(), vigencia, b.img || null,
-     JSON.stringify(b.curva || []), JSON.stringify(b.colores || []), JSON.stringify(b.groups || []),
+     JSON.stringify(curva), JSON.stringify(colores), JSON.stringify(matriz), JSON.stringify(b.groups || []),
      Number(b.muestra || 0), Number(b.molde || 0),
      b.termsProd || TERMS_PROD_DEFAULT.replace("{{UND}}", String(und)).replace("{{VIG}}", String(vigencia)),
      b.termsMuestra || TERMS_MUESTRA_DEFAULT, req.session.userId]
@@ -59,12 +63,14 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
   const b = req.body || {};
+  const matriz = normalizarMatriz(b.matriz);
+  const der = matriz.length ? derivarMatriz(matriz) : null;
   const r = await pool.query(
     `UPDATE cotizaciones SET cliente=$1, prenda=$2, obs=$3, fecha=$4, vigencia=$5, img=$6,
-       curva=$7, colores=$8, groups=$9, muestra=$10, molde=$11, terms_prod=$12, terms_muestra=$13, updated_at=now()
-     WHERE id=$14 RETURNING *`,
+       curva=$7, colores=$8, matriz=$9, groups=$10, muestra=$11, molde=$12, terms_prod=$13, terms_muestra=$14, updated_at=now()
+     WHERE id=$15 RETURNING *`,
     [b.cliente || "", b.prenda || "", b.obs || "", b.fecha, b.vigencia || 15, b.img || null,
-     JSON.stringify(b.curva || []), JSON.stringify(b.colores || []), JSON.stringify(b.groups || []),
+     JSON.stringify(der ? der.curva : (b.curva || [])), JSON.stringify(der ? der.colores : (b.colores || [])), JSON.stringify(matriz), JSON.stringify(b.groups || []),
      Number(b.muestra || 0), Number(b.molde || 0), b.termsProd || "", b.termsMuestra || "", id]
   );
   if(!r.rows[0]) return res.status(404).json({ error:"Cotización no encontrada." });
@@ -103,10 +109,10 @@ router.post("/:id/aprobar", async (req, res) => {
     const compromiso = new Date(Date.now() + 42*86400000).toISOString().slice(0,10);
 
     await client.query(
-      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,curva,colores,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación','Normal','','', $8, $9, $10, $11, $12, $13)`,
+      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,curva,colores,matriz,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación','Normal','','', $8, $9, $10, $11, $12, $13, $14)`,
       [pedidoId, q.cliente, q.prenda, unidades, registro, compromiso, compromiso,
-       "Generado desde cotización "+id, id, unidades, JSON.stringify(q.curva || []), JSON.stringify(q.colores || []), req.session.userId]
+       "Generado desde cotización "+id, id, unidades, JSON.stringify(q.curva || []), JSON.stringify(q.colores || []), JSON.stringify(q.matriz || []), req.session.userId]
     );
     await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,'Pedido registrado',$3,$4)", [pedidoId, registro, req.user.id, req.user.nombre]);
     await sembrarChecklist(client, pedidoId);
@@ -129,7 +135,7 @@ router.post("/:id/aprobar", async (req, res) => {
         cotizUnidades: pr.cotiz_unidades != null ? Number(pr.cotiz_unidades) : null,
         guiaGeneradaEn: null,
         requiereMuestra: pr.requiere_muestra,
-        curva: pr.curva || [], colores: pr.colores || [],
+        curva: pr.curva || [], colores: pr.colores || [], matriz: pr.matriz || [],
         hist: [{ fecha: registro, texto:"Pedido registrado" }],
         checklist: checklistRow.rows.map(c => ({ item:c.item, label:CHECKLIST_LABEL[c.item] || c.item, orden:c.orden, hecho:c.hecho, fecha:c.fecha, responsable:c.responsable })),
         muestras: [],
