@@ -37,6 +37,10 @@ estático anterior (`../demo-SantaIsabel`), que se dejó intacto como referencia
   Hacer respaldo de la base de datos incluye las fotos.
 - **Lista de compras (avíos)**, moldes por cliente, ficha técnica de muestra,
   recepción de insumos y orden de corte semanal.
+- **Cotizaciones con 4 vistas** (Tarjetas, Lista, Tabla, Tablero por estado; se
+  recuerda la elegida), orden (recientes, vencen primero, cliente, total) y
+  **alertas de vigencia**: Vencidas, Por vencer (3 días o menos) y Pendientes,
+  con contadores que filtran al tocarlos. El CSV exporta lo que se ve.
 - Datos de ejemplo detallados: `npm run db:seed:detalle` (idempotente).
 
 ## Arquitectura

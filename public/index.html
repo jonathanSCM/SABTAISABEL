@@ -857,6 +857,58 @@ table.sheet-t td.r,table.sheet-t th.r{text-align:right;font-family:var(--font)}
   .hoja + .hoja{break-before:page}
   .hoja-datos,.hoja-cierre,.hoja-fotos figure,.hoja-ctrl li{break-inside:avoid}
 }
+/* ===== cotizaciones: alertas, filtros y vistas (tarjetas / lista / tabla / tablero) ===== */
+.qalert{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px 3px 8px;border-radius:20px;white-space:nowrap}
+.qalert .ico{width:12px;height:12px;flex:none}
+.qalert--vencida{color:var(--danger);background:var(--danger-soft)}
+.qalert--proxima{color:var(--warning);background:var(--warning-soft)}
+.qalert--pendiente{color:var(--info);background:var(--info-soft)}
+.qalertas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.qalertas__c{display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);font:inherit;color:inherit}
+.qalertas__c:hover{box-shadow:var(--shadow-hover)}
+.qalertas__c[aria-pressed="true"]{border-color:var(--k)}
+.qalertas__c--vencida{--k:var(--danger);--ks:var(--danger-soft)} .qalertas__c--proxima{--k:var(--warning);--ks:var(--warning-soft)} .qalertas__c--pendiente{--k:var(--info);--ks:var(--info-soft)}
+.qalertas__n{width:44px;height:44px;border-radius:50%;background:var(--ks);color:var(--k);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex:none}
+.qalertas__t{font-size:13px;font-weight:600;display:flex;flex-direction:column;line-height:1.25}
+.qalertas__t small{font-weight:400;color:var(--ink-2);font-size:11.5px}
+.chip__n{margin-left:6px;font-size:11px;font-weight:700;opacity:.7}
+.qbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.qbar .qvistas{margin-left:auto}
+select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
+.qcard .qalert{align-self:flex-start}
+.row__r.qrow__r{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
+.qtablewrap{overflow-x:auto}
+.qtable{border-collapse:collapse;width:100%;min-width:860px;font-size:13px}
+.qtable th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
+.qtable th[data-qsort]{cursor:pointer;user-select:none}
+.qtable th[data-qsort]:hover{color:var(--primary)}
+.qtable th.r,.qtable td.r{text-align:right}
+.qtable td.num{white-space:nowrap}
+.qtable td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+.qtable tbody tr{cursor:pointer}
+.qtable tbody tr:hover{background:var(--surface-2)}
+.qtable tbody tr:last-child td{border-bottom:0}
+.qsort{margin-left:5px;color:var(--primary)}
+.qboard{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:14px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x proximity}
+.qcol{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px;scroll-snap-align:start;min-height:120px}
+.qcol__h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.qcol__n{font-weight:700;font-size:13px}
+.qcol__sum{margin-left:auto;font-size:12px;color:var(--ink-2)}
+.qcol__vacio{font-size:12px;color:var(--ink-3);padding:8px 2px}
+.qmini{display:flex;flex-direction:column;gap:4px;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:11px 12px;font:inherit;color:inherit;box-shadow:var(--shadow)}
+.qmini:hover{box-shadow:var(--shadow-hover);border-color:var(--line-2)}
+.qmini .qalert{align-self:flex-start;margin-top:4px}
+.qmini__t{font-weight:600;font-size:13.5px}
+.qmini__s{font-size:12px;color:var(--ink-2)}
+.qmini__f{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+@media (max-width:639px){
+  .qalertas{grid-template-columns:1fr;gap:8px}
+  .qalertas__c{padding:10px 14px}
+  .qalertas__n{width:38px;height:38px;font-size:17px}
+  .qbar .qvistas{margin-left:0;order:3;width:100%}
+  select.qorden{flex:1}
+  .qboard{grid-template-columns:repeat(4,82%)}
+}
 .sheet__actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px}
 @media (min-width:560px){
   .sheet{padding:32px 32px 28px;gap:22px}
@@ -1272,7 +1324,7 @@ const state = {
   view:"tablero",
   filtros:{ estado:"Todos", cliente:"Todos", rango:"Todas", texto:"" },
   mes:(function(){ const d = hoy(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
-  pedidoAbierto:null, entrando:true, recien:null, confirmAlta:false, semanaModo:"estado", qTexto:"",
+  pedidoAbierto:null, entrando:true, recien:null, confirmAlta:false, semanaModo:"estado", qTexto:"", qFiltro:"todas", qOrden:"reciente", qVista:null,
   vistaGuiaId:null, vistaFichaId:null, vistaFichaVersion:null,
   vistaPaqueteId:null, paqueteSel:[],
   moldesPorCliente:{}, moldesCargando:new Set(),
@@ -1725,27 +1777,125 @@ function vUsuarios(){
 }
 
 /* ================= Cotizaciones: vista lista ================= */
+/* ================= Cotizaciones: vistas, filtros y alertas =================
+   Una cotización abierta (Borrador/Enviada) vence a los N días de vigencia desde su fecha.
+   Alerta: Vencida (ya pasó), Por vencer (faltan 3 días o menos) o Pendiente (en plazo). */
+const Q_VISTAS = [["tarjetas","Tarjetas"],["lista","Lista"],["tabla","Tabla"],["tablero","Tablero"]];
+const Q_ESTADOS = ["Borrador","Enviada","Aprobada","Rechazada"];
+function qVistaGuardada(){ try{ const v = localStorage.getItem("santa-isabel-qvista"); return Q_VISTAS.some(x => x[0] === v) ? v : "tarjetas"; }catch(e){ return "tarjetas"; } }
+function qVence(q){ return iso(addDays(parse(q.fecha), Number(q.vigencia) || 15)); }
+function qAlerta(q){
+  if(q.estado === "Aprobada") return { k:"cerrada", txt:"Aprobada" };
+  if(q.estado === "Rechazada") return { k:"cerrada", txt:"Cerrada" };
+  const d = diasDesdeHoy(qVence(q));
+  if(d < 0) return { k:"vencida", txt:"Vencida hace "+(-d)+" d", ico:ICN.alerta };
+  if(d <= 3) return { k:"proxima", txt: d === 0 ? "Vence hoy" : "Vence en "+d+" d", ico:ICN.calendario };
+  return { k:"pendiente", txt:"Pendiente · vence "+fechaCorta(qVence(q)), ico:ICN.portapapeles };
+}
+function qAlertaBadge(q){
+  const a = qAlerta(q); if(a.k === "cerrada") return "";
+  return '<span class="qalert qalert--'+a.k+'">'+ico(a.ico)+a.txt+"</span>";
+}
+const Q_FILTROS = [["todas","Todas"],["abiertas","Abiertas"],["vencidas","Vencidas"],["proximas","Por vencer"],["pendientes","Pendientes"],
+  ["Borrador","Borrador"],["Enviada","Enviada"],["Aprobada","Aprobada"],["Rechazada","Rechazada"]];
+function qCumple(q, f){
+  const a = qAlerta(q).k;
+  if(f === "todas") return true;
+  if(f === "abiertas") return a !== "cerrada";
+  if(f === "vencidas") return a === "vencida";
+  if(f === "proximas") return a === "proxima";
+  if(f === "pendientes") return a === "pendiente";
+  return q.estado === f;
+}
+const Q_ORDENES = {
+  reciente:["Más recientes",   (a,b) => b.fecha.localeCompare(a.fecha)],
+  antigua:["Más antiguas",     (a,b) => a.fecha.localeCompare(b.fecha)],
+  vence:["Vencen primero",     (a,b) => { const ca = qAlerta(a).k === "cerrada", cb = qAlerta(b).k === "cerrada"; return ca !== cb ? (ca ? 1 : -1) : qVence(a).localeCompare(qVence(b)); }],
+  cliente:["Cliente A–Z",      (a,b) => a.cliente.localeCompare(b.cliente)],
+  total:["Mayor total",        (a,b) => qTotal(b) - qTotal(a)]
+};
+function qBase(){
+  const t = (state.qTexto||"").trim().toLowerCase();
+  return cotizaciones.filter(q => !t || (q.cliente+" "+q.prenda+" "+q.id).toLowerCase().includes(t));
+}
+/* lo que se ve en pantalla (búsqueda + filtro + orden): la exportación CSV usa exactamente esto */
+function qListaVisible(){
+  const orden = (Q_ORDENES[state.qOrden] || Q_ORDENES.reciente)[1];
+  return qBase().filter(q => qCumple(q, state.qFiltro)).sort(orden);
+}
+function qViewTarjetas(lista){
+  return '<section class="qgrid">'+lista.map(q => (
+    '<button class="qcard" data-openq="'+q.id+'">'+
+      '<div class="qcard__top"><span class="qcard__id">'+q.id+"</span>"+qbadge(q)+"</div>"+
+      '<div><div class="qcard__cliente">'+esc(q.cliente)+'</div><div class="qcard__prenda">'+esc(q.prenda)+"</div></div>"+
+      (qAlerta(q).k !== "cerrada" ? '<div>'+qAlertaBadge(q)+"</div>" : "")+
+      '<div class="qcard__foot"><span>'+fechaCorta(q.fecha)+" · "+qUnidades(q)+' und</span><span class="qcard__total">'+money(qTotal(q))+"</span></div>"+
+    "</button>")).join("")+"</section>";
+}
+function qViewLista(lista){
+  return '<section class="card"><div class="rows">'+lista.map(q => (
+    '<button class="row" data-openq="'+q.id+'">'+
+      '<span class="row__main"><span class="row__t">'+esc(q.cliente)+"</span>"+
+      '<span class="row__s">'+esc(q.prenda)+" · "+q.id+" · "+fechaCorta(q.fecha)+" · "+qUnidades(q)+" und</span></span>"+
+      '<span class="row__r qrow__r">'+qbadge(q)+qAlertaBadge(q)+'<span class="row__date num">'+money(qTotal(q))+"</span></span>"+
+    "</button>")).join("")+"</div></section>";
+}
+function qViewTabla(lista){
+  const ord = state.qOrden;
+  const th = (k, txt, cls) => '<th'+(cls?' class="'+cls+'"':"")+' data-qsort="'+k+'" aria-sort="'+
+    ((k==="fecha" && (ord==="reciente"||ord==="antigua")) || ord===k ? (ord==="antigua" ? "ascending" : "descending") : "none")+'">'+txt+
+    ((k==="fecha" && (ord==="reciente"||ord==="antigua")) || ord===k ? '<span class="qsort">'+(ord==="antigua"||ord==="cliente"||ord==="vence" ? "↑" : "↓")+"</span>" : "")+"</th>";
+  return '<section class="card qtablewrap"><table class="qtable"><thead><tr>'+
+      "<th>Código</th>"+th("cliente","Cliente")+"<th>Prenda</th>"+th("fecha","Fecha")+th("vence","Vence")+
+      '<th class="r">Und</th>'+th("total","Total","r")+"<th>Estado</th><th>Alerta</th>"+
+    "</tr></thead><tbody>"+lista.map(q => (
+      '<tr data-openq="'+q.id+'"><td class="num">'+q.id+"</td><td><b>"+esc(q.cliente)+"</b></td><td>"+esc(q.prenda)+"</td>"+
+      "<td>"+fechaCorta(q.fecha)+"</td><td>"+(qAlerta(q).k==="cerrada" ? '<span class="muted">—</span>' : fechaCorta(qVence(q)))+"</td>"+
+      '<td class="r num">'+qUnidades(q)+'</td><td class="r num">'+money(qTotal(q))+"</td><td>"+qbadge(q)+"</td><td>"+(qAlertaBadge(q) || '<span class="muted">—</span>')+"</td></tr>")).join("")+
+    "</tbody></table></section>";
+}
+function qViewTablero(lista){
+  return '<section class="qboard">'+Q_ESTADOS.map(est => {
+    const col = lista.filter(q => q.estado === est);
+    return '<div class="qcol"><div class="qcol__h"><span class="qbadge '+QCLASE[est]+'">'+ico(Q_ICN[est])+est+'</span>'+
+        '<span class="qcol__n">'+col.length+'</span><span class="qcol__sum num">'+money(col.reduce((s,q) => s+qTotal(q),0))+"</span></div>"+
+      (col.length ? col.map(q => (
+        '<button class="qmini" data-openq="'+q.id+'"><span class="qmini__t">'+esc(q.cliente)+"</span>"+
+          '<span class="qmini__s">'+esc(q.prenda)+"</span>"+
+          '<span class="qmini__f"><span class="num">'+q.id+'</span><span class="num">'+money(qTotal(q))+"</span></span>"+
+          (qAlerta(q).k !== "cerrada" ? qAlertaBadge(q) : "")+"</button>")).join("") : '<div class="qcol__vacio">Sin cotizaciones</div>')+
+    "</div>";
+  }).join("")+"</section>";
+}
 function vCotizaciones(){
   if(state.cotiz.modo === "nueva" || state.cotiz.modo === "editar") return vCotizEditor();
   if(state.cotiz.modo === "ver") return vCotizVer();
-
-  const t = (state.qTexto||"").trim().toLowerCase();
-  const lista = [...cotizaciones].filter(q => !t || (q.cliente+" "+q.prenda+" "+q.id).toLowerCase().includes(t)).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  if(!state.qVista) state.qVista = qVistaGuardada();
+  const base = qBase(), lista = qListaVisible(), t = (state.qTexto||"").trim();
+  const vistas = { tarjetas:qViewTarjetas, lista:qViewLista, tabla:qViewTabla, tablero:qViewTablero };
+  const nAlertas = k => base.filter(q => qAlerta(q).k === k).length;
   return '<section class="qtoolbar" style="flex-wrap:wrap">'+
       '<div class="field" style="flex:1 1 220px"><label for="qq" class="sr">Buscar cotización</label><input class="input" id="qq" placeholder="Buscar cotización, cliente o prenda…" value="'+esc(state.qTexto||"")+'"></div>'+
       '<button class="btn btn--primary" id="btnNewQuoteInline">+ Nueva cotización</button>'+
     "</section>"+
-    '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+    /* resumen de alertas: un toque filtra */
+    '<section class="qalertas">'+
+      [["vencidas","vencida","Vencidas","pasó su vigencia"],["proximas","proxima","Por vencer","faltan 3 días o menos"],["pendientes","pendiente","Pendientes","en plazo, esperando respuesta"]].map(([f,k,tit,sub]) =>
+        '<button class="qalertas__c qalertas__c--'+k+'" data-qfiltro="'+f+'" aria-pressed="'+(state.qFiltro===f)+'">'+
+          '<span class="qalertas__n num">'+nAlertas(k)+'</span><span class="qalertas__t">'+tit+'<small>'+sub+"</small></span></button>").join("")+
+    "</section>"+
+    '<div class="chips qfiltros">'+Q_FILTROS.map(([f,txt]) =>
+      '<button class="chip" data-qfiltro="'+f+'" aria-pressed="'+(state.qFiltro===f)+'">'+txt+'<span class="chip__n">'+base.filter(q => qCumple(q,f)).length+"</span></button>").join("")+"</div>"+
+    '<div class="qbar">'+
       '<div class="muted" style="font-size:12.5px"><b class="num">'+lista.length+"</b> cotización"+(lista.length===1?"":"es")+"</div>"+
-      '<button class="btn btn--ghost btn--sm" id="btnExportCotizaciones" style="margin-left:auto">Exportar CSV</button>'+
+      '<div class="chips qvistas" role="group" aria-label="Vista">'+Q_VISTAS.map(([v,txt]) =>
+        '<button class="chip" data-qvista="'+v+'" aria-pressed="'+(state.qVista===v)+'">'+txt+"</button>").join("")+"</div>"+
+      '<select class="input qorden" id="qorden" aria-label="Ordenar por">'+Object.entries(Q_ORDENES).map(([k,[txt]]) =>
+        '<option value="'+k+'"'+(state.qOrden===k?" selected":"")+">"+txt+"</option>").join("")+"</select>"+
+      '<button class="btn btn--ghost btn--sm" id="btnExportCotizaciones">Exportar CSV</button>'+
     "</div>"+
-    (lista.length ? '<section class="qgrid">'+lista.map(q => (
-      '<button class="qcard" data-openq="'+q.id+'">'+
-        '<div class="qcard__top"><span class="qcard__id">'+q.id+"</span>"+qbadge(q)+"</div>"+
-        '<div><div class="qcard__cliente">'+esc(q.cliente)+'</div><div class="qcard__prenda">'+esc(q.prenda)+"</div></div>"+
-        '<div class="qcard__foot"><span>'+fechaCorta(q.fecha)+" · "+qUnidades(q)+" und</span><span class=\"qcard__total\">"+money(qTotal(q))+"</span></div>"+
-      "</button>"
-    )).join("")+"</section>" : '<section class="card"><div class="empty">'+(t ? "Ninguna cotización coincide con la búsqueda." : "Todavía no hay cotizaciones. Creá la primera.")+"</div></section>");
+    (lista.length ? vistas[state.qVista](lista)
+      : '<section class="card"><div class="empty">'+(t ? "Ninguna cotización coincide con la búsqueda." : state.qFiltro !== "todas" ? "No hay cotizaciones en este filtro." : "Todavía no hay cotizaciones. Crea la primera.")+"</div></section>");
 }
 
 function abrirCotiz(modo, id){
@@ -2090,12 +2240,12 @@ function exportarPedidosCSV(){
   descargarCSV("pedidos.csv", PEDIDO_CSV_HEADERS, filtrar().map(pedidoCSVRow));
 }
 function exportarCotizacionesCSV(){
-  const t = (state.qTexto||"").trim().toLowerCase();
-  const lista = [...cotizaciones].filter(q => !t || (q.cliente+" "+q.prenda+" "+q.id).toLowerCase().includes(t));
-  const headers = ["Código","Cliente","Prenda","Estado","Fecha","Vigencia (días)","Unidades","Total"];
+  const lista = qListaVisible();
+  const headers = ["Código","Cliente","Prenda","Estado","Fecha","Vigencia (días)","Vence","Alerta","Unidades","Total"];
   descargarCSV("cotizaciones.csv", headers, lista.map(q => ({
     "Código":q.id, "Cliente":q.cliente, "Prenda":q.prenda, "Estado":q.estado,
-    "Fecha":q.fecha, "Vigencia (días)":q.vigencia, "Unidades":qUnidades(q), "Total":qTotal(q).toFixed(2)
+    "Fecha":q.fecha, "Vigencia (días)":q.vigencia, "Vence":qAlerta(q).k === "cerrada" ? "" : qVence(q),
+    "Alerta":qAlerta(q).k === "cerrada" ? "" : qAlerta(q).txt, "Unidades":qUnidades(q), "Total":qTotal(q).toFixed(2)
   })));
 }
 function exportarSemanaCSV(){
@@ -2146,6 +2296,12 @@ function wire(){
     const nq = page.querySelector("#q"); if(nq){ nq.focus(); nq.setSelectionRange(pos,pos); } }, 220);
   const fc = page.querySelector("#fc"); if(fc) fc.onchange = () => { state.filtros.cliente = fc.value; render(); };
   const fr = page.querySelector("#fr"); if(fr) fr.onchange = () => { state.filtros.rango = fr.value; render(); };
+  page.querySelectorAll("[data-qvista]").forEach(el => el.onclick = () => {
+    state.qVista = el.dataset.qvista; try{ localStorage.setItem("santa-isabel-qvista", state.qVista); }catch(e){} render(); });
+  page.querySelectorAll("[data-qfiltro]").forEach(el => el.onclick = () => { state.qFiltro = el.dataset.qfiltro; render(); });
+  const qo = page.querySelector("#qorden"); if(qo) qo.onchange = () => { state.qOrden = qo.value; render(); };
+  page.querySelectorAll("[data-qsort]").forEach(el => el.onclick = () => {
+    const k = el.dataset.qsort; state.qOrden = k === "fecha" ? (state.qOrden === "reciente" ? "antigua" : "reciente") : k; render(); });
   const nq2 = page.querySelector("#btnNewQuoteInline"); if(nq2) nq2.onclick = () => abrirCotiz("nueva");
 
   const bnu = page.querySelector("#btnNuevoUsuario"); if(bnu) bnu.onclick = abrirModalUsuario;
