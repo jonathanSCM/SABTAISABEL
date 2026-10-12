@@ -1567,7 +1567,7 @@ function render(){
     $("#btnPlanNext").onclick = () => { state.planSemana++; redibujar(); };
     $("#btnPlanHoy").onclick = () => { state.planSemana = 0; redibujar(); };
     $("#chkPlanAtr").onchange = e => { state.planAtrasados = e.target.checked; redibujar(); };
-    $("#btnPlanCSV").onclick = () => descargarCSV("planificacion-semanal-"+d.r.desde+".csv", PLAN_CSV_HEADERS, planCSVRows(d));
+    $("#btnPlanCSV").onclick = () => exportarPlanExcel(d);
     $("#btnPlanCompartir").onclick = compartirPlan;
     $("#btnPlanWA").onclick = () => window.open("https://wa.me/?text="+encodeURIComponent(planTexto(d)), "_blank", "noopener");
     wireExport(null, { id:"planificacion", cliente:d.r.desde }, "#btnPlanImprimir", "Plan");
@@ -1774,11 +1774,6 @@ function planTexto(d){
   d.peds.forEach(p => L.push("• "+fechaCorta(p.compromiso)+" · "+p.id+" "+p.cliente+" · "+p.producto+" · "+nf(p.cantidad)+" und"));
   return L.join("\n");
 }
-const PLAN_CSV_HEADERS = ["Responsable","Pedido","Cliente","Prenda","Etapa","Tipo","Unidades","Fecha prevista","Entrega comprometida","Estado de la etapa"];
-function planCSVRows(d){
-  return d.tareas.map(t => ({ "Responsable":t.responsable, "Pedido":t.pedido.id, "Cliente":t.pedido.cliente, "Prenda":t.pedido.producto,
-    "Etapa":t.etapa, "Tipo":t.tipo, "Unidades":t.unidades, "Fecha prevista":t.prevista, "Entrega comprometida":t.pedido.compromiso, "Estado de la etapa":t.estadoEtapa }));
-}
 function planHojaHTML(d){
   const th = (...c) => "<tr>"+c.map(x => "<th"+(x.r?' class="r"':"")+">"+(x.t||x)+"</th>").join("")+"</tr>";
   return hojaEnvoltorio(
@@ -1813,7 +1808,7 @@ function vPlan(){
         '<button class="btn btn--ghost btn--sm" id="btnPlanHoy">Esta semana</button>'+
         '<label class="paq-opt" style="margin-left:auto"><input type="checkbox" id="chkPlanAtr"'+(state.planAtrasados?" checked":"")+"> Incluir atrasados</label></div>"+
       '<div class="paq-acc"><button class="btn btn--primary btn--sm" id="btnPlanImprimir">Imprimir / PDF</button>'+
-        '<button class="btn btn--ghost btn--sm" id="btnPlanCSV">Descargar CSV</button>'+
+        '<button class="btn btn--ghost btn--sm" id="btnPlanCSV">Descargar Excel</button>'+
         '<button class="btn btn--ghost btn--sm" id="btnPlanCompartir">Compartir</button>'+
         '<button class="btn btn--ghost btn--sm" id="btnPlanWA">WhatsApp</button></div>'+
       '<div class="muted" style="font-size:11.5px">Imprimir abre el diálogo del navegador (elige "Guardar como PDF" para descargarlo). Compartir usa el menú del celular; si no existe, copia el resumen.</div>'+
@@ -1827,7 +1822,7 @@ function abrirPlan(offset){
 }
 async function compartirPlan(){
   const d = planDatos(state.planSemana, state.planAtrasados), texto = planTexto(d);
-  const archivo = new File(["﻿"+toCSV(PLAN_CSV_HEADERS, planCSVRows(d))], "planificacion-"+d.r.desde+".csv", { type:"text/csv" });
+  const archivo = new File([XL.libro(planHojasXL(d))], "planificacion-"+d.r.desde+".xlsx", { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   try{
     if(navigator.share){
       const data = { title:"Planificación semanal Santa Isabel", text:texto };
@@ -1846,7 +1841,7 @@ function vSemana(){
       '<button class="chip" data-semmodo="responsable" aria-pressed="'+(modo==="responsable")+'">Por responsable</button>'+
     "</div>"+
     '<button class="btn btn--primary btn--sm" id="btnPlanSemanal" style="margin-left:auto">Planificación semanal</button>'+
-    '<button class="btn btn--ghost btn--sm" id="btnExportSemana">Exportar CSV</button>'+
+    '<button class="btn btn--ghost btn--sm" id="btnExportSemana">Exportar Excel</button>'+
   "</div>";
   if(modo === "responsable") return toggle + vSemanaPorResponsable();
   return toggle + vSemanaPorEstado();
@@ -1922,7 +1917,7 @@ function vPedidos(){
         '<div class="muted" style="font-size:12.5px"><b class="num">'+lista.length+"</b> pedido"+(lista.length===1?"":"s")+
           (lista.length ? " · "+nf(lista.reduce((s,p) => s+p.cantidad,0))+" unidades" : "")+"</div>"+
         '<button class="btn btn--ghost btn--sm" id="btnOrdenCorte">Orden de corte</button>'+
-        '<button class="btn btn--ghost btn--sm" id="btnExportPedidos" style="margin-left:auto">Exportar CSV</button>'+
+        '<button class="btn btn--ghost btn--sm" id="btnExportPedidos" style="margin-left:auto">Exportar Excel</button>'+
       "</div>"+
     "</div>"+
     (lista.length ? '<div class="tablewrap"><table><thead><tr>'+
@@ -1991,7 +1986,7 @@ function vCalendario(){
       '<button class="btn btn--sm" data-mes="1" aria-label="Mes siguiente">→</button>'+
       '<button class="btn btn--sm btn--ghost" data-mes="0">Hoy</button>'+
       '<span class="calhead__count muted"><b class="num">'+mesesTot+"</b> entregas este mes</span>"+
-      '<button class="btn btn--ghost btn--sm" id="btnExportCalendario" style="margin-left:auto">Exportar CSV</button>'+
+      '<button class="btn btn--ghost btn--sm" id="btnExportCalendario" style="margin-left:auto">Exportar Excel</button>'+
     "</div>"+
     '<div class="cal">'+DOW.map(d => '<div class="cal__dow">'+d+"</div>").join("")+celdas.join("")+"</div>"+
     '<div class="cal-list">'+listaDias.join("")+"</div>"+
@@ -2163,7 +2158,7 @@ function vCotizaciones(){
         '<button class="chip" data-qvista="'+v+'" aria-pressed="'+(state.qVista===v)+'">'+txt+"</button>").join("")+"</div>"+
       '<select class="input qorden" id="qorden" aria-label="Ordenar por">'+Object.entries(Q_ORDENES).map(([k,[txt]]) =>
         '<option value="'+k+'"'+(state.qOrden===k?" selected":"")+">"+txt+"</option>").join("")+"</select>"+
-      '<button class="btn btn--ghost btn--sm" id="btnExportCotizaciones">Exportar CSV</button>'+
+      '<button class="btn btn--ghost btn--sm" id="btnExportCotizaciones">Exportar Excel</button>'+
     "</div>"+
     (lista.length ? vistas[state.qVista](lista)
       : '<section class="card"><div class="empty">'+(t ? "Ninguna cotización coincide con la búsqueda." : state.qFiltro !== "todas" ? "No hay cotizaciones en este filtro." : "Todavía no hay cotizaciones. Crea la primera.")+"</div></section>");
@@ -2456,71 +2451,280 @@ function wireExport(sheetEl, q, btnSel, prefijo){
 }
 function base_title_fallback(){ return "Santa Isabel — Taller"; }
 
-/* ---- exportación a CSV: respeta siempre los filtros/búsqueda ya aplicados en pantalla ---- */
-function toCSV(headers, rows){
-  const escCSV = v => { const s = String(v==null?"":v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
-  const lineas = [headers.map(escCSV).join(",")];
-  rows.forEach(r => lineas.push(headers.map(h => escCSV(r[h])).join(",")));
-  return lineas.join("\r\n");
-}
-function descargarCSV(filename, headers, rows){
-  const csv = "﻿" + toCSV(headers, rows); // BOM: para que Excel abra bien los acentos
-  const blob = new Blob([csv], { type:"text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast("Descargando "+filename);
-}
-function pedidoCSVRow(p){
-  const tipos = [...new Set(p.produccion.map(t=>t.tipo))];
-  return {
-    "Código":p.id, "Cliente":p.cliente, "Prenda":p.producto, "Cantidad":p.cantidad,
-    "Estado":estadoVis(p), "Responsable":p.responsable, "Etapa actual":p.etapa,
-    "Tipo de ejecución": tipos.length>1 ? "Mixto" : (tipos[0]||"Interno"),
-    "Registro":p.registro, "Solicitada":p.solicitada, "Comprometida":p.compromiso, "Observaciones":p.obs
-  };
-}
-const PEDIDO_CSV_HEADERS = ["Código","Cliente","Prenda","Cantidad","Estado","Responsable","Etapa actual","Tipo de ejecución","Registro","Solicitada","Comprometida","Observaciones"];
-function exportarPedidosCSV(){
-  descargarCSV("pedidos.csv", PEDIDO_CSV_HEADERS, filtrar().map(pedidoCSVRow));
-}
-function exportarCotizacionesCSV(){
-  const lista = qListaVisible();
-  const headers = ["Código","Cliente","Prenda","Estado","Fecha","Vigencia (días)","Vence","Alerta","Unidades","Total"];
-  descargarCSV("cotizaciones.csv", headers, lista.map(q => ({
-    "Código":q.id, "Cliente":q.cliente, "Prenda":q.prenda, "Estado":q.estado,
-    "Fecha":q.fecha, "Vigencia (días)":q.vigencia, "Vence":qAlerta(q).k === "cerrada" ? "" : qVence(q),
-    "Alerta":qAlerta(q).k === "cerrada" ? "" : qAlerta(q).txt, "Unidades":qUnidades(q), "Total":qTotal(q).toFixed(2)
-  })));
-}
-function exportarSemanaCSV(){
-  const modo = state.semanaModo || "estado";
-  const grupos = modo === "responsable"
-    ? (function(){ const act = pedidos.filter(activo); const nombres = [...new Set(act.map(p=>p.responsable||"Sin asignar"))];
-        return nombres.map(n => ({ grupo:n, ps: act.filter(p => (p.responsable||"Sin asignar")===n) })); })()
-    : (function(){ const act = pedidos.filter(activo);
-        return [
-          { grupo:"Hoy", ps: act.filter(p => !atrasado(p) && p.estado !== "Terminado" && (diasDesdeHoy(p.compromiso)===0 || p.estado==="En producción")) },
-          { grupo:"Próximos", ps: act.filter(p => !atrasado(p) && p.estado==="Preparación" && diasDesdeHoy(p.compromiso)>0 && diasDesdeHoy(p.compromiso)<=7) },
-          { grupo:"Atrasados", ps: pedidos.filter(atrasado) },
-          { grupo:"Terminados", ps: pedidos.filter(p => p.estado==="Terminado") }
-        ]; })();
-  const headers = ["Grupo", ...PEDIDO_CSV_HEADERS];
-  const rows = [];
-  grupos.forEach(g => g.ps.forEach(p => rows.push({ "Grupo":g.grupo, ...pedidoCSVRow(p) })));
-  descargarCSV("esta-semana.csv", headers, rows);
-}
-function exportarCalendarioCSV(){
-  const headers = ["Fecha","Pedidos comprometidos","Clientes"];
-  const rows = [];
-  for(let i=0;i<21;i++){
-    const f = isoOff(i), c = cargaDe(f), ps = pedidosDe(f);
-    rows.push({ "Fecha":f, "Pedidos comprometidos":c.n, "Clientes": ps.map(p=>p.cliente).join(" · ") });
+/* ============ exportación a Excel (.xlsx) ============
+   Genera un libro de Excel real (sin librerías): títulos, colores por estado, filtros, panel fijo y listo para imprimir.
+   Respeta siempre los filtros/búsqueda que están aplicados en pantalla. */
+const XL = (function(){
+  const enc = new TextEncoder();
+  const crcT = (() => { const t = new Uint32Array(256); for(let n=0;n<256;n++){ let c = n; for(let k=0;k<8;k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = b => { let c = 0xFFFFFFFF; for(let i=0;i<b.length;i++) c = crcT[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const X = v => String(v == null ? "" : v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col = n => { let s = ""; n++; while(n > 0){ const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+  const serial = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? Math.round((Date.UTC(+m[1], +m[2]-1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000) : null; };
+
+  function zip(files){
+    const parts = [], central = []; let off = 0;
+    const d = new Date(), time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    files.forEach(f => {
+      const name = enc.encode(f.name), data = enc.encode(f.data), crc = crc32(data), n = data.length;
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(10, time, true); h.setUint16(12, date, true);
+      h.setUint32(14, crc, true); h.setUint32(18, n, true); h.setUint32(22, n, true); h.setUint16(26, name.length, true);
+      parts.push(new Uint8Array(h.buffer), name, data);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(12, time, true); c.setUint16(14, date, true);
+      c.setUint32(16, crc, true); c.setUint32(20, n, true); c.setUint32(24, n, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+      central.push(new Uint8Array(c.buffer), name);
+      off += 30 + name.length + n;
+    });
+    const csize = central.reduce((s, p) => s + p.length, 0), e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+    return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   }
-  descargarCSV("calendario.csv", headers, rows);
+
+  /* registro de estilos */
+  function estilos(){
+    const fonts = [], fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'], borders = [], numFmts = [], xfs = [], fmtIds = {};
+    const idx = (arr, xml) => { let i = arr.indexOf(xml); if(i < 0){ arr.push(xml); i = arr.length - 1; } return i; };
+    idx(fonts, '<font><sz val="10"/><name val="Calibri"/></font>');
+    idx(borders, '<border><left/><right/><top/><bottom/><diagonal/></border>');
+    xfs.push('<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>');
+    const cache = {};
+    function get(o){
+      const key = JSON.stringify(o); if(key in cache) return cache[key];
+      const f = idx(fonts, "<font>" + (o.b ? "<b/>" : "") + (o.i ? "<i/>" : "") + '<sz val="' + (o.sz || 10) + '"/><color rgb="FF' + (o.color || "172033") + '"/><name val="Calibri"/></font>');
+      const fi = o.bg ? idx(fills, '<fill><patternFill patternType="solid"><fgColor rgb="FF' + o.bg + '"/><bgColor indexed="64"/></patternFill></fill>') : 0;
+      let b = 0;
+      if(o.borde === "fino"){ const c = '<color rgb="FFDDE3EC"/>'; b = idx(borders, '<border><left style="thin">'+c+'</left><right style="thin">'+c+'</right><top style="thin">'+c+'</top><bottom style="thin">'+c+'</bottom><diagonal/></border>'); }
+      else if(o.borde === "total"){ b = idx(borders, '<border><left/><right/><top style="medium"><color rgb="FF172033"/></top><bottom/><diagonal/></border>'); }
+      let nfi = 0;
+      if(o.fmt){ if(!(o.fmt in fmtIds)){ fmtIds[o.fmt] = 164 + numFmts.length; numFmts.push('<numFmt numFmtId="' + fmtIds[o.fmt] + '" formatCode="' + X(o.fmt) + '"/>'); } nfi = fmtIds[o.fmt]; }
+      const xml = '<xf numFmtId="'+nfi+'" fontId="'+f+'" fillId="'+fi+'" borderId="'+b+'" xfId="0" applyFont="1" applyFill="1" applyBorder="1"'+(nfi ? ' applyNumberFormat="1"' : "")+' applyAlignment="1"><alignment horizontal="'+(o.h || "left")+'" vertical="'+(o.v || "center")+'"'+(o.wrap ? ' wrapText="1"' : "")+(o.indent ? ' indent="'+o.indent+'"' : "")+'/></xf>';
+      return cache[key] = idx(xfs, xml);
+    }
+    function xml(){
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        + (numFmts.length ? '<numFmts count="'+numFmts.length+'">'+numFmts.join("")+"</numFmts>" : "")
+        + '<fonts count="'+fonts.length+'">'+fonts.join("")+'</fonts><fills count="'+fills.length+'">'+fills.join("")+'</fills><borders count="'+borders.length+'">'+borders.join("")+'</borders>'
+        + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="'+xfs.length+'">'+xfs.join("")+'</cellXfs>'
+        + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+    }
+    return { get, xml };
+  }
+
+  const ESTADO = {
+    rojo:   { bg:"FDE8E8", color:"B42318" }, verde: { bg:"DEF5E6", color:"157347" }, morado:{ bg:"EDE7FD", color:"6D28D9" },
+    azul:   { bg:"E3EEFF", color:"1D4ED8" }, ambar: { bg:"FEF0C7", color:"B54708" }, gris:  { bg:"ECEFF3", color:"475467" }
+  };
+  const ESTADO_MAP = { "atrasado":"rojo", "vencida":"rojo", "rechazada":"rojo", "terminado":"verde", "completado":"verde", "aprobada":"verde",
+    "en producción":"morado", "en proceso":"morado", "preparación":"azul", "pendiente":"azul", "enviada":"azul", "por vencer":"ambar",
+    "entregado":"gris", "borrador":"gris", "cerrada":"gris" };
+
+  function hojaXML(h, st, indice){
+    const cols = h.columnas, n = cols.length, ult = col(n - 1);
+    const filas = h.filas || [], rows = [], merges = [];
+    const celdaTxt = (r, c, s, v) => '<c r="'+col(c)+r+'" s="'+s+'" t="inlineStr"><is><t xml:space="preserve">'+X(v)+"</t></is></c>";
+    const celdaNum = (r, c, s, v) => '<c r="'+col(c)+r+'" s="'+s+'"><v>'+v+"</v></c>";
+    const vacia = (r, c, s) => '<c r="'+col(c)+r+'" s="'+s+'"/>';
+    const fila = (r, ht, celdas) => '<row r="'+r+'"'+(ht ? ' ht="'+ht+'" customHeight="1"' : "")+">"+celdas.join("")+"</row>";
+    const llenar = (r, s, texto, alto) => { const c = [celdaTxt(r, 0, s, texto)]; for(let i = 1; i < n; i++) c.push(vacia(r, i, s)); merges.push("A"+r+":"+ult+r); return fila(r, alto, c); };
+    let r = 1;
+    rows.push(llenar(r++, st.get({ b:1, sz:16, color:"FFFFFF", bg:"2563EB", indent:1 }), h.titulo, 34));
+    rows.push(llenar(r++, st.get({ i:1, sz:10, color:"475467", bg:"EAF1FF", indent:1 }), h.subtitulo || "", 20));
+    rows.push(fila(r++, 8, []));
+    const filaCab = r;
+    rows.push(fila(r++, 28, cols.map((c, i) => celdaTxt(filaCab, i, st.get({ b:1, color:"FFFFFF", bg:"172033", borde:"fino", h:"center", wrap:1 }), c.h))));
+    const primera = r;
+    let zebra = 0;
+    const celda = (rr, ci, c, f, z) => {
+      const v = f[c.k], marca = h.marcar ? h.marcar(f, c.k) : null, t = c.t || "texto";
+      const bg = z ? "F6F8FB" : "FFFFFF", base = { borde:"fino", bg, v:"center" };
+      if(marca === "rojo") Object.assign(base, { b:1, color:"B42318" });
+      else if(marca === "gris") Object.assign(base, { color:"98A2B3" });
+      else if(marca === "ambar") Object.assign(base, { b:1, color:"B54708" });
+      if(t === "fecha"){
+        const s = serial(v);
+        if(s == null) return celdaTxt(rr, ci, st.get(Object.assign({}, base, { h:"center", color:"98A2B3" })), "—");
+        return celdaNum(rr, ci, st.get(Object.assign({}, base, { h:"center", fmt:"dd\\-mmm\\-yyyy" })), s);
+      }
+      if(t === "num"){
+        if(v === "" || v == null || isNaN(Number(v))) return vacia(rr, ci, st.get(Object.assign({}, base, { h:"center" })));
+        return celdaNum(rr, ci, st.get(Object.assign({}, base, { h:"center", fmt:"#,##0" })), Number(v));
+      }
+      if(t === "moneda"){
+        if(v === "" || v == null || isNaN(Number(v))) return vacia(rr, ci, st.get(Object.assign({}, base, { h:"right" })));
+        return celdaNum(rr, ci, st.get(Object.assign({}, base, { h:"right", fmt:'"S/."#,##0.00' })), Number(v));
+      }
+      if(t === "estado"){
+        const k = ESTADO_MAP[String(v || "").toLowerCase()], e = k ? ESTADO[k] : null;
+        if(!String(v || "").trim()) return celdaTxt(rr, ci, st.get(Object.assign({}, base, { h:"center", color:"98A2B3" })), "—");
+        return celdaTxt(rr, ci, st.get(Object.assign({}, base, e ? { b:1, color:e.color, bg:e.bg, h:"center" } : { h:"center" })), v);
+      }
+      const vv = String(v == null ? "" : v);
+      if(t === "centro") return celdaTxt(rr, ci, st.get(Object.assign({}, base, { h:"center", color: vv ? base.color : "98A2B3" })), vv || "—");
+      if(t === "largo") return celdaTxt(rr, ci, st.get(Object.assign({}, base, { wrap:1, v:"top", indent:1 })), vv);
+      if(t === "fuerte") return celdaTxt(rr, ci, st.get(Object.assign({}, base, { b:1, color:"1E3A8A", indent:1 })), vv);
+      return celdaTxt(rr, ci, st.get(Object.assign({}, base, { indent:1, wrap: c.wrap ? 1 : 0 })), vv);
+    };
+    const pintar = lista => lista.forEach(f => { const rr = r++, z = zebra++ % 2 === 1; rows.push(fila(rr, h.alto || 0, cols.map((c, ci) => celda(rr, ci, c, f, z)))); });
+    const total = (texto, lista) => {
+      if(!h.totales || !h.totales.length) return;
+      const rr = r++, sTxt = st.get({ b:1, bg:"ECEFF3", borde:"total", indent:1 });
+      const cs = cols.map((c, ci) => {
+        if(ci === 0) return celdaTxt(rr, ci, sTxt, texto);
+        if(h.totales.indexOf(c.k) !== -1){
+          const suma = lista.reduce((s, f) => s + (Number(f[c.k]) || 0), 0);
+          return celdaNum(rr, ci, st.get({ b:1, bg:"ECEFF3", borde:"total", h: c.t === "moneda" ? "right" : "center", fmt: c.t === "moneda" ? '"S/."#,##0.00' : "#,##0" }), suma);
+        }
+        return vacia(rr, ci, sTxt);
+      });
+      rows.push(fila(rr, 22, cs));
+    };
+    if(h.grupoPor){
+      const orden = [], mapa = {};
+      filas.forEach(f => { const g = f[h.grupoPor]; if(!(g in mapa)){ mapa[g] = []; orden.push(g); } mapa[g].push(f); });
+      orden.forEach(g => {
+        const lista = mapa[g], rr = r++;
+        const tit = h.grupoTitulo ? h.grupoTitulo(g, lista) : g + " · " + lista.length;
+        rows.push(llenar(rr, st.get({ b:1, sz:11, color:"1E3A8A", bg:"DBE7FF", indent:1 }), tit, 24));
+        zebra = 0; pintar(lista);
+      });
+      if(!orden.length) rows.push(llenar(r++, st.get({ i:1, color:"98A2B3", indent:1 }), "Sin registros para mostrar.", 22));
+      total("TOTAL GENERAL", filas);
+    } else {
+      if(filas.length) pintar(filas); else rows.push(llenar(r++, st.get({ i:1, color:"98A2B3", indent:1 }), "Sin registros para mostrar.", 22));
+      total("TOTAL", filas);
+    }
+    const fin = r - 1;
+    const anchos = cols.map((c, i) => '<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+(c.w || 14)+'" customWidth="1"/>').join("");
+    const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+      + '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:'+ult+fin+'"/>'
+      + '<sheetViews><sheetView showGridLines="0" '+(indice === 0 ? 'tabSelected="1" ' : "")+'workbookViewId="0"><pane ySplit="'+filaCab+'" topLeftCell="A'+(filaCab + 1)+'" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+      + '<sheetFormatPr defaultRowHeight="18"/><cols>'+anchos+"</cols><sheetData>"+rows.join("")+"</sheetData>"
+      + (!h.grupoPor && filas.length ? '<autoFilter ref="A'+filaCab+":"+ult+(primera + filas.length - 1)+'"/>' : "")
+      + '<mergeCells count="'+merges.length+'">'+merges.map(m => '<mergeCell ref="'+m+'"/>').join("")+"</mergeCells>"
+      + '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>'
+      + '<headerFooter><oddFooter>&amp;LSanta Isabel&amp;RPágina &amp;P de &amp;N</oddFooter></headerFooter></worksheet>';
+    return { xml, filaCab, primera, fin, ult, filtro: !h.grupoPor && filas.length };
+  }
+
+  function libro(hojas){
+    const st = estilos();
+    const nombres = hojas.map((h, i) => (h.nombre || "Hoja" + (i + 1)).replace(/[\[\]:*?\/\\]/g, " ").slice(0, 31));
+    const rs = hojas.map((h, i) => hojaXML(h, st, i));
+    const dn = [];
+    rs.forEach((r, i) => {
+      const q = "'" + nombres[i].replace(/'/g, "''") + "'";
+      if(r.filtro) dn.push('<definedName name="_xlnm._FilterDatabase" localSheetId="'+i+'" hidden="1">'+X(q)+"!$A$"+r.filaCab+":$"+r.ult+"$"+r.fin+"</definedName>");
+      dn.push('<definedName name="_xlnm.Print_Titles" localSheetId="'+i+'">'+X(q)+"!$"+r.filaCab+":$"+r.filaCab+"</definedName>");
+    });
+    const files = [
+      { name:"[Content_Types].xml", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        + hojas.map((h, i) => '<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("") + "</Types>" },
+      { name:"_rels/.rels", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+      { name:"xl/workbook.xml", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>'
+        + nombres.map((n, i) => '<sheet name="'+X(n)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join("") + "</sheets><definedNames>"+dn.join("")+"</definedNames></workbook>" },
+      { name:"xl/_rels/workbook.xml.rels", data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + hojas.map((h, i) => '<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join("")
+        + '<Relationship Id="rId'+(hojas.length + 1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+      { name:"xl/styles.xml", data: st.xml() }
+    ];
+    rs.forEach((r, i) => files.push({ name:"xl/worksheets/sheet" + (i + 1) + ".xml", data:r.xml }));
+    return zip(files);
+  }
+  return { libro };
+})();
+
+function descargarExcel(archivo, hojas){
+  try{
+    const blob = XL.libro(hojas);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = archivo;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast("Descargando "+archivo);
+  } catch(e){ toast("No se pudo generar el Excel: "+e.message); }
 }
+const ahoraTexto = () => new Date().toLocaleString("es-BO", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+const tipoEjecucion = p => { const t = [...new Set(p.produccion.map(x => x.tipo))]; return t.length > 1 ? "Mixto" : (t[0] || "Interno"); };
+
+function pedidoFilaXL(p){
+  return { cod:p.id, cli:p.cliente, pre:p.producto, can:p.cantidad, est:estadoVis(p), res:p.responsable, eta:p.etapa, tip:tipoEjecucion(p),
+    reg:p.registro, sol:p.solicitada, com:p.compromiso, obs:p.obs, _atr:atrasado(p) };
+}
+const PED_COLS_XL = [
+  { k:"cod", h:"Código", w:11, t:"fuerte" }, { k:"cli", h:"Cliente", w:26 }, { k:"pre", h:"Prenda", w:30 }, { k:"can", h:"Unidades", w:10, t:"num" },
+  { k:"est", h:"Estado", w:15, t:"estado" }, { k:"res", h:"Responsable", w:14, t:"centro" }, { k:"eta", h:"Etapa actual", w:19, t:"centro" }, { k:"tip", h:"Ejecución", w:13, t:"centro" },
+  { k:"reg", h:"Registro", w:13, t:"fecha" }, { k:"sol", h:"Solicitada", w:13, t:"fecha" }, { k:"com", h:"Comprometida", w:14, t:"fecha" }, { k:"obs", h:"Observaciones", w:44, t:"largo" }
+];
+const marcaPedido = (f, k) => (k === "com" && f._atr) ? "rojo" : null;
+
+function exportarPedidosExcel(){
+  const lista = filtrar();
+  descargarExcel("pedidos.xlsx", [{ nombre:"Pedidos", titulo:"Santa Isabel · Pedidos", subtitulo: lista.length+" pedido"+(lista.length===1?"":"s")+" · "+nf(lista.reduce((s,p)=>s+p.cantidad,0))+" unidades · exportado el "+ahoraTexto(),
+    columnas:PED_COLS_XL, filas:lista.map(pedidoFilaXL), totales:["can"], marcar:marcaPedido }]);
+}
+function exportarCotizacionesExcel(){
+  const lista = qListaVisible();
+  const filas = lista.map(q => { const a = qAlerta(q), cerrada = a.k === "cerrada";
+    return { cod:q.id, cli:q.cliente, pre:q.prenda, est:q.estado, fec:q.fecha, vig:Number(q.vigencia)||0, ven:cerrada ? "" : qVence(q), ale:cerrada ? "" : ({ vencida:"Vencida", proxima:"Por vencer", pendiente:"Pendiente" })[a.k], det:cerrada ? "" : a.txt, und:qUnidades(q), tot:qTotal(q) }; });
+  descargarExcel("cotizaciones.xlsx", [{ nombre:"Cotizaciones", titulo:"Santa Isabel · Cotizaciones", subtitulo: lista.length+" cotizacion"+(lista.length===1?"":"es")+" · exportado el "+ahoraTexto(),
+    columnas:[{ k:"cod", h:"Código", w:12, t:"fuerte" }, { k:"cli", h:"Cliente", w:28 }, { k:"pre", h:"Prenda", w:32 }, { k:"est", h:"Estado", w:14, t:"estado" },
+      { k:"fec", h:"Fecha", w:13, t:"fecha" }, { k:"vig", h:"Vigencia (días)", w:11, t:"num" }, { k:"ven", h:"Vence", w:13, t:"fecha" }, { k:"ale", h:"Alerta", w:14, t:"estado" }, { k:"det", h:"Detalle", w:26, t:"centro" },
+      { k:"und", h:"Unidades", w:10, t:"num" }, { k:"tot", h:"Total", w:17, t:"moneda" }],
+    filas, totales:["und","tot"], marcar:(f,k) => (k === "ven" && f.ale === "Vencida") ? "rojo" : null }]);
+}
+function gruposSemana(){
+  const modo = state.semanaModo || "estado";
+  if(modo === "responsable"){
+    const act = pedidos.filter(activo), nombres = [...new Set(act.map(p => p.responsable || "Sin asignar"))];
+    return nombres.map(n => ({ grupo:n, ps:act.filter(p => (p.responsable || "Sin asignar") === n) }));
+  }
+  const act = pedidos.filter(activo);
+  return [
+    { grupo:"Hoy", ps:act.filter(p => !atrasado(p) && p.estado !== "Terminado" && (diasDesdeHoy(p.compromiso) === 0 || p.estado === "En producción")) },
+    { grupo:"Próximos", ps:act.filter(p => !atrasado(p) && p.estado === "Preparación" && diasDesdeHoy(p.compromiso) > 0 && diasDesdeHoy(p.compromiso) <= 7) },
+    { grupo:"Atrasados", ps:pedidos.filter(atrasado) },
+    { grupo:"Terminados", ps:pedidos.filter(p => p.estado === "Terminado") }
+  ];
+}
+function exportarSemanaExcel(){
+  const modo = state.semanaModo || "estado", grupos = gruposSemana().filter(g => g.ps.length);
+  const filas = []; grupos.forEach(g => g.ps.forEach(p => filas.push(Object.assign({ grupo:g.grupo }, pedidoFilaXL(p)))));
+  const total = filas.length;
+  descargarExcel("esta-semana.xlsx", [{ nombre:"Esta semana", titulo:"Santa Isabel · Esta semana ("+(modo === "responsable" ? "por responsable" : "por estado")+")",
+    subtitulo: total+" pedido"+(total===1?"":"s")+" · exportado el "+ahoraTexto(), columnas:PED_COLS_XL, filas, grupoPor:"grupo", totales:["can"], marcar:marcaPedido,
+    grupoTitulo:(g, l) => g + "  ·  " + l.length + " pedido" + (l.length===1?"":"s") + "  ·  " + nf(l.reduce((s, f) => s + f.can, 0)) + " unidades" }]);
+}
+function exportarCalendarioExcel(){
+  const filas = [];
+  for(let i = 0; i < 21; i++){
+    const f = isoOff(i), c = cargaDe(f), ps = pedidosDe(f);
+    const dia = new Date(f + "T12:00:00").toLocaleDateString("es", { weekday:"long" });
+    filas.push({ fec:f, dia:dia.charAt(0).toUpperCase() + dia.slice(1), n:c.n, und:ps.reduce((s, p) => s + p.cantidad, 0), cli:ps.map(p => p.cliente + " (" + p.id + ")").join("  ·  ") });
+  }
+  descargarExcel("calendario.xlsx", [{ nombre:"Calendario", titulo:"Santa Isabel · Calendario de entregas", subtitulo:"Próximas 3 semanas · exportado el "+ahoraTexto(),
+    columnas:[{ k:"fec", h:"Fecha", w:14, t:"fecha" }, { k:"dia", h:"Día", w:14, t:"centro" }, { k:"n", h:"Pedidos", w:10, t:"num" }, { k:"und", h:"Unidades", w:10, t:"num" }, { k:"cli", h:"Clientes", w:80, t:"largo" }],
+    filas, totales:["n","und"], marcar:(f, k) => (f.n === 0 ? "gris" : (f.n >= 3 && k === "n" ? "ambar" : null)) }]);
+}
+function planHojasXL(d){
+  const tareas = d.tareas.map(t => ({ res:t.responsable, ped:t.pedido.id, cli:t.pedido.cliente, pre:t.pedido.producto, eta:t.etapa, tip:t.tipo, und:t.unidades,
+    pre2:t.prevista, ent:t.pedido.compromiso, est:t.estadoEtapa, _atr:atrasado(t.pedido) }));
+  const entregas = d.peds.map(p => ({ fec:p.compromiso, ped:p.id, cli:p.cliente, pre:p.producto, und:p.cantidad, est:estadoVis(p), eta:p.etapa, res:p.responsable }));
+  return [
+    { nombre:"Trabajo por responsable", titulo:"Santa Isabel · Planificación semanal", subtitulo:planFechaRango(d.r)+" · "+d.tareas.length+" tareas · "+d.nombres.length+" responsables · exportado el "+ahoraTexto(),
+      columnas:[{ k:"ped", h:"Pedido", w:11, t:"fuerte" }, { k:"cli", h:"Cliente", w:26 }, { k:"pre", h:"Prenda", w:32 }, { k:"eta", h:"Etapa", w:19, t:"centro" }, { k:"tip", h:"Tipo", w:13, t:"centro" },
+        { k:"und", h:"Unidades", w:10, t:"num" }, { k:"pre2", h:"Fecha prevista", w:15, t:"fecha" }, { k:"ent", h:"Entrega comprometida", w:15, t:"fecha" }, { k:"est", h:"Estado de la etapa", w:16, t:"estado" }],
+      filas:tareas, grupoPor:"res", totales:["und"], marcar:(f, k) => (k === "ent" && f._atr) ? "rojo" : null,
+      grupoTitulo:(g, l) => g + "  ·  " + l.length + " tarea" + (l.length===1?"":"s") + "  ·  " + nf(l.reduce((s, f) => s + f.und, 0)) + " unidades" },
+    { nombre:"Entregas comprometidas", titulo:"Santa Isabel · Entregas comprometidas", subtitulo:planFechaRango(d.r)+" · "+d.peds.length+" pedidos · "+nf(d.unidades)+" unidades",
+      columnas:[{ k:"fec", h:"Entrega", w:14, t:"fecha" }, { k:"ped", h:"Pedido", w:11, t:"fuerte" }, { k:"cli", h:"Cliente", w:26 }, { k:"pre", h:"Prenda", w:32 },
+        { k:"und", h:"Unidades", w:10, t:"num" }, { k:"est", h:"Estado", w:15, t:"estado" }, { k:"eta", h:"Etapa actual", w:19, t:"centro" }, { k:"res", h:"Responsable", w:15, t:"centro" }],
+      filas:entregas, totales:["und"], marcar:(f, k) => (k === "fec" && f.est === "Atrasado") ? "rojo" : null }
+  ];
+}
+function exportarPlanExcel(d){ descargarExcel("planificacion-semanal-"+d.r.desde+".xlsx", planHojasXL(d)); }
 
 /* ============ interacciones ============ */
 function wire(){
@@ -2555,12 +2759,12 @@ function wire(){
   page.querySelectorAll("[data-toggle-usuario]").forEach(b => b.onclick = () => alternarUsuario(b.dataset.toggleUsuario, b.dataset.activo !== "true"));
   page.querySelectorAll("[data-reset-usuario]").forEach(b => b.onclick = () => abrirModalResetPw(b.dataset.resetUsuario, b.dataset.nombre));
 
-  const bep = page.querySelector("#btnExportPedidos"); if(bep) bep.onclick = exportarPedidosCSV;
+  const bep = page.querySelector("#btnExportPedidos"); if(bep) bep.onclick = exportarPedidosExcel;
   const boc = page.querySelector("#btnOrdenCorte"); if(boc) boc.onclick = () => { state.view = "corte"; state.entrando = true; render(); window.scrollTo({ top:0 }); };
-  const bec = page.querySelector("#btnExportCotizaciones"); if(bec) bec.onclick = exportarCotizacionesCSV;
-  const bes = page.querySelector("#btnExportSemana"); if(bes) bes.onclick = exportarSemanaCSV;
+  const bec = page.querySelector("#btnExportCotizaciones"); if(bec) bec.onclick = exportarCotizacionesExcel;
+  const bes = page.querySelector("#btnExportSemana"); if(bes) bes.onclick = exportarSemanaExcel;
   const bps = page.querySelector("#btnPlanSemanal"); if(bps) bps.onclick = () => abrirPlan(0);
-  const beca = page.querySelector("#btnExportCalendario"); if(beca) beca.onclick = exportarCalendarioCSV;
+  const beca = page.querySelector("#btnExportCalendario"); if(beca) beca.onclick = exportarCalendarioExcel;
 
   page.querySelectorAll("[data-accion]").forEach(b => b.onclick = (e) => {
     e.stopPropagation();

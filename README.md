@@ -20,7 +20,7 @@ estático anterior (`../demo-SantaIsabel`), que se dejó intacto como referencia
   producción, Ver día, Ver semana, Ver cotización).
 - **Guía de entrega**: se genera cuando el pedido está Terminado, exportable a
   PDF (imprimir), y habilita "Marcar como entregado".
-- **Exportación a CSV** (abre bien en Excel) de Pedidos, Cotizaciones, Esta
+- **Exportación a Excel** (abre bien en Excel) de Pedidos, Cotizaciones, Esta
   semana y Calendario — siempre respeta los filtros/búsqueda aplicados en
   pantalla.
 - **Usuarios y roles** (admin/operador), cambio de contraseña, sesiones reales.
@@ -40,7 +40,7 @@ estático anterior (`../demo-SantaIsabel`), que se dejó intacto como referencia
 - **Cotizaciones con 4 vistas** (Tarjetas, Lista, Tabla, Tablero por estado; se
   recuerda la elegida), orden (recientes, vencen primero, cliente, total) y
   **alertas de vigencia**: Vencidas, Por vencer (3 días o menos) y Pendientes,
-  con contadores que filtran al tocarlos. El CSV exporta lo que se ve.
+  con contadores que filtran al tocarlos. El Excel exporta lo que se ve.
 - **Transferencia entre etapas**: "Terminar y pasar a…" cierra la etapa actual, deja
   elegir la siguiente (por defecto la que sigue, pero puede ser cualquiera), asigna al
   nuevo responsable y actualiza el pedido. Si era la última, sugiere pasar a Terminado.
@@ -51,7 +51,7 @@ estático anterior (`../demo-SantaIsabel`), que se dejó intacto como referencia
   cada responsable consulta desde su propia etapa y que sale en su hoja impresa.
 - **Planificación semanal** (Esta semana → Planificación semanal): trabajo por
   responsable y entregas comprometidas, para imprimir (Carta horizontal / PDF),
-  descargar en CSV y compartir (menú del celular, WhatsApp o copiar).
+  descargar en Excel y compartir (menú del celular, WhatsApp o copiar).
 - **Matriz talla × color** en cotizaciones y pedidos: por cada talla se cargan sus
   colores y la cantidad de cada uno (ej. M: Azul 5, Rojo 3, Verde 2). Los totales por
   talla y por color se derivan solos, y la matriz sale en la hoja de cotización, la
@@ -229,3 +229,5 @@ public/
   index.html                # la app (mobile-first)
   login.html                 # pantalla de login
 ```
+
+> **Migración automática:** `npm run db:migrate` (que corre al arrancar el contenedor) también convierte las cotizaciones y pedidos antiguos al formato de matriz talla × color. Si un registro tiene varios colores sin reparto por talla, se deja sin tocar para completarlo a mano.
