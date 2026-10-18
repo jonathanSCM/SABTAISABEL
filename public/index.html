@@ -544,7 +544,9 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
 .muestra-card__h{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .muestra-card__fotos{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .muestra-card__fotos img{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
-.muestra-card__acciones{display:flex;gap:8px;margin-top:10px}
+.muestra-card__acciones{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.modelo-box{border:1.5px solid var(--line);border-radius:var(--r-md);padding:14px;margin-bottom:14px;background:var(--card)}
+.modelo-box > .muestra-card__h b{font-size:15px}
 
 /* producción por etapa */
 .prod-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
@@ -1097,6 +1099,10 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
     <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12c3-6 13-6 16 0-3 6-13 6-16 0Z"/><circle cx="12" cy="12" r="2"/></svg>
     Nueva cotización
   </button>
+  <button class="fabmenu__opt" id="fabMuestra" type="button">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>
+    Nueva muestra
+  </button>
   <button class="fabmenu__opt" id="fabPedido" type="button">
     <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
     Nuevo pedido
@@ -1190,18 +1196,24 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
 </div>
 
 <div class="modal" id="modalMuestra" role="dialog" aria-modal="true" aria-labelledby="modalMuestraTitle">
-  <div class="modal__h"><h2 id="modalMuestraTitle">Nueva versión de muestra</h2><button class="btn btn--ghost btn--sm" id="modalMuestraClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <div class="modal__h"><h2 id="modalMuestraTitle">Nueva muestra</h2><button class="btn btn--ghost btn--sm" id="modalMuestraClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
   <form class="form" id="formMuestra" novalidate>
-    <div class="field full"><label for="ms-titulo">Título de la muestra</label><input class="input" id="ms-titulo" placeholder="Ej. Blusa de lino, vestido modelo A"></div>
-    <div class="field full"><label for="ms-responsable">Responsable</label><input class="input" id="ms-responsable" list="responsables" placeholder="Opcional"></div>
-    <div class="field"><label for="ms-talla">Talla aprobada</label><input class="input" id="ms-talla" placeholder="Ej. S"></div>
-    <div class="field"><label for="ms-materiales">Materiales</label><input class="input" id="ms-materiales" placeholder="Tela, encaje, forro…"></div>
-    <div class="field full"><label for="ms-cambios">Cambios solicitados</label><textarea class="input" id="ms-cambios" placeholder="Qué se le pidió ajustar a esta versión"></textarea></div>
-    <div class="field full"><label for="ms-comentarios">Observaciones / comentarios del cliente</label><textarea class="input" id="ms-comentarios"></textarea></div>
-    <div class="field full"><label>Fotos (hasta 6)</label>
-      <input type="file" id="ms-fotos" accept="image/*" multiple style="display:none">
-      <button type="button" class="btn btn--ghost btn--sm" id="ms-fotos-btn" style="align-self:flex-start">Elegir fotos</button>
-      <div class="muestra-card__fotos" id="ms-fotos-preview"></div>
+    <div id="ms-bloque-modelo" style="display:contents">
+      <div class="field full"><label for="ms-cliente">Cliente</label><input class="input" id="ms-cliente" list="clientes" placeholder="Nombre del cliente"></div>
+      <div class="field full"><label for="ms-titulo">Modelo o prenda</label><input class="input" id="ms-titulo" placeholder="Ej. Blusa de lino, vestido modelo A"></div>
+      <div class="field full"><label>Tallas y colores de este modelo</label><div id="ms-matriz"></div></div>
+    </div>
+    <div id="ms-bloque-version" style="display:contents">
+      <div class="field full"><label for="ms-responsable">Responsable</label><input class="input" id="ms-responsable" list="responsables" placeholder="Opcional"></div>
+      <div class="field"><label for="ms-talla">Talla de la muestra</label><input class="input" id="ms-talla" placeholder="Ej. S"></div>
+      <div class="field"><label for="ms-materiales">Materiales</label><input class="input" id="ms-materiales" placeholder="Tela, encaje, forro…"></div>
+      <div class="field full"><label for="ms-cambios">Cambios solicitados</label><textarea class="input" id="ms-cambios" placeholder="Qué se le pidió ajustar a esta versión"></textarea></div>
+      <div class="field full"><label for="ms-comentarios">Observaciones / comentarios del cliente</label><textarea class="input" id="ms-comentarios"></textarea></div>
+      <div class="field full" id="ms-fotos-box"><label>Fotos (hasta 6)</label>
+        <input type="file" id="ms-fotos" accept="image/*" multiple style="display:none">
+        <button type="button" class="btn btn--ghost btn--sm" id="ms-fotos-btn" style="align-self:flex-start">Elegir fotos</button>
+        <div class="muestra-card__fotos" id="ms-fotos-preview"></div>
+      </div>
     </div>
   </form>
   <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnMuestraCancel">Cancelar</button><button type="submit" form="formMuestra" class="btn btn--primary" id="btnMuestraSave">Registrar muestra</button></div>
@@ -1518,7 +1530,7 @@ const state = {
   filtros:{ estado:"Todos", cliente:"Todos", rango:"Todas", texto:"" },
   mes:(function(){ const d = hoy(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
   pedidoAbierto:null, entrando:true, recien:null, confirmAlta:false, semanaModo:"estado", qTexto:"", qFiltro:"todas", qOrden:"reciente", qVista:null, planSemana:0, planAtrasados:false,
-  vistaGuiaId:null, vistaFichaId:null, vistaFichaVersion:null,
+  vistaGuiaId:null, vistaFichaId:null, vistaFichaVersion:null, mFiltro:"todas", mTexto:"", muestraAbierta:null,
   vistaPaqueteId:null, paqueteSel:[],
   moldesPorCliente:{}, moldesCargando:new Set(),
   cotiz:{ modo:"lista", verId:null, draft:null, wired:false }
@@ -1529,6 +1541,7 @@ const VIEWS = [
   { id:"semana",      label:"Esta semana", ico:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
   { id:"pedidos",     label:"Pedidos",     ico:'<path d="M4 6h16M4 12h16M4 18h10"/>' },
   { id:"cotizaciones",label:"Cotizaciones",ico:'<path d="M4 12c3-6 13-6 16 0-3 6-13 6-16 0Z"/><circle cx="12" cy="12" r="2"/>' },
+  { id:"muestras",    label:"Muestras",    ico:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>' },
   { id:"calendario",  label:"Calendario",  ico:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' }
 ];
 const VIEW_USUARIOS = { id:"usuarios", label:"Usuarios", ico:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 8.5c1.4.3 2.5 1.6 2.5 3.1M18.5 20c0-2.6-1.8-4.8-4.2-5.6"/>' };
@@ -1558,7 +1571,7 @@ function renderNav(){
   ).join("");
   $("#nav").innerHTML = html;
   // la barra inferior tiene máximo 5 opciones: "Equipo" (solo admin) se abre desde el botón de cuenta
-  const tabViews = views.filter(v => v.id !== "usuarios");
+  const tabViews = views.filter(v => v.id !== "usuarios" && v.id !== "muestras");
   $("#tabbar").style.gridTemplateColumns = "repeat("+tabViews.length+",1fr)";
   $("#tabbar").innerHTML = tabViews.map(v =>
     '<button data-view="'+v.id+'"'+(state.view===v.id?' aria-current="page"':"")+'>'+
@@ -1577,11 +1590,11 @@ function go(v){
 /* ============ vistas ============ */
 function render(){
   renderNav();
-  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte", paquete:"Hojas del pedido", plan:"Planificación semanal" };
+  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", muestras:"Muestras", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte", paquete:"Hojas del pedido", plan:"Planificación semanal" };
   $("#viewTitle").textContent = t[state.view];
   const d = hoy();
   $("#todayLabel").textContent = DOW[(d.getDay()+6)%7].replace(/^./,c=>c.toUpperCase())+" "+d.getDate()+" de "+MESES[d.getMonth()]+" de "+d.getFullYear();
-  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte, paquete:vPaquete, plan:vPlan })[state.view]();
+  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, muestras:vMuestras, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte, paquete:vPaquete, plan:vPlan })[state.view]();
   wire();
   if(state.view === "guia"){
     const p = pedidos.find(x => x.id === state.vistaGuiaId);
@@ -2058,6 +2071,12 @@ async function cargarMoldes(cliente, pedidoId){
   if(state.pedidoAbierto === pedidoId) abrirPedido(pedidoId, "preparacion");
 }
 let usuariosLista = null;
+let muestrasLista = [];
+async function cargarMuestras(){ try{ muestrasLista = await api("/muestras"); }catch(e){ muestrasLista = []; } }
+function aplicarRespMuestra(resp){
+  if(resp.muestra){ const i = muestrasLista.findIndex(m => m.id === resp.muestra.id); if(i >= 0) muestrasLista[i] = resp.muestra; else muestrasLista.unshift(resp.muestra); }
+  Object.keys(resp.pedidos || {}).forEach(pid => { const ped = pedidos.find(x => x.id === pid); if(ped && resp.pedidos[pid]) Object.assign(ped, resp.pedidos[pid]); });
+}
 async function cargarUsuarios(){
   try{ usuariosLista = await api("/usuarios"); }
   catch(e){ usuariosLista = []; toast(e.message); }
@@ -2093,7 +2112,118 @@ function vUsuarios(){
   "</section>";
 }
 
-/* ================= Cotizaciones: vista lista ================= */
+/* ================= Muestras (modelos con sus versiones; pueden existir sin pedido) ================= */
+function vMuestras(){
+  const f = state.mFiltro, t = (state.mTexto || "").trim().toLowerCase();
+  const cumple = (m, k) => k === "todas" ? true
+    : k === "sin-pedido" ? (!m.pedidoId && m.estado !== "Anulada")
+    : k === "con-pedido" ? !!m.pedidoId
+    : k === "revision" ? (m.estado === "Pendiente" || m.estado === "Rechazada")
+    : m.estado === "Aprobada";
+  const FILTROS = [["todas","Todas"],["sin-pedido","Sin pedido"],["con-pedido","Con pedido"],["revision","En revisión"],["aprobadas","Aprobadas"]];
+  const lista = muestrasLista.filter(m => cumple(m, f) && (!t || (m.titulo+" "+m.cliente+" "+(m.pedidoId||"")).toLowerCase().includes(t)));
+  return '<section class="card">'+
+    '<div class="card__head"><h2>Muestras</h2><span class="muted">cada modelo con sus tallas, colores y versiones</span>'+
+      '<button class="btn btn--primary btn--sm" id="btnNuevaMuestraG" style="margin-left:auto">+ Nueva muestra</button></div>'+
+    '<div class="field" style="margin:4px 0 10px"><input class="input" id="mq" placeholder="Buscar por modelo, cliente o pedido…" value="'+esc(state.mTexto || "")+'"></div>'+
+    '<div class="chips" style="margin-bottom:12px">'+FILTROS.map(([k,txt]) =>
+      '<button class="chip" data-mfiltro="'+k+'" aria-pressed="'+(f===k)+'">'+txt+'<span class="chip__n">'+muestrasLista.filter(m => cumple(m,k)).length+"</span></button>").join("")+"</div>"+
+    '<div class="rows">'+(lista.length ? lista.map(m =>
+      '<div class="row" role="button" tabindex="0" data-open-muestra="'+m.id+'"><span class="row__main"><span class="row__t">'+esc(m.titulo)+"</span>"+
+        '<span class="row__s">'+esc(m.cliente)+" · "+m.versiones.length+" versión"+(m.versiones.length===1?"":"es")+(m.unidades ? " · "+m.unidades+" und" : "")+"</span></span>"+
+        '<span class="row__r"><span class="badge '+mEstadoClase(m.estado)+'">'+m.estado+"</span>"+
+          (m.pedidoId ? '<span class="badge s-produccion">'+esc(m.pedidoId)+"</span>" : '<span class="badge s-preparacion">Sin pedido</span>')+"</span></div>").join("")
+      : '<div class="empty">'+(t || f !== "todas" ? "Ninguna muestra coincide con el filtro." : "Todavía no hay muestras. Crea la primera con «Nueva muestra».")+"</div>")+"</div>"+
+  "</section>";
+}
+
+/* ---- detalle de una muestra (en el panel lateral) ---- */
+function abrirMuestra(id){
+  const m = muestrasLista.find(x => x.id === id);
+  if(!m) return;
+  state.pedidoAbierto = null; state.muestraAbierta = id;
+  const ctx = "muestra:"+id;
+  $("#drawerKicker").textContent = "Muestra";
+  $("#drawerTitle").textContent = m.titulo;
+  $("#drawerBody").innerHTML =
+    '<div class="dprimary"><div class="dprimary__top"><span class="badge '+mEstadoClase(m.estado)+'">'+m.estado+'</span><span class="muted" style="font-size:12.5px">'+esc(m.cliente)+"</span></div>"+
+      (m.pedidoId
+        ? '<div class="notice notice--baja"><h3>Vinculada al pedido '+esc(m.pedidoId)+'</h3>Cuenta para las muestras que debe aprobar ese pedido.</div>'
+        : '<div class="notice notice--media"><h3>Sin pedido</h3>Esta muestra existe por sí sola. Puedes vincularla a un pedido cuando lo haya.</div>')+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        (m.pedidoId ? '<button class="btn btn--ghost btn--sm" id="mdAbrirPedido">Abrir pedido</button><button class="btn btn--ghost btn--sm" id="mdQuitar">Quitar del pedido</button>'
+                    : '<button class="btn btn--primary btn--sm" id="mdVincular">Vincular a un pedido</button>')+
+        '<button class="btn btn--ghost btn--sm" id="mdEditar">Editar modelo</button>'+
+        '<button class="btn btn--ghost btn--sm" id="mdNuevaVersion">+ Nueva versión</button>'+
+      "</div></div>"+
+    '<h4 class="lbl" style="margin:16px 0 6px">Tallas y colores</h4>'+
+    (m.matriz && m.matriz.length ? matrizTablaHTML(m.matriz) : '<div class="muted" style="font-size:13px">Todavía no tiene tallas ni colores. Se cargan desde «Editar modelo».</div>')+
+    '<h4 class="lbl" style="margin:16px 0 6px">Versiones</h4>'+
+    '<div class="muestras-list">'+m.versiones.slice().reverse().map(v => versionCardHTML(v, ctx)).join("")+"</div>";
+  const rootB = $("#drawerBody");
+  const ap = $("#mdAbrirPedido"); if(ap) ap.onclick = () => abrirPedido(m.pedidoId, "muestra");
+  const qt = $("#mdQuitar"); if(qt) qt.onclick = () => quitarMuestraDePedido(m.id, ctx);
+  const vi = $("#mdVincular"); if(vi) vi.onclick = () => vincularMuestraAPedido(m, ctx);
+  $("#mdEditar").onclick = () => abrirModalMuestra({ modo:"modelo", muestra:m, ctx });
+  $("#mdNuevaVersion").onclick = () => abrirModalMuestra({ modo:"version", muestraId:m.id, ctx });
+  enlazarVersiones(rootB, ctx);
+  abrirDrawer();
+}
+
+/* ---- acciones compartidas entre el pedido y la muestra ---- */
+function buscarVersion(vid){
+  for(const m of muestrasLista){ const v = m.versiones.find(x => x.id === vid); if(v) return { v, m }; }
+  return {};
+}
+function refrescarMuestras(ctx, resp){
+  aplicarRespMuestra(resp);
+  render();
+  if(ctx && ctx.startsWith("pedido:")) abrirPedido(ctx.slice(7), "muestra");
+  else if(ctx && ctx.startsWith("muestra:")) abrirMuestra(Number(ctx.slice(8)));
+  else if(resp.muestra && ctx === "lista") abrirMuestra(resp.muestra.id);
+}
+function enlazarVersiones(root, ctx){
+  root.querySelectorAll("[data-mv-aprobar]").forEach(b => b.onclick = () => cambiarEstadoVersion(Number(b.dataset.mvAprobar), "Aprobada", ctx));
+  root.querySelectorAll("[data-mv-rechazar]").forEach(b => b.onclick = () => cambiarEstadoVersion(Number(b.dataset.mvRechazar), "Rechazada", ctx));
+  root.querySelectorAll("[data-mv-editar]").forEach(b => b.onclick = () => { const { v } = buscarVersion(Number(b.dataset.mvEditar)); if(v) abrirModalMuestra({ modo:"editar-version", version:v, ctx }); });
+  root.querySelectorAll("[data-mv-anular]").forEach(b => b.onclick = async () => {
+    if(!confirm("¿Anular esta versión? Queda registrada, pero deja de contar.")) return;
+    try{ const r = await api("/muestras/versiones/"+b.dataset.mvAnular+"/anular", { method:"POST" }); toast("Versión anulada."); refrescarMuestras(ctx, r); }
+    catch(err){ toast(err.message); }
+  });
+  root.querySelectorAll("[data-mv-ficha]").forEach(b => b.onclick = () => { const { m } = buscarVersion(Number(b.dataset.mvFicha)); if(m && m.pedidoId) abrirFicha(m.pedidoId, Number(b.dataset.mvFicha)); });
+}
+async function cambiarEstadoVersion(vid, estado, ctx){
+  try{ const r = await api("/muestras/versiones/"+vid+"/estado", { method:"PATCH", body:JSON.stringify({ estado }) }); toast("Versión → "+estado); refrescarMuestras(ctx, r); }
+  catch(e){ toast(e.message); }
+}
+async function quitarMuestraDePedido(mid, ctx){
+  if(!confirm("¿Quitar esta muestra del pedido? La muestra no se borra: queda disponible sin pedido.")) return;
+  try{ const r = await api("/muestras/"+mid+"/desvincular", { method:"POST" }); toast("Muestra quitada del pedido."); refrescarMuestras(ctx, r); }
+  catch(e){ toast(e.message); }
+}
+/* agregar una muestra que ya existe (sin pedido) a este pedido */
+async function vincularExistente(p){
+  const libres = muestrasLista.filter(m => !m.pedidoId && m.estado !== "Anulada")
+    .sort((a, b) => (b.cliente === p.cliente) - (a.cliente === p.cliente) || b.id - a.id).slice(0, 25);
+  if(!libres.length){ toast("No hay muestras sueltas. Crea una con «Nueva muestra»."); return; }
+  const val = await abrirActionSheet("Agregar muestra existente", libres.map(m => ({ val:String(m.id), label:m.titulo+" · "+m.cliente+(m.cliente === p.cliente ? "" : " (otro cliente)") })),
+    "Elige la muestra que quieres sumar a "+esc(p.id)+". Un pedido puede tener varios modelos.");
+  if(!val) return;
+  try{ const r = await api("/muestras/"+val+"/vincular", { method:"POST", body:JSON.stringify({ pedidoId:p.id }) }); toast("Muestra agregada al pedido."); refrescarMuestras("pedido:"+p.id, r); }
+  catch(e){ toast(e.message); }
+}
+async function vincularMuestraAPedido(m, ctx){
+  const cand = pedidos.filter(x => x.estado !== "Entregado").sort((a, b) => (b.cliente === m.cliente) - (a.cliente === m.cliente) || a.id.localeCompare(b.id)).slice(0, 25);
+  if(!cand.length){ toast("No hay pedidos abiertos para vincular."); return; }
+  const val = await abrirActionSheet("Vincular a un pedido", cand.map(x => ({ val:x.id, label:x.id+" · "+x.cliente+" · "+x.producto })),
+    "Primero salen los pedidos de "+esc(m.cliente)+".");
+  if(!val) return;
+  try{ const r = await api("/muestras/"+m.id+"/vincular", { method:"POST", body:JSON.stringify({ pedidoId:val }) }); toast("Muestra vinculada a "+val+"."); refrescarMuestras(ctx, r); }
+  catch(e){ toast(e.message); }
+}
+
+/* ================= Cotizaciones: vista lista =================
 /* ================= Cotizaciones: vistas, filtros y alertas =================
    Una cotización abierta (Borrador/Enviada) vence a los N días de vigencia desde su fecha.
    Alerta: Vencida (ya pasó), Por vencer (faltan 3 días o menos) o Pendiente (en plazo). */
@@ -2856,6 +2986,11 @@ function wire(){
     const k = el.dataset.qsort; state.qOrden = k === "fecha" ? (state.qOrden === "reciente" ? "antigua" : "reciente") : k; render(); });
   const nq2 = page.querySelector("#btnNewQuoteInline"); if(nq2) nq2.onclick = () => abrirCotiz("nueva");
 
+  page.querySelectorAll("[data-open-muestra]").forEach(el => { el.onclick = () => abrirMuestra(Number(el.dataset.openMuestra)); el.onkeydown = e => { if(e.key === "Enter") el.click(); }; });
+  const bnm = page.querySelector("#btnNuevaMuestraG"); if(bnm) bnm.onclick = () => abrirModalMuestra({ modo:"nueva", ctx:"lista" });
+  page.querySelectorAll("[data-mfiltro]").forEach(b => b.onclick = () => { state.mFiltro = b.dataset.mfiltro; render(); });
+  const mq = page.querySelector("#mq");
+  if(mq) mq.oninput = () => { state.mTexto = mq.value; const pos = mq.selectionStart; render(); const n = $("#mq"); n.focus(); n.setSelectionRange(pos, pos); };
   const bnu = page.querySelector("#btnNuevoUsuario"); if(bnu) bnu.onclick = abrirModalUsuario;
   page.querySelectorAll("[data-toggle-usuario]").forEach(b => b.onclick = () => alternarUsuario(b.dataset.toggleUsuario, b.dataset.activo !== "true"));
   const bra = page.querySelector("#btnRespAgregar");
@@ -2915,7 +3050,7 @@ function otroOverlayAbierto(exceptoId){
   return OVERLAY_IDS.some(id => id !== exceptoId && $("#"+id).dataset.open === "true");
 }
 function abrirDrawer(){ scrim.dataset.open = "true"; drawer.dataset.open = "true"; drawer.focus(); }
-function cerrarDrawer(){ drawer.dataset.open = "false"; if(!otroOverlayAbierto("drawer")) scrim.dataset.open = "false"; state.pedidoAbierto = null; }
+function cerrarDrawer(){ drawer.dataset.open = "false"; if(!otroOverlayAbierto("drawer")) scrim.dataset.open = "false"; state.pedidoAbierto = null; state.muestraAbierta = null; }
 $("#drawerClose").onclick = cerrarDrawer;
 function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalResumen(); cerrarModalMuestra(); cerrarModalProduccion(); cerrarModalMolde(); cerrarModalCurva(); cerrarModalCompras(); cerrarModalTransfer(); }
 scrim.onclick = cerrarTodosLosOverlays;
@@ -3033,44 +3168,63 @@ function paneMoldesHTML(p){
       : lista.length ? '<div class="muestras-list">'+lista.map(moldeCardHTML).join("")+"</div>"
       : '<div class="empty">Todavía no hay moldes archivados para este cliente.</div>');
 }
-function muestraCardHTML(m){
-  const cls = m.estado==="Aprobada"?"s-terminado":m.estado==="Rechazada"?"s-atrasado":m.estado==="Anulada"?"s-entregado":"s-preparacion";
-  return '<div class="muestra-card"'+(m.estado==="Anulada" ? ' style="opacity:.6"' : "")+'>'+
-    '<div class="muestra-card__h"><b>Muestra '+m.version+(m.titulo ? " · "+esc(m.titulo) : "")+'</b><span class="badge '+cls+'">'+m.estado+"</span></div>"+
-    '<div class="muted" style="font-size:12px;margin-top:2px">'+fechaCorta(m.fecha)+(m.responsable?" · "+esc(m.responsable):"")+"</div>"+
-    (m.tallaAprobada ? '<div style="font-size:13px;margin-top:8px"><b>Talla aprobada:</b> '+esc(m.tallaAprobada)+"</div>" : "")+
-    (m.materiales ? '<div style="font-size:13px;margin-top:4px"><b>Materiales:</b> '+esc(m.materiales)+"</div>" : "")+
-    (m.cambiosSolicitados ? '<div style="font-size:13px;margin-top:4px"><b>Cambios solicitados:</b> '+esc(m.cambiosSolicitados)+"</div>" : "")+
-    (m.comentariosCliente ? '<div style="font-size:13px;margin-top:4px"><b>Observaciones:</b> '+esc(m.comentariosCliente)+"</div>" : "")+
-    (m.aprobadoPor ? '<div class="muted" style="font-size:11.5px;margin-top:6px">Aprobada por '+esc(m.aprobadoPor)+"</div>" : "")+
-    (m.fotos && m.fotos.length ? '<div class="muestra-card__fotos">'+m.fotos.map(f=>'<img src="'+f+'">').join("")+"</div>" : "")+
+function mEstadoClase(e){ return e==="Aprobada"?"s-terminado":e==="Rechazada"?"s-atrasado":e==="Anulada"?"s-entregado":"s-preparacion"; }
+/* una versión (iteración) de un modelo de muestra */
+function versionCardHTML(v, ctx){
+  return '<div class="muestra-card"'+(v.estado==="Anulada" ? ' style="opacity:.6"' : "")+'>'+
+    '<div class="muestra-card__h"><b>Versión '+v.version+'</b><span class="badge '+mEstadoClase(v.estado)+'">'+v.estado+"</span></div>"+
+    '<div class="muted" style="font-size:12px;margin-top:2px">'+fechaCorta(v.fecha)+(v.responsable?" · "+esc(v.responsable):"")+"</div>"+
+    (v.tallaAprobada ? '<div style="font-size:13px;margin-top:8px"><b>Talla:</b> '+esc(v.tallaAprobada)+"</div>" : "")+
+    (v.materiales ? '<div style="font-size:13px;margin-top:4px"><b>Materiales:</b> '+esc(v.materiales)+"</div>" : "")+
+    (v.cambiosSolicitados ? '<div style="font-size:13px;margin-top:4px"><b>Cambios solicitados:</b> '+esc(v.cambiosSolicitados)+"</div>" : "")+
+    (v.comentariosCliente ? '<div style="font-size:13px;margin-top:4px"><b>Observaciones:</b> '+esc(v.comentariosCliente)+"</div>" : "")+
+    (v.aprobadoPor ? '<div class="muted" style="font-size:11.5px;margin-top:6px">Aprobada por '+esc(v.aprobadoPor)+"</div>" : "")+
+    (v.fotos && v.fotos.length ? '<div class="muestra-card__fotos">'+v.fotos.map(f=>'<img src="'+f+'">').join("")+"</div>" : "")+
     '<div class="muestra-card__acciones">'+
-      (m.estado === "Pendiente" ? '<button class="btn btn--primary btn--sm" data-muestra-aprobar="'+m.version+'">Aprobar</button>'+
-        '<button class="btn btn--danger btn--sm" data-muestra-rechazar="'+m.version+'">Rechazar</button>' : "")+
-      '<button type="button" class="btn btn--ghost btn--sm" data-ficha="'+m.version+'">Ficha técnica</button>'+
-      (m.estado !== "Anulada" ? '<button type="button" class="btn btn--ghost btn--sm" data-muestra-editar="'+m.version+'">Editar</button>'+
-        '<button type="button" class="btn btn--ghost btn--sm" data-muestra-anular="'+m.version+'">Anular</button>' : "")+
+      (v.estado === "Pendiente" ? '<button class="btn btn--primary btn--sm" data-mv-aprobar="'+v.id+'">Aprobar</button>'+
+        '<button class="btn btn--danger btn--sm" data-mv-rechazar="'+v.id+'">Rechazar</button>' : "")+
+      (ctx.startsWith("pedido:") ? '<button type="button" class="btn btn--ghost btn--sm" data-mv-ficha="'+v.id+'">Ficha técnica</button>' : "")+
+      (v.estado !== "Anulada" ? '<button type="button" class="btn btn--ghost btn--sm" data-mv-editar="'+v.id+'">Editar</button>'+
+        '<button type="button" class="btn btn--ghost btn--sm" data-mv-anular="'+v.id+'">Anular</button>' : "")+
     "</div>"+
   "</div>";
 }
+function modeloEstado(g){
+  const vivas = g.versiones.filter(v => v.estado !== "Anulada");
+  if(!vivas.length) return "Anulada";
+  return vivas.some(v => v.estado === "Aprobada") ? "Aprobada" : "En revisión";
+}
+function modeloBloqueHTML(g, ctx){
+  const est = modeloEstado(g);
+  return '<div class="modelo-box"><div class="muestra-card__h"><b>'+esc(g.titulo)+'</b><span class="badge '+(est==="Aprobada"?"s-terminado":est==="Anulada"?"s-entregado":"s-preparacion")+'">'+est+"</span></div>"+
+    (g.matriz && g.matriz.length ? '<div style="margin-top:8px">'+matrizTablaHTML(g.matriz)+"</div>"
+      : '<div class="muted" style="font-size:12px;margin-top:6px">Este modelo todavía no tiene tallas ni colores.</div>')+
+    '<div class="muestras-list" style="margin-top:10px">'+g.versiones.slice().reverse().map(v => versionCardHTML(v, ctx)).join("")+"</div>"+
+    '<div class="muestra-card__acciones">'+
+      '<button class="btn btn--primary btn--sm" data-mm-version="'+g.id+'">+ Nueva versión</button>'+
+      '<button class="btn btn--ghost btn--sm" data-mm-editar="'+g.id+'">Editar modelo</button>'+
+      '<button class="btn btn--ghost btn--sm" data-mm-abrir="'+g.id+'">Abrir muestra</button>'+
+      '<button class="btn btn--ghost btn--sm" data-mm-quitar="'+g.id+'">Quitar del pedido</button>'+
+    "</div></div>";
+}
 function paneMuestraHTML(p){
-  if(!p.requiereMuestra){
-    return '<div class="notice notice--baja"><h3>Este pedido no requiere muestra</h3>'+
-        "Puede pasar a producción sin necesidad de aprobar ninguna versión."+
-      "</div>"+
-      '<button type="button" class="seemore" id="btnActivarMuestra" style="margin-top:10px">¿Sí necesita muestra después de todo? Activar</button>'+
-      (p.muestras.length ? '<div class="muestras-list" style="margin-top:14px">'+p.muestras.slice().reverse().map(muestraCardHTML).join("")+"</div>" : "");
-  }
-  const aprobada = p.muestras.find(m => m.estado === "Aprobada");
-  return (aprobada ? '<div class="notice notice--baja"><h3>Muestra final aprobada</h3>Versión '+aprobada.version+", aprobada por "+esc(aprobada.aprobadoPor||"—")+".</div>"
-    : '<div class="notice notice--media"><h3>Sin muestra final aprobada</h3>Este pedido requiere muestra: la producción completa no puede iniciar hasta aprobar una versión.</div>')+
+  const modelos = p.modelos || [];
+  const vivos = modelos.filter(g => g.versiones.some(v => v.estado !== "Anulada"));
+  const faltan = vivos.filter(g => !g.versiones.some(v => v.estado === "Aprobada"));
+  const ctx = "pedido:"+p.id;
+  const aviso = !p.requiereMuestra
+    ? '<div class="notice notice--baja"><h3>Este pedido no requiere muestra</h3>Puede pasar a producción sin aprobar ninguna.</div>'
+    : !vivos.length ? '<div class="notice notice--media"><h3>Sin muestras</h3>Este pedido requiere muestra: crea una o agrega una existente. La producción no puede iniciar hasta aprobarlas.</div>'
+    : faltan.length ? '<div class="notice notice--media"><h3>Faltan aprobar '+faltan.length+" modelo"+(faltan.length===1?"":"s")+"</h3>"+faltan.map(g => "«"+esc(g.titulo)+"»").join(", ")+" aún no tiene una versión final aprobada.</div>"
+    : '<div class="notice notice--baja"><h3>Todas las muestras están aprobadas</h3>'+vivos.length+" modelo"+(vivos.length===1?"":"s")+" con versión final aprobada.</div>";
+  return aviso+
   '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0">'+
-    '<button class="btn btn--primary btn--sm" id="btnNuevaMuestra">+ Nueva versión de muestra</button>'+
-    '<button type="button" class="seemore" id="btnDesactivarMuestra">Este pedido no necesita muestra</button>'+
+    '<button class="btn btn--primary btn--sm" id="btnMuestraNueva">+ Nueva muestra</button>'+
+    '<button class="btn btn--ghost btn--sm" id="btnMuestraExistente">Agregar muestra existente</button>'+
+    (p.requiereMuestra ? '<button type="button" class="seemore" id="btnDesactivarMuestra">Este pedido no necesita muestra</button>'
+      : '<button type="button" class="seemore" id="btnActivarMuestra">¿Sí necesita muestra? Activar</button>')+
   "</div>"+
-  '<div class="muestras-list">'+
-    (p.muestras.length ? p.muestras.slice().reverse().map(muestraCardHTML).join("") : '<div class="empty">Todavía no hay versiones de muestra.</div>')+
-  "</div>";
+  (modelos.length ? modelos.map(g => modeloBloqueHTML(g, ctx)).join("") : '<div class="empty">Todavía no hay muestras en este pedido. Un pedido puede tener varios modelos, cada uno con sus tallas, colores y versiones.</div>');
 }
 function paneProduccionHTML(p){
   const ESTADO_PROD_CLASE = { "Pendiente":"s-preparacion", "En proceso":"s-produccion", "Completado":"s-terminado" };
@@ -3177,7 +3331,7 @@ function fichaSheetHTML(p, m){
 }
 function vFicha(){
   const p = pedidos.find(x => x.id === state.vistaFichaId);
-  const m = p && p.muestras.find(x => x.version === state.vistaFichaVersion);
+  const m = p && p.muestras.find(x => x.id === state.vistaFichaVersion);
   if(!p || !m) return '<div class="empty">Ficha no encontrada.</div>';
   return '<div style="display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto;width:100%">'+
     '<button class="qback" id="btnVolverFicha">← Volver al pedido</button>'+
@@ -3602,16 +3756,14 @@ function abrirPedido(id, tabIni){
   $("#drawerBody").querySelectorAll("[data-chk-del]").forEach(b => b.onclick = () => borrarChecklist(p, b.dataset.chkDel));
   const btnChkAgregar = $("#btnChkAgregar");
   if(btnChkAgregar) btnChkAgregar.onclick = () => agregarChecklist(p);
-  const btnNuevaMuestra = $("#btnNuevaMuestra"); if(btnNuevaMuestra) btnNuevaMuestra.onclick = () => abrirModalMuestra(p.id);
-  $("#drawerBody").querySelectorAll("[data-muestra-editar]").forEach(b => b.onclick = () => abrirModalMuestra(p.id, p.muestras.find(x => String(x.version) === b.dataset.muestraEditar)));
-  $("#drawerBody").querySelectorAll("[data-muestra-anular]").forEach(b => b.onclick = async () => {
-    if(!confirm("¿Anular la muestra "+b.dataset.muestraAnular+"? Queda en el historial, pero deja de contar.")) return;
-    try{ const act = await api("/pedidos/"+p.id+"/muestras/"+b.dataset.muestraAnular+"/anular", { method:"POST" }); Object.assign(p, act); toast("Muestra anulada."); render(); abrirPedido(p.id, "muestra"); }
-    catch(err){ toast(err.message); }
-  });
-  $("#drawerBody").querySelectorAll("[data-muestra-aprobar]").forEach(b => b.onclick = () => actualizarEstadoMuestra(p, b.dataset.muestraAprobar, "Aprobada"));
-  $("#drawerBody").querySelectorAll("[data-muestra-rechazar]").forEach(b => b.onclick = () => actualizarEstadoMuestra(p, b.dataset.muestraRechazar, "Rechazada"));
-  $("#drawerBody").querySelectorAll("[data-ficha]").forEach(b => b.onclick = () => abrirFicha(p.id, Number(b.dataset.ficha)));
+  const ctxM = "pedido:"+p.id;
+  const bmn = $("#btnMuestraNueva"); if(bmn) bmn.onclick = () => abrirModalMuestra({ modo:"nueva", pedidoId:p.id, cliente:p.cliente, ctx:ctxM });
+  const bme = $("#btnMuestraExistente"); if(bme) bme.onclick = () => vincularExistente(p);
+  $("#drawerBody").querySelectorAll("[data-mm-version]").forEach(b => b.onclick = () => abrirModalMuestra({ modo:"version", muestraId:Number(b.dataset.mmVersion), ctx:ctxM }));
+  $("#drawerBody").querySelectorAll("[data-mm-editar]").forEach(b => b.onclick = () => { const m = muestrasLista.find(x => x.id === Number(b.dataset.mmEditar)); if(m) abrirModalMuestra({ modo:"modelo", muestra:m, ctx:ctxM }); });
+  $("#drawerBody").querySelectorAll("[data-mm-abrir]").forEach(b => b.onclick = () => abrirMuestra(Number(b.dataset.mmAbrir)));
+  $("#drawerBody").querySelectorAll("[data-mm-quitar]").forEach(b => b.onclick = () => quitarMuestraDePedido(Number(b.dataset.mmQuitar), ctxM));
+  enlazarVersiones($("#drawerBody"), ctxM);
   $("#drawerBody").querySelectorAll("[data-prod]").forEach(b => b.onclick = () => abrirModalProduccion(p.id, b.dataset.prod));
   $("#drawerBody").querySelectorAll("[data-prod-label]").forEach(el => {
     el.onchange = () => renombrarProduccion(p, el.dataset.prodLabel, el.value);
@@ -3738,14 +3890,6 @@ async function agregarProduccion(p){
     const actualizado = await api("/pedidos/"+p.id+"/produccion", { method:"POST", body: JSON.stringify({ label }) });
     Object.assign(p, actualizado);
     render(); abrirPedido(p.id, "produccion");
-  } catch(e){ toast(e.message); }
-}
-async function actualizarEstadoMuestra(p, version, estado){
-  try{
-    const actualizado = await api("/pedidos/"+p.id+"/muestras/"+version+"/estado", { method:"PATCH", body: JSON.stringify({ estado }) });
-    Object.assign(p, actualizado);
-    toast("Muestra "+version+" → "+estado);
-    render(); abrirPedido(p.id, "muestra");
   } catch(e){ toast(e.message); }
 }
 async function cambiarEstado(p, nuevo){
@@ -3932,20 +4076,23 @@ formResumen.addEventListener("submit", async e => {
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });
 
-/* ---- modal: nueva versión de muestra ---- */
+/* ---- modal de muestra: modelo nuevo, nueva versión, editar versión o editar modelo ---- */
 const modalMuestra = $("#modalMuestra"), formMuestra = $("#formMuestra");
 formMuestra._fotos = [];
-function abrirModalMuestra(pedidoId, m){
-  formMuestra.reset();
-  formMuestra.dataset.pedidoId = pedidoId;
-  formMuestra.dataset.version = m ? m.version : "";
-  $("#modalMuestraTitle").textContent = m ? "Editar muestra "+m.version : "Nueva versión de muestra";
-  $("#btnMuestraSave").textContent = m ? "Guardar cambios" : "Registrar muestra";
-  $("#ms-fotos-btn").parentElement.style.display = m ? "none" : "";
-  if(m){ $("#ms-titulo").value = m.titulo || ""; $("#ms-responsable").value = m.responsable || ""; $("#ms-talla").value = m.tallaAprobada || "";
-    $("#ms-materiales").value = m.materiales || ""; $("#ms-cambios").value = m.cambiosSolicitados || ""; $("#ms-comentarios").value = m.comentariosCliente || ""; }
-  formMuestra._fotos = [];
-  $("#ms-fotos-preview").innerHTML = "";
+let msEstado = null, msMx = [];
+function abrirModalMuestra(o){
+  formMuestra.reset(); formMuestra._fotos = []; $("#ms-fotos-preview").innerHTML = "";
+  msEstado = o; const modo = o.modo;
+  $("#ms-bloque-modelo").style.display = (modo === "nueva" || modo === "modelo") ? "contents" : "none";
+  $("#ms-bloque-version").style.display = modo === "modelo" ? "none" : "contents";
+  $("#ms-fotos-box").style.display = modo === "editar-version" ? "none" : "";
+  $("#modalMuestraTitle").textContent = { nueva:"Nueva muestra", version:"Nueva versión de la muestra", "editar-version":"Editar versión", modelo:"Editar modelo" }[modo];
+  $("#btnMuestraSave").textContent = { nueva:"Registrar muestra", version:"Registrar versión", "editar-version":"Guardar cambios", modelo:"Guardar cambios" }[modo];
+  msMx = [];
+  if(modo === "nueva"){ $("#ms-cliente").value = o.cliente || ""; $("#ms-cliente").readOnly = !!o.pedidoId; }
+  if(modo === "modelo"){ $("#ms-cliente").readOnly = !!o.muestra.pedidoId; $("#ms-cliente").value = o.muestra.cliente; $("#ms-titulo").value = o.muestra.titulo; msMx = JSON.parse(JSON.stringify(o.muestra.matriz || [])); }
+  if(modo === "editar-version"){ const v = o.version; $("#ms-responsable").value = v.responsable || ""; $("#ms-talla").value = v.tallaAprobada || ""; $("#ms-materiales").value = v.materiales || ""; $("#ms-cambios").value = v.cambiosSolicitados || ""; $("#ms-comentarios").value = v.comentariosCliente || ""; }
+  if(modo === "nueva" || modo === "modelo") montarMatriz($("#ms-matriz"), msMx, { consumo:false });
   scrim.dataset.open = "true"; modalMuestra.dataset.open = "true";
 }
 function cerrarModalMuestra(){ modalMuestra.dataset.open = "false"; if(!otroOverlayAbierto("modalMuestra")) scrim.dataset.open = "false"; }
@@ -3960,27 +4107,29 @@ $("#ms-fotos").onchange = async e => {
 };
 formMuestra.addEventListener("submit", async e => {
   e.preventDefault();
+  const o = msEstado; if(!o) return;
   const btn = $("#btnMuestraSave"); btn.disabled = true;
+  const version = () => ({ responsable:$("#ms-responsable").value.trim(), tallaAprobada:$("#ms-talla").value.trim(), materiales:$("#ms-materiales").value.trim(),
+    cambiosSolicitados:$("#ms-cambios").value.trim(), comentariosCliente:$("#ms-comentarios").value.trim(), fotos:formMuestra._fotos });
+  const matrizLimpia = () => msMx.filter(r => (r.talla || "").trim() || r.colores.some(c => c.cant > 0));
   try{
-    const pedidoId = formMuestra.dataset.pedidoId;
-    const p = pedidos.find(x => x.id === pedidoId);
-    const version = formMuestra.dataset.version;
-    const actualizado = await api("/pedidos/"+pedidoId+"/muestras"+(version ? "/"+version : ""), { method:version ? "PATCH" : "POST", body: JSON.stringify({
-      titulo: $("#ms-titulo").value.trim(),
-      responsable: $("#ms-responsable").value.trim(),
-      tallaAprobada: $("#ms-talla").value.trim(),
-      materiales: $("#ms-materiales").value.trim(),
-      cambiosSolicitados: $("#ms-cambios").value.trim(),
-      comentariosCliente: $("#ms-comentarios").value.trim(),
-      fotos: formMuestra._fotos
-    }) });
-    Object.assign(p, actualizado);
-    cerrarModalMuestra();
-    toast(version ? "Muestra actualizada." : "Muestra registrada.");
-    render(); abrirPedido(pedidoId, "muestra");
+    let r, msg;
+    if(o.modo === "nueva"){
+      const titulo = $("#ms-titulo").value.trim(), cliente = $("#ms-cliente").value.trim();
+      if(!titulo || !cliente){ toast("Indica el cliente y el modelo o prenda."); return; }
+      r = await api("/muestras", { method:"POST", body:JSON.stringify({ cliente, titulo, matriz:matrizLimpia(), pedidoId:o.pedidoId || null, ...version() }) }); msg = "Muestra registrada.";
+    } else if(o.modo === "version"){
+      r = await api("/muestras/"+o.muestraId+"/versiones", { method:"POST", body:JSON.stringify(version()) }); msg = "Versión registrada.";
+    } else if(o.modo === "editar-version"){
+      r = await api("/muestras/versiones/"+o.version.id, { method:"PATCH", body:JSON.stringify(version()) }); msg = "Versión actualizada.";
+    } else {
+      const titulo = $("#ms-titulo").value.trim(), cliente = $("#ms-cliente").value.trim();
+      if(!titulo || !cliente){ toast("Indica el cliente y el modelo o prenda."); return; }
+      r = await api("/muestras/"+o.muestra.id, { method:"PATCH", body:JSON.stringify({ cliente, titulo, matriz:matrizLimpia() }) }); msg = "Modelo actualizado.";
+    }
+    cerrarModalMuestra(); toast(msg); refrescarMuestras(o.ctx, r);
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });
-
 /* ---- modal: matriz talla x color del pedido (la usan la orden de corte, las hojas y la ficha) ---- */
 const modalCurva = $("#modalCurva"), formCurva = $("#formCurva");
 let curvaEstado = null;
@@ -4275,6 +4424,7 @@ fabBtn.onclick = () => { fabMenu.dataset.open === "true" ? cerrarFabMenu() : abr
 fabScrim.onclick = cerrarFabMenu;
 $("#fabQuote").onclick = () => { cerrarFabMenu(); abrirCotiz("nueva"); };
 $("#fabPedido").onclick = () => { cerrarFabMenu(); abrirModal(); };
+$("#fabMuestra").onclick = () => { cerrarFabMenu(); abrirModalMuestra({ modo:"nueva", ctx:"lista" }); };
 
 /* ---- hoja de acciones (bottom sheet) para cambiar estado ---- */
 const actsheet = $("#actsheet");
@@ -4396,11 +4546,13 @@ $("#btnLogout").onclick = async () => {
 $("#btnAcct").onclick = async () => {
   const rol = usuarioActual.rol === "admin" ? "Administrador" : "Operador";
   const val = await abrirActionSheet(usuarioActual.nombre, [
+    { val:"muestras", label:"Muestras" },
     ...(usuarioActual.rol === "admin" ? [{ val:"usuarios", label:"Gestionar usuarios" }] : []),
     { val:"pw", label:"Cambiar contraseña" },
     { val:"out", label:"Cerrar sesión" }
   ], esc(usuarioActual.email)+" · "+rol);
   if(val === "usuarios") go("usuarios");
+  if(val === "muestras") go("muestras");
   if(val === "pw") abrirModalMiCuenta();
   if(val === "out") $("#btnLogout").click();
 };
@@ -4445,6 +4597,7 @@ async function boot(){
   const [pd, ct] = await Promise.all([ api("/pedidos"), api("/cotizaciones") ]);
   pedidos = pd; cotizaciones = ct;
   await cargarResponsables();
+  await cargarMuestras();
   refrescarDatalists();
   render();
   $("#bootOverlay").remove();

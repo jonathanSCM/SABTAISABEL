@@ -240,3 +240,8 @@ public/
 - **Entrega:** la guía muestra modelo, tallas y colores.
 - **Usuarios:** cambio de contraseña obligatorio en el primer ingreso; catálogo editable de responsables.
 - **Operación:** `npm run db:reset` deja la base en cero y conserva solo al administrador (pide `CONFIRMAR=VACIAR`).
+
+## Muestras como modelos (13/10)
+- Una **muestra** es un modelo/prenda con sus **tallas y colores** (matriz) y sus **versiones** (iteraciones). Existe por sí sola (vista *Muestras*) y se puede **vincular** a un pedido, o crear directamente desde el pedido.
+- Un pedido puede tener **varios modelos**, cada uno con su matriz y su aprobación. Para pasar a producción (si el pedido requiere muestra) cada modelo vigente debe tener una versión final aprobada. Las versiones anuladas no cuentan.
+- La migración agrupa las muestras que ya existían en un modelo por pedido.

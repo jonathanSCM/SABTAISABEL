@@ -270,3 +270,18 @@ CREATE TABLE IF NOT EXISTS responsables (
 -- 17: varias prendas en una misma cotización (la primera es la principal; el resto va en "extras")
 ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS extras JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS pedidos_extra JSONB NOT NULL DEFAULT '[]';
+
+-- 11/13: muestras como entidad propia (modelo) con sus versiones; pueden existir sin pedido y vincularse después
+CREATE TABLE IF NOT EXISTS muestras (
+  id SERIAL PRIMARY KEY,
+  cliente TEXT NOT NULL DEFAULT '',
+  titulo TEXT NOT NULL DEFAULT '',
+  matriz JSONB NOT NULL DEFAULT '[]',
+  pedido_id TEXT REFERENCES pedidos(id) ON DELETE SET NULL,
+  created_by INT REFERENCES usuarios(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE pedido_muestras ADD COLUMN IF NOT EXISTS muestra_id INT REFERENCES muestras(id) ON DELETE CASCADE;
+ALTER TABLE pedido_muestras ALTER COLUMN pedido_id DROP NOT NULL;
+ALTER TABLE pedido_muestras DROP CONSTRAINT IF EXISTS pedido_muestras_pedido_id_version_key;
+CREATE UNIQUE INDEX IF NOT EXISTS pedido_muestras_muestra_version ON pedido_muestras (muestra_id, version) WHERE muestra_id IS NOT NULL;

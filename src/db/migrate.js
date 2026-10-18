@@ -38,12 +38,18 @@ async function exigirCambioDeClaveInicial(){
   console.log("  usuarios obligados a cambiar la contraseña inicial: "+marcados);
 }
 
+async function migrarMuestrasExistentes(){
+  const { migrarMuestras } = require("./muestras-migrar");
+  console.log("  muestras agrupadas en modelos: "+(await migrarMuestras(pool)));
+}
+
 async function migrate(){
   const sql = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
   await pool.query(sql);
   console.log("OK: esquema aplicado a la base de datos.");
   await migrarMatriz("cotizaciones");
   await migrarMatriz("pedidos");
+  await migrarMuestrasExistentes();
   await exigirCambioDeClaveInicial();
   await pool.end();
 }

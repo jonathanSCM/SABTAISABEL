@@ -246,6 +246,7 @@ async function seed(){
     throw err;
   } finally {
     client.release();
+    await require("./muestras-migrar").migrarMuestras(pool);
     await pool.end();
   }
 }

@@ -228,6 +228,7 @@ async function main(){
     }
 
     // muestras: se rehacen para ser idempotente
+    await pool.query("DELETE FROM muestras WHERE pedido_id=$1", [p.id]);
     await pool.query("DELETE FROM pedido_muestras WHERE pedido_id=$1", [p.id]);
     if(d.muestra){
       for(let v=0; v<d.muestra.length; v++){
@@ -252,6 +253,7 @@ async function main(){
     }
   }
   console.log("OK: detalle cargado en "+n+" pedidos y moldes de "+Object.keys(MOLDES).length+" clientes.");
+  await require("./muestras-migrar").migrarMuestras(pool);
   await pool.end();
 }
 main().catch(e => { console.error(e); process.exit(1); });

@@ -23,6 +23,24 @@ async function histDet(db, req, pedidoId, texto, d){
      d.anterior || "", d.nuevo || "", d.respAnterior || "", d.respNuevo || ""]);
 }
 
+function filaVersionPedido(m){
+  return {
+    id: m.id, muestraId: m.muestra_id, modelo: m.modelo || "", version: m.version, estado: m.estado, fecha: m.fecha, responsable: m.responsable,
+    cambiosSolicitados: m.cambios_solicitados, comentariosCliente: m.comentarios_cliente,
+    fotos: m.fotos, aprobadoPor: m.aprobado_por, aprobadoEn: m.aprobado_en,
+    tallaAprobada: m.talla_aprobada, materiales: m.materiales
+  };
+}
+function agruparModelos(filas){
+  const out = [], idx = {};
+  filas.forEach(m => {
+    let g = idx[m.muestra_id];
+    if(!g){ g = idx[m.muestra_id] = { id: m.muestra_id, titulo: m.modelo || "", matriz: m.modelo_matriz || [], versiones: [] }; out.push(g); }
+    g.versiones.push(filaVersionPedido(m));
+  });
+  return out;
+}
+
 function filaPedido(row, hist, checklist, muestras, produccion, adjuntos){
   return {
     id: row.id, cliente: row.cliente, producto: row.producto, cantidad: row.cantidad,
@@ -39,12 +57,8 @@ function filaPedido(row, hist, checklist, muestras, produccion, adjuntos){
       hecho: c.hecho, fecha: c.fecha, responsable: c.responsable,
       cantidad: c.cantidad, notas: c.notas
     })).sort((a,b) => a.orden - b.orden),
-    muestras: (muestras || []).map(m => ({
-      version: m.version, estado: m.estado, fecha: m.fecha, responsable: m.responsable,
-      cambiosSolicitados: m.cambios_solicitados, comentariosCliente: m.comentarios_cliente,
-      fotos: m.fotos, aprobadoPor: m.aprobado_por, aprobadoEn: m.aprobado_en,
-      tallaAprobada: m.talla_aprobada, materiales: m.materiales, titulo: m.titulo || ""
-    })).sort((a,b) => a.version - b.version),
+    muestras: (muestras || []).map(m => filaVersionPedido(m)),
+    modelos: agruparModelos(muestras || []),
     documentos: (adjuntos || []).filter(a => a.categoria === "documento").sort((a,b) => a.id - b.id)
       .map(a => ({ id:a.id, nombre:a.nombre, mime:a.mime, tamano:Number(a.tamano) || 0 })),
     produccion: (produccion || []).map(t => ({
@@ -63,7 +77,7 @@ async function pedidoCompleto(client, id){
   if(!p.rows[0]) return null;
   const h = await client.query("SELECT fecha, texto, creado_en, usuario, tipo, etapa, anterior, nuevo, resp_anterior, resp_nuevo FROM pedido_historial WHERE pedido_id = $1 ORDER BY id ASC", [id]);
   const c = await client.query("SELECT id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist WHERE pedido_id = $1", [id]);
-  const m = await client.query("SELECT version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales, titulo FROM pedido_muestras WHERE pedido_id = $1 ORDER BY version ASC", [id]);
+  const m = await client.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, m.pedido_id FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id WHERE m.pedido_id = $1 ORDER BY m.id, v.version", [id]);
   const t = await client.query("SELECT id, etapa, label, orden, tipo, responsable, estado, proveedor, fecha_inicio, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion WHERE pedido_id = $1", [id]);
   const ad = await client.query("SELECT id, etapa_id, leyenda, nombre, orden, categoria, mime, octet_length(bytes) AS tamano FROM pedido_adjuntos WHERE pedido_id = $1", [id]);
   return filaPedido(p.rows[0], h.rows, c.rows, m.rows, t.rows, ad.rows);
@@ -74,7 +88,7 @@ router.get("/", async (req, res) => {
   const [hist, checklist, muestras, produccion, adjuntos] = await Promise.all([
     pool.query("SELECT pedido_id, fecha, texto, creado_en, usuario, tipo, etapa, anterior, nuevo, resp_anterior, resp_nuevo FROM pedido_historial ORDER BY id ASC"),
     pool.query("SELECT id, pedido_id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist"),
-    pool.query("SELECT pedido_id, version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales, titulo FROM pedido_muestras ORDER BY version ASC"),
+    pool.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, m.pedido_id FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id WHERE m.pedido_id IS NOT NULL ORDER BY m.id, v.version"),
     pool.query("SELECT id, pedido_id, etapa, label, orden, tipo, responsable, estado, proveedor, fecha_inicio, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion"),
     pool.query("SELECT id, pedido_id, etapa_id, leyenda, nombre, orden, categoria, mime, octet_length(bytes) AS tamano FROM pedido_adjuntos")
   ]);
@@ -144,10 +158,20 @@ router.patch("/:id/estado", async (req, res) => {
       return res.status(409).json({ error:"Los estados se avanzan o retroceden de a un paso a la vez, sin saltos." });
     }
     if(nuevo === "En producción" && cur.rows[0].requiere_muestra){
-      const aprobada = await client.query("SELECT 1 FROM pedido_muestras WHERE pedido_id = $1 AND estado = 'Aprobada' LIMIT 1", [id]);
-      if(!aprobada.rows[0]){
+      const ms = await client.query(
+        `SELECT m.titulo,
+                EXISTS (SELECT 1 FROM pedido_muestras v WHERE v.muestra_id = m.id AND v.estado = 'Aprobada') AS ok,
+                EXISTS (SELECT 1 FROM pedido_muestras v WHERE v.muestra_id = m.id AND v.estado <> 'Anulada') AS viva
+           FROM muestras m WHERE m.pedido_id = $1`, [id]);
+      const vivas = ms.rows.filter(r => r.viva);
+      if(!vivas.length){
         await client.query("ROLLBACK");
-        return res.status(409).json({ error:"Este pedido requiere muestra — no se puede pasar a producción sin una muestra final aprobada." });
+        return res.status(409).json({ error:"Este pedido requiere muestra: crea o vincula una muestra y apruébala antes de pasar a producción." });
+      }
+      const faltan = vivas.filter(r => !r.ok);
+      if(faltan.length){
+        await client.query("ROLLBACK");
+        return res.status(409).json({ error:"Faltan aprobar las muestras: "+faltan.map(r => "«"+r.titulo+"»").join(", ")+"." });
       }
     }
     await client.query("UPDATE pedidos SET estado = $1, entregado_en = $3, updated_at = now() WHERE id = $2", [nuevo, id, nuevo === "Entregado" ? isoHoy() : null]);
@@ -374,136 +398,6 @@ router.patch("/:id/checklist-orden", async (req, res) => {
   }
 });
 
-/* ---- muestra versionada: aprobar una versión SÍ bloquea/desbloquea el paso a producción ---- */
-router.post("/:id/muestras", async (req, res) => {
-  const { id } = req.params;
-  const b = req.body || {};
-  const client = await pool.connect();
-  try{
-    await client.query("BEGIN");
-    const ped = await client.query("SELECT id FROM pedidos WHERE id=$1 FOR UPDATE", [id]);
-    if(!ped.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido no encontrado." }); }
-    const vRes = await client.query("SELECT COALESCE(MAX(version),0)+1 AS n FROM pedido_muestras WHERE pedido_id=$1", [id]);
-    const version = vRes.rows[0].n;
-    const fotos = Array.isArray(b.fotos) ? b.fotos.slice(0,6) : [];
-    await client.query(
-      `INSERT INTO pedido_muestras (pedido_id,version,estado,fecha,responsable,cambios_solicitados,comentarios_cliente,fotos,talla_aprobada,materiales,titulo)
-       VALUES ($1,$2,'Pendiente',$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [id, version, isoHoy(), b.responsable || "", b.cambiosSolicitados || "", b.comentariosCliente || "", JSON.stringify(fotos),
-       b.tallaAprobada || "", b.materiales || "", String(b.titulo || "").trim()]
-    );
-    await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,$3,$4,$5)",
-      [id, isoHoy(), "Muestra "+version+" registrada", req.user.id, req.user.nombre]);
-    await client.query("COMMIT");
-    res.status(201).json(await pedidoCompleto(pool, id));
-  } catch(err){
-    await client.query("ROLLBACK");
-    console.error(err);
-    res.status(500).json({ error:"No se pudo registrar la muestra." });
-  } finally {
-    client.release();
-  }
-});
-
-/* ---- ficha técnica de la muestra: campos editables aun después de creada
-   (estilo/talla/materiales/observaciones), tal como pidió el taller ---- */
-router.patch("/:id/muestras/:version/ficha", async (req, res) => {
-  const { id, version } = req.params;
-  const b = req.body || {};
-  const r = await pool.query(
-    `UPDATE pedido_muestras SET talla_aprobada=$1, materiales=$2, comentarios_cliente=$3, cambios_solicitados=$4
-     WHERE pedido_id=$5 AND version=$6 RETURNING 1`,
-    [b.tallaAprobada || "", b.materiales || "", b.comentariosCliente || "", b.cambiosSolicitados || "", id, version]
-  );
-  if(!r.rowCount) return res.status(404).json({ error:"Muestra no encontrada." });
-  res.json(await pedidoCompleto(pool, id));
-});
-
-/* ---- editar una versión de muestra (queda en el historial) o anularla (no se borra) ---- */
-router.patch("/:id/muestras/:version", async (req, res) => {
-  const { id, version } = req.params;
-  const b = req.body || {};
-  const cur = (await pool.query("SELECT * FROM pedido_muestras WHERE pedido_id=$1 AND version=$2", [id, version])).rows[0];
-  if(!cur) return res.status(404).json({ error:"Muestra no encontrada." });
-  if(cur.estado === "Anulada") return res.status(409).json({ error:"Esta versión está anulada y no se puede editar." });
-  const nuevo = {
-    titulo: b.titulo != null ? String(b.titulo).trim() : cur.titulo,
-    responsable: b.responsable != null ? String(b.responsable).trim() : cur.responsable,
-    talla_aprobada: b.tallaAprobada != null ? String(b.tallaAprobada).trim() : cur.talla_aprobada,
-    materiales: b.materiales != null ? String(b.materiales).trim() : cur.materiales,
-    cambios_solicitados: b.cambiosSolicitados != null ? String(b.cambiosSolicitados).trim() : cur.cambios_solicitados,
-    comentarios_cliente: b.comentariosCliente != null ? String(b.comentariosCliente).trim() : cur.comentarios_cliente
-  };
-  const etiquetas = { titulo:"título", responsable:"responsable", talla_aprobada:"talla", materiales:"materiales", cambios_solicitados:"cambios solicitados", comentarios_cliente:"observaciones" };
-  const cambiados = Object.keys(nuevo).filter(k => nuevo[k] !== cur[k]);
-  if(!cambiados.length) return res.json(await pedidoCompleto(pool, id));
-  const client = await pool.connect();
-  try{
-    await client.query("BEGIN");
-    await client.query(
-      "UPDATE pedido_muestras SET titulo=$1, responsable=$2, talla_aprobada=$3, materiales=$4, cambios_solicitados=$5, comentarios_cliente=$6 WHERE pedido_id=$7 AND version=$8",
-      [nuevo.titulo, nuevo.responsable, nuevo.talla_aprobada, nuevo.materiales, nuevo.cambios_solicitados, nuevo.comentarios_cliente, id, version]);
-    await histDet(client, req, id, "Muestra "+version+" editada ("+cambiados.map(k => etiquetas[k]).join(", ")+")", { tipo:"muestra_edicion" });
-    await client.query("COMMIT");
-    res.json(await pedidoCompleto(pool, id));
-  } catch(err){ await client.query("ROLLBACK"); console.error(err); res.status(500).json({ error:"No se pudo editar la muestra." }); }
-  finally { client.release(); }
-});
-
-router.post("/:id/muestras/:version/anular", async (req, res) => {
-  const { id, version } = req.params;
-  const client = await pool.connect();
-  try{
-    await client.query("BEGIN");
-    const cur = (await client.query("SELECT estado FROM pedido_muestras WHERE pedido_id=$1 AND version=$2 FOR UPDATE", [id, version])).rows[0];
-    if(!cur){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Muestra no encontrada." }); }
-    if(cur.estado === "Anulada"){ await client.query("ROLLBACK"); return res.status(409).json({ error:"Esta versión ya está anulada." }); }
-    await client.query("UPDATE pedido_muestras SET estado='Anulada' WHERE pedido_id=$1 AND version=$2", [id, version]);
-    await histDet(client, req, id, "Muestra "+version+" anulada (antes: "+cur.estado+")", { tipo:"muestra_anulada", anterior:cur.estado, nuevo:"Anulada" });
-    await client.query("COMMIT");
-    res.json(await pedidoCompleto(pool, id));
-  } catch(err){ await client.query("ROLLBACK"); console.error(err); res.status(500).json({ error:"No se pudo anular la muestra." }); }
-  finally { client.release(); }
-});
-
-router.patch("/:id/muestras/:version/estado", async (req, res) => {
-  const { id, version } = req.params;
-  const nuevo = req.body && req.body.estado;
-  if(!["Aprobada","Rechazada"].includes(nuevo)) return res.status(400).json({ error:"Estado de muestra inválido." });
-
-  const client = await pool.connect();
-  try{
-    await client.query("BEGIN");
-    const cur = await client.query("SELECT estado FROM pedido_muestras WHERE pedido_id=$1 AND version=$2 FOR UPDATE", [id, version]);
-    if(!cur.rows[0]){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Muestra no encontrada." }); }
-    if(cur.rows[0].estado !== "Pendiente"){
-      await client.query("ROLLBACK");
-      return res.status(409).json({ error:"Esta versión ya fue "+cur.rows[0].estado.toLowerCase()+"." });
-    }
-    if(nuevo === "Aprobada"){
-      const otra = await client.query("SELECT version FROM pedido_muestras WHERE pedido_id=$1 AND estado='Aprobada'", [id]);
-      if(otra.rows[0]){
-        await client.query("ROLLBACK");
-        return res.status(409).json({ error:"Ya hay una muestra final aprobada (versión "+otra.rows[0].version+")." });
-      }
-    }
-    await client.query(
-      `UPDATE pedido_muestras SET estado=$1, aprobado_por=$2, aprobado_en=CASE WHEN $1='Aprobada' THEN now() ELSE aprobado_en END
-       WHERE pedido_id=$3 AND version=$4`,
-      [nuevo, nuevo === "Aprobada" ? (req.user.nombre || "") : null, id, version]
-    );
-    await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,$3,$4,$5)",
-      [id, isoHoy(), "Muestra "+version+" → "+nuevo+(nuevo==="Aprobada" ? " (muestra final)" : ""), req.user.id, req.user.nombre]);
-    await client.query("COMMIT");
-    res.json(await pedidoCompleto(pool, id));
-  } catch(err){
-    await client.query("ROLLBACK");
-    console.error(err);
-    res.status(500).json({ error:"No se pudo actualizar la muestra." });
-  } finally {
-    client.release();
-  }
-});
 
 /* ---- producción por etapa: interno/tercerizado, informativo (no bloquea nada) ----
    editable y ordenable por el usuario, igual que el checklist: no todas las prendas
@@ -835,3 +729,5 @@ router.post("/:id/guia", async (req, res) => {
 });
 
 module.exports = router;
+module.exports.pedidoCompleto = pedidoCompleto;
+module.exports.histDet = histDet;
