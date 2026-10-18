@@ -30,7 +30,7 @@ function filaPedido(row, hist, checklist, muestras, produccion, adjuntos){
     estado: row.estado, prioridad: row.prioridad, responsable: row.responsable, etapa: row.etapa,
     obs: row.obs, origenCotizacion: row.origen_cotizacion,
     cotizUnidades: row.cotiz_unidades != null ? Number(row.cotiz_unidades) : null,
-    guiaGeneradaEn: row.guia_generada_en,
+    guiaGeneradaEn: row.guia_generada_en, entregadoEn: row.entregado_en || null,
     requiereMuestra: row.requiere_muestra,
     curva: row.curva || [], colores: row.colores || [], matriz: row.matriz || [], compras: row.compras || [],
     hist: hist || [],
@@ -43,14 +43,14 @@ function filaPedido(row, hist, checklist, muestras, produccion, adjuntos){
       version: m.version, estado: m.estado, fecha: m.fecha, responsable: m.responsable,
       cambiosSolicitados: m.cambios_solicitados, comentariosCliente: m.comentarios_cliente,
       fotos: m.fotos, aprobadoPor: m.aprobado_por, aprobadoEn: m.aprobado_en,
-      tallaAprobada: m.talla_aprobada, materiales: m.materiales
+      tallaAprobada: m.talla_aprobada, materiales: m.materiales, titulo: m.titulo || ""
     })).sort((a,b) => a.version - b.version),
     documentos: (adjuntos || []).filter(a => a.categoria === "documento").sort((a,b) => a.id - b.id)
       .map(a => ({ id:a.id, nombre:a.nombre, mime:a.mime, tamano:Number(a.tamano) || 0 })),
     produccion: (produccion || []).map(t => ({
       id: t.id, etapa: t.etapa, label: t.label || ETAPA_LABEL[t.etapa] || t.etapa, orden: t.orden,
       tipo: t.tipo, responsable: t.responsable, estado: t.estado,
-      fechaPrevista: t.fecha_prevista, fechaReal: t.fecha_real, notas: t.notas,
+      proveedor: t.proveedor || "", fechaInicio: t.fecha_inicio || null, fechaPrevista: t.fecha_prevista, fechaReal: t.fecha_real, notas: t.notas,
       materiales: t.materiales || [], controles: t.controles || [],
       fotos: (adjuntos || []).filter(a => a.etapa_id === t.id && a.categoria !== "documento").sort((a,b) => a.orden - b.orden || a.id - b.id)
         .map(a => ({ id:a.id, leyenda:a.leyenda, nombre:a.nombre }))
@@ -63,8 +63,8 @@ async function pedidoCompleto(client, id){
   if(!p.rows[0]) return null;
   const h = await client.query("SELECT fecha, texto, creado_en, usuario, tipo, etapa, anterior, nuevo, resp_anterior, resp_nuevo FROM pedido_historial WHERE pedido_id = $1 ORDER BY id ASC", [id]);
   const c = await client.query("SELECT id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist WHERE pedido_id = $1", [id]);
-  const m = await client.query("SELECT version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales FROM pedido_muestras WHERE pedido_id = $1 ORDER BY version ASC", [id]);
-  const t = await client.query("SELECT id, etapa, label, orden, tipo, responsable, estado, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion WHERE pedido_id = $1", [id]);
+  const m = await client.query("SELECT version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales, titulo FROM pedido_muestras WHERE pedido_id = $1 ORDER BY version ASC", [id]);
+  const t = await client.query("SELECT id, etapa, label, orden, tipo, responsable, estado, proveedor, fecha_inicio, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion WHERE pedido_id = $1", [id]);
   const ad = await client.query("SELECT id, etapa_id, leyenda, nombre, orden, categoria, mime, octet_length(bytes) AS tamano FROM pedido_adjuntos WHERE pedido_id = $1", [id]);
   return filaPedido(p.rows[0], h.rows, c.rows, m.rows, t.rows, ad.rows);
 }
@@ -74,8 +74,8 @@ router.get("/", async (req, res) => {
   const [hist, checklist, muestras, produccion, adjuntos] = await Promise.all([
     pool.query("SELECT pedido_id, fecha, texto, creado_en, usuario, tipo, etapa, anterior, nuevo, resp_anterior, resp_nuevo FROM pedido_historial ORDER BY id ASC"),
     pool.query("SELECT id, pedido_id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist"),
-    pool.query("SELECT pedido_id, version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales FROM pedido_muestras ORDER BY version ASC"),
-    pool.query("SELECT id, pedido_id, etapa, label, orden, tipo, responsable, estado, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion"),
+    pool.query("SELECT pedido_id, version, estado, fecha, responsable, cambios_solicitados, comentarios_cliente, fotos, aprobado_por, aprobado_en, talla_aprobada, materiales, titulo FROM pedido_muestras ORDER BY version ASC"),
+    pool.query("SELECT id, pedido_id, etapa, label, orden, tipo, responsable, estado, proveedor, fecha_inicio, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion"),
     pool.query("SELECT id, pedido_id, etapa_id, leyenda, nombre, orden, categoria, mime, octet_length(bytes) AS tamano FROM pedido_adjuntos")
   ]);
   const porPedido = (rows) => { const m = {}; for(const r of rows) (m[r.pedido_id] ||= []).push(r); return m; };
@@ -99,14 +99,19 @@ router.post("/", async (req, res) => {
     const id = "PD-"+String(seqRes.rows[0].n).padStart(4,"0");
     const registro = isoHoy();
     const requiereMuestra = b.requiereMuestra !== false; // por defecto Sí, salvo que se pida explícitamente que no
+    /* tallas y colores al crear: la matriz es la fuente y de ella salen curva, colores y cantidad */
+    const matriz = normalizarMatriz(b.matriz);
+    const der = matriz.length ? derivarMatriz(matriz) : null;
+    const totalMx = der ? der.curva.reduce((s, t) => s + t.cant, 0) : 0;
+    const cantidadFinal = totalMx > 0 ? totalMx : Number(b.cantidad);
     await client.query(
       `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,requiere_muestra,curva,colores,matriz,created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
-      [id, b.cliente, b.producto, Number(b.cantidad), registro, b.solicitada || b.compromiso, b.compromiso,
-       b.prioridad || "Normal", b.responsable || "", b.etapa || "", b.obs || "",
+      [id, b.cliente, b.producto, cantidadFinal, registro, b.solicitada || b.compromiso, b.compromiso,
+       b.prioridad || "Normal", b.responsable || "", "", b.obs || "",
        b.origenCotizacion || null, b.cotizUnidades != null ? Number(b.cotizUnidades) : null, requiereMuestra,
-       JSON.stringify(Array.isArray(b.curva) ? b.curva : []), JSON.stringify(Array.isArray(b.colores) ? b.colores : []),
-       JSON.stringify([]), req.session.userId]
+       JSON.stringify(der ? der.curva : (Array.isArray(b.curva) ? b.curva : [])), JSON.stringify(der ? der.colores : (Array.isArray(b.colores) ? b.colores : [])),
+       JSON.stringify(matriz), req.session.userId]
     );
     await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,'Pedido registrado',$3,$4)", [id, registro, req.user.id, req.user.nombre]);
     await sembrarChecklist(client, id);
@@ -145,7 +150,7 @@ router.patch("/:id/estado", async (req, res) => {
         return res.status(409).json({ error:"Este pedido requiere muestra — no se puede pasar a producción sin una muestra final aprobada." });
       }
     }
-    await client.query("UPDATE pedidos SET estado = $1, updated_at = now() WHERE id = $2", [nuevo, id]);
+    await client.query("UPDATE pedidos SET estado = $1, entregado_en = $3, updated_at = now() WHERE id = $2", [nuevo, id, nuevo === "Entregado" ? isoHoy() : null]);
     await histDet(client, req, id, "Estado → "+nuevo, { tipo:"estado", anterior:cur.rows[0].estado, nuevo });
     await client.query("COMMIT");
     res.json(await pedidoCompleto(pool, id));
@@ -156,6 +161,51 @@ router.patch("/:id/estado", async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+/* ---- editar los datos del resumen. La fecha comprometida la cambia solo el administrador ---- */
+const CAMPOS_EDITABLES = { cliente:"Cliente", producto:"Prenda", cantidad:"Cantidad", prioridad:"Prioridad", responsable:"Responsable", obs:"Observaciones", solicitada:"Fecha solicitada", compromiso:"Fecha comprometida" };
+router.patch("/:id", async (req, res) => {
+  const { id } = req.params;
+  const b = req.body || {};
+  const cambios = Object.keys(CAMPOS_EDITABLES).filter(k => k in b);
+  if(!cambios.length) return res.status(400).json({ error:"No hay datos para actualizar." });
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const cur = (await client.query("SELECT * FROM pedidos WHERE id = $1 FOR UPDATE", [id])).rows[0];
+    if(!cur){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido no encontrado." }); }
+    const sets = [], vals = [], notas = [];
+    for(const k of cambios){
+      let nuevo = b[k];
+      if(["cliente","producto"].includes(k)){ nuevo = String(nuevo || "").trim(); if(!nuevo){ await client.query("ROLLBACK"); return res.status(400).json({ error:CAMPOS_EDITABLES[k]+" no puede quedar vacío." }); } }
+      else if(k === "cantidad"){ nuevo = Math.round(Number(nuevo)); if(!(nuevo >= 1)){ await client.query("ROLLBACK"); return res.status(400).json({ error:"La cantidad debe ser al menos 1." }); } }
+      else if(k === "prioridad"){ if(!["Alta","Normal","Baja"].includes(nuevo)){ await client.query("ROLLBACK"); return res.status(400).json({ error:"Prioridad inválida." }); } }
+      else if(k === "solicitada" || k === "compromiso"){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(nuevo || ""))){ await client.query("ROLLBACK"); return res.status(400).json({ error:"Fecha inválida." }); } }
+      else nuevo = String(nuevo == null ? "" : nuevo).trim();
+      const antes = cur[k];
+      const antesTxt = antes instanceof Date ? antes.toISOString().slice(0,10) : String(antes == null ? "" : antes);
+      if(String(nuevo) === antesTxt) continue;
+      if(k === "compromiso" && req.user.rol !== "admin"){
+        await client.query("ROLLBACK");
+        return res.status(403).json({ error:"Solo el administrador puede cambiar la fecha comprometida." });
+      }
+      vals.push(nuevo); sets.push(k+" = $"+vals.length);
+      notas.push({ k, antes:antesTxt, nuevo:String(nuevo) });
+    }
+    if(!sets.length){ await client.query("ROLLBACK"); return res.json(await pedidoCompleto(pool, id)); }
+    vals.push(id);
+    await client.query("UPDATE pedidos SET "+sets.join(", ")+", updated_at = now() WHERE id = $"+vals.length, vals);
+    for(const n of notas){
+      const corto = n.k === "obs" ? "" : ": "+(n.antes || "—")+" → "+(n.nuevo || "—");
+      await histDet(client, req, id, "Resumen editado · "+CAMPOS_EDITABLES[n.k]+(n.k === "obs" ? " actualizadas" : corto), { tipo:"edicion", anterior:n.antes, nuevo:n.nuevo });
+    }
+    await client.query("COMMIT");
+    res.json(await pedidoCompleto(pool, id));
+  } catch(err){
+    await client.query("ROLLBACK"); console.error(err);
+    res.status(500).json({ error:"No se pudo actualizar el pedido." });
+  } finally { client.release(); }
 });
 
 /* ---- ¿requiere muestra? se puede definir o cambiar en cualquier momento antes de producción ---- */
@@ -337,10 +387,10 @@ router.post("/:id/muestras", async (req, res) => {
     const version = vRes.rows[0].n;
     const fotos = Array.isArray(b.fotos) ? b.fotos.slice(0,6) : [];
     await client.query(
-      `INSERT INTO pedido_muestras (pedido_id,version,estado,fecha,responsable,cambios_solicitados,comentarios_cliente,fotos,talla_aprobada,materiales)
-       VALUES ($1,$2,'Pendiente',$3,$4,$5,$6,$7,$8,$9)`,
+      `INSERT INTO pedido_muestras (pedido_id,version,estado,fecha,responsable,cambios_solicitados,comentarios_cliente,fotos,talla_aprobada,materiales,titulo)
+       VALUES ($1,$2,'Pendiente',$3,$4,$5,$6,$7,$8,$9,$10)`,
       [id, version, isoHoy(), b.responsable || "", b.cambiosSolicitados || "", b.comentariosCliente || "", JSON.stringify(fotos),
-       b.tallaAprobada || "", b.materiales || ""]
+       b.tallaAprobada || "", b.materiales || "", String(b.titulo || "").trim()]
     );
     await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,$3,$4,$5)",
       [id, isoHoy(), "Muestra "+version+" registrada", req.user.id, req.user.nombre]);
@@ -367,6 +417,53 @@ router.patch("/:id/muestras/:version/ficha", async (req, res) => {
   );
   if(!r.rowCount) return res.status(404).json({ error:"Muestra no encontrada." });
   res.json(await pedidoCompleto(pool, id));
+});
+
+/* ---- editar una versión de muestra (queda en el historial) o anularla (no se borra) ---- */
+router.patch("/:id/muestras/:version", async (req, res) => {
+  const { id, version } = req.params;
+  const b = req.body || {};
+  const cur = (await pool.query("SELECT * FROM pedido_muestras WHERE pedido_id=$1 AND version=$2", [id, version])).rows[0];
+  if(!cur) return res.status(404).json({ error:"Muestra no encontrada." });
+  if(cur.estado === "Anulada") return res.status(409).json({ error:"Esta versión está anulada y no se puede editar." });
+  const nuevo = {
+    titulo: b.titulo != null ? String(b.titulo).trim() : cur.titulo,
+    responsable: b.responsable != null ? String(b.responsable).trim() : cur.responsable,
+    talla_aprobada: b.tallaAprobada != null ? String(b.tallaAprobada).trim() : cur.talla_aprobada,
+    materiales: b.materiales != null ? String(b.materiales).trim() : cur.materiales,
+    cambios_solicitados: b.cambiosSolicitados != null ? String(b.cambiosSolicitados).trim() : cur.cambios_solicitados,
+    comentarios_cliente: b.comentariosCliente != null ? String(b.comentariosCliente).trim() : cur.comentarios_cliente
+  };
+  const etiquetas = { titulo:"título", responsable:"responsable", talla_aprobada:"talla", materiales:"materiales", cambios_solicitados:"cambios solicitados", comentarios_cliente:"observaciones" };
+  const cambiados = Object.keys(nuevo).filter(k => nuevo[k] !== cur[k]);
+  if(!cambiados.length) return res.json(await pedidoCompleto(pool, id));
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    await client.query(
+      "UPDATE pedido_muestras SET titulo=$1, responsable=$2, talla_aprobada=$3, materiales=$4, cambios_solicitados=$5, comentarios_cliente=$6 WHERE pedido_id=$7 AND version=$8",
+      [nuevo.titulo, nuevo.responsable, nuevo.talla_aprobada, nuevo.materiales, nuevo.cambios_solicitados, nuevo.comentarios_cliente, id, version]);
+    await histDet(client, req, id, "Muestra "+version+" editada ("+cambiados.map(k => etiquetas[k]).join(", ")+")", { tipo:"muestra_edicion" });
+    await client.query("COMMIT");
+    res.json(await pedidoCompleto(pool, id));
+  } catch(err){ await client.query("ROLLBACK"); console.error(err); res.status(500).json({ error:"No se pudo editar la muestra." }); }
+  finally { client.release(); }
+});
+
+router.post("/:id/muestras/:version/anular", async (req, res) => {
+  const { id, version } = req.params;
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const cur = (await client.query("SELECT estado FROM pedido_muestras WHERE pedido_id=$1 AND version=$2 FOR UPDATE", [id, version])).rows[0];
+    if(!cur){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Muestra no encontrada." }); }
+    if(cur.estado === "Anulada"){ await client.query("ROLLBACK"); return res.status(409).json({ error:"Esta versión ya está anulada." }); }
+    await client.query("UPDATE pedido_muestras SET estado='Anulada' WHERE pedido_id=$1 AND version=$2", [id, version]);
+    await histDet(client, req, id, "Muestra "+version+" anulada (antes: "+cur.estado+")", { tipo:"muestra_anulada", anterior:cur.estado, nuevo:"Anulada" });
+    await client.query("COMMIT");
+    res.json(await pedidoCompleto(pool, id));
+  } catch(err){ await client.query("ROLLBACK"); console.error(err); res.status(500).json({ error:"No se pudo anular la muestra." }); }
+  finally { client.release(); }
 });
 
 router.patch("/:id/muestras/:version/estado", async (req, res) => {
@@ -458,7 +555,10 @@ router.patch("/:id/produccion/:itemId", async (req, res) => {
     const tipo = b.tipo || actual.tipo;
     const responsable = b.responsable != null ? b.responsable : actual.responsable;
     const estado = b.estado || actual.estado;
+    const proveedor = b.proveedor != null ? String(b.proveedor).trim() : actual.proveedor;
     const fechaPrevista = b.fechaPrevista !== undefined ? (b.fechaPrevista || null) : actual.fecha_prevista;
+    let fechaInicio = b.fechaInicio !== undefined ? (b.fechaInicio || null) : actual.fecha_inicio;
+    if(estado === "En proceso" && !fechaInicio) fechaInicio = isoHoy();
     let fechaReal = b.fechaReal !== undefined ? (b.fechaReal || null) : actual.fecha_real;
     if(estado === "Completado" && !fechaReal) fechaReal = isoHoy();
     const notas = b.notas != null ? String(b.notas) : actual.notas;
@@ -468,8 +568,8 @@ router.patch("/:id/produccion/:itemId", async (req, res) => {
     const controles = Array.isArray(b.controles) ? b.controles.map(c => String(c).trim()).filter(Boolean) : actual.controles;
 
     await client.query(
-      "UPDATE pedido_produccion SET label=$1, tipo=$2, responsable=$3, estado=$4, fecha_prevista=$5, fecha_real=$6, notas=$7, materiales=$8, controles=$9 WHERE pedido_id=$10 AND id=$11",
-      [label, tipo, responsable, estado, fechaPrevista, fechaReal, notas, JSON.stringify(materiales), JSON.stringify(controles), id, itemId]
+      "UPDATE pedido_produccion SET label=$1, tipo=$2, responsable=$3, estado=$4, fecha_prevista=$5, fecha_real=$6, notas=$7, materiales=$8, controles=$9, fecha_inicio=$12, proveedor=$13 WHERE pedido_id=$10 AND id=$11",
+      [label, tipo, responsable, estado, fechaPrevista, fechaReal, notas, JSON.stringify(materiales), JSON.stringify(controles), id, itemId, fechaInicio, proveedor]
     );
     if(estado !== actual.estado){
       await histDet(client, req, id, "Producción · "+label+": "+actual.estado+" → "+estado,
@@ -478,6 +578,9 @@ router.patch("/:id/produccion/:itemId", async (req, res) => {
     if(responsable !== actual.responsable){
       await histDet(client, req, id, "Producción · "+label+": responsable "+(actual.responsable || "sin asignar")+" → "+(responsable || "sin asignar"),
         { tipo:"responsable", etapa:label, respAnterior:actual.responsable, respNuevo:responsable });
+    }
+    if(proveedor !== actual.proveedor){
+      await histDet(client, req, id, "Producción · "+label+": proveedor "+(actual.proveedor || "sin asignar")+" → "+(proveedor || "sin asignar"), { tipo:"etapa_proveedor", etapa:label, anterior:actual.proveedor, nuevo:proveedor });
     }
     if(tipo !== actual.tipo){
       await histDet(client, req, id, "Producción · "+label+": "+actual.tipo+" → "+tipo, { tipo:"etapa_tipo", etapa:label, anterior:actual.tipo, nuevo:tipo });
@@ -531,7 +634,7 @@ router.post("/:id/produccion/:itemId/transferir", async (req, res) => {
     }
     if(sig){
       const respFinal = nuevoResp || sig.responsable || "";
-      await client.query("UPDATE pedido_produccion SET estado='En proceso', responsable=$1, fecha_real=NULL WHERE id=$2", [respFinal, sig.id]);
+      await client.query("UPDATE pedido_produccion SET estado='En proceso', responsable=$1, fecha_real=NULL, fecha_inicio=COALESCE(fecha_inicio, CURRENT_DATE) WHERE id=$2", [respFinal, sig.id]);
       await client.query("UPDATE pedidos SET etapa=$1, responsable=$2, updated_at=now() WHERE id=$3", [sig.label, respFinal, id]);
       await histDet(client, req, id,
         "Transferido de "+actual.label+" a "+sig.label+(respFinal ? " · asignado a "+respFinal : ""),
@@ -678,12 +781,12 @@ router.get("/:id/moldes", async (req, res) => {
   const ped = await pool.query("SELECT cliente FROM pedidos WHERE id=$1", [req.params.id]);
   if(!ped.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
   const r = await pool.query(
-    "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, created_at FROM moldes WHERE cliente=$1 ORDER BY created_at DESC",
+    "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, codigo, ubicacion, created_at FROM moldes WHERE cliente=$1 ORDER BY created_at DESC",
     [ped.rows[0].cliente]
   );
   res.json(r.rows.map(m => ({
     id:m.id, cliente:m.cliente, prenda:m.prenda, pedidoId:m.pedido_id, notas:m.notas,
-    fotos:m.fotos, responsable:m.responsable, creadoEn:m.created_at
+    fotos:m.fotos, responsable:m.responsable, codigo:m.codigo, ubicacion:m.ubicacion, creadoEn:m.created_at
   })));
 });
 
@@ -694,13 +797,13 @@ router.post("/:id/moldes", async (req, res) => {
   if(!ped.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
   const fotos = Array.isArray(b.fotos) ? b.fotos.slice(0,6) : [];
   const r = await pool.query(
-    `INSERT INTO moldes (cliente,prenda,pedido_id,notas,fotos,responsable,created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, cliente, prenda, pedido_id, notas, fotos, responsable, created_at`,
-    [ped.rows[0].cliente, b.prenda || ped.rows[0].producto, id, b.notas || "", JSON.stringify(fotos), b.responsable || "", req.session.userId]
+    `INSERT INTO moldes (cliente,prenda,pedido_id,notas,fotos,responsable,created_by,codigo,ubicacion)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, cliente, prenda, pedido_id, notas, fotos, responsable, codigo, ubicacion, created_at`,
+    [ped.rows[0].cliente, b.prenda || ped.rows[0].producto, id, b.notas || "", JSON.stringify(fotos), b.responsable || "", req.session.userId, String(b.codigo || "").trim(), String(b.ubicacion || "").trim()]
   );
   await pool.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,'Molde archivado',$3,$4)", [id, isoHoy(), req.user.id, req.user.nombre]);
   const m = r.rows[0];
-  res.status(201).json({ id:m.id, cliente:m.cliente, prenda:m.prenda, pedidoId:m.pedido_id, notas:m.notas, fotos:m.fotos, responsable:m.responsable, creadoEn:m.created_at });
+  res.status(201).json({ id:m.id, cliente:m.cliente, prenda:m.prenda, pedidoId:m.pedido_id, notas:m.notas, fotos:m.fotos, responsable:m.responsable, codigo:m.codigo, ubicacion:m.ubicacion, creadoEn:m.created_at });
 });
 
 /* ---- guía de entrega: se puede generar/reimprimir una vez el pedido está Terminado o Entregado ---- */

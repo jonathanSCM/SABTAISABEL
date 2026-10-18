@@ -238,3 +238,31 @@ ALTER TABLE pedido_adjuntos ADD COLUMN IF NOT EXISTS categoria TEXT NOT NULL DEF
 -- fuente de verdad; "curva" y "colores" se derivan de ella (totales por talla y por color).
 ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS matriz JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS matriz JSONB NOT NULL DEFAULT '[]';
+
+-- S1: forzar cambio de contraseña en el primer ingreso
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN NOT NULL DEFAULT false;
+
+-- 6a: fecha de entrega real (la de creación es "registro" y la comprometida es "compromiso")
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS entregado_en DATE;
+UPDATE pedidos SET entregado_en = updated_at::date WHERE estado = 'Entregado' AND entregado_en IS NULL;
+
+-- 6b: cada etapa con fecha de inicio y de fin (fin prevista = fecha_prevista; fin real = fecha_real)
+ALTER TABLE pedido_produccion ADD COLUMN IF NOT EXISTS fecha_inicio DATE;
+
+-- 14: título para identificar la prenda de cada versión de muestra
+ALTER TABLE pedido_muestras ADD COLUMN IF NOT EXISTS titulo TEXT NOT NULL DEFAULT '';
+
+-- 4: código y ubicación física de cada molde
+ALTER TABLE moldes ADD COLUMN IF NOT EXISTS codigo TEXT NOT NULL DEFAULT '';
+ALTER TABLE moldes ADD COLUMN IF NOT EXISTS ubicacion TEXT NOT NULL DEFAULT '';
+
+-- 3: proveedor explícito en los servicios tercerizados (antes se guardaba en "responsable")
+ALTER TABLE pedido_produccion ADD COLUMN IF NOT EXISTS proveedor TEXT NOT NULL DEFAULT '';
+UPDATE pedido_produccion SET proveedor = responsable WHERE tipo = 'Tercerizado' AND proveedor = '' AND responsable <> '';
+
+-- 15: catálogo editable de responsables (las sugerencias de los formularios)
+CREATE TABLE IF NOT EXISTS responsables (
+  id SERIAL PRIMARY KEY,
+  nombre TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

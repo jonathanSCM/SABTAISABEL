@@ -159,7 +159,7 @@ async function seed(){
     let adminId = null, adminNombre = "Administración";
     for(const [nombre,email,rol] of usuarios){
       const r = await client.query(
-        "INSERT INTO usuarios (nombre,email,password_hash,rol) VALUES ($1,$2,$3,$4) RETURNING id",
+        "INSERT INTO usuarios (nombre,email,password_hash,rol,debe_cambiar_password) VALUES ($1,$2,$3,$4,true) RETURNING id",
         [nombre,email,hash,rol]
       );
       if(rol === "admin"){ adminId = r.rows[0].id; adminNombre = nombre; }

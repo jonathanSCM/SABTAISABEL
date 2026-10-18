@@ -24,7 +24,7 @@ router.post("/", async (req, res) => {
 
   const hash = await bcrypt.hash(password, 10);
   const r = await pool.query(
-    "INSERT INTO usuarios (nombre,email,password_hash,rol) VALUES ($1,$2,$3,$4) RETURNING id, nombre, email, rol, activo, created_at",
+    "INSERT INTO usuarios (nombre,email,password_hash,rol,debe_cambiar_password) VALUES ($1,$2,$3,$4,true) RETURNING id, nombre, email, rol, activo, created_at",
     [nombre.trim(), String(email).trim().toLowerCase(), hash, rolFinal]
   );
   res.status(201).json(r.rows[0]);
@@ -46,7 +46,7 @@ router.post("/:id/resetear-password", async (req, res) => {
   const { password } = req.body || {};
   if(!password || String(password).length < 8) return res.status(400).json({ error:"La contraseña debe tener al menos 8 caracteres." });
   const hash = await bcrypt.hash(password, 10);
-  const r = await pool.query("UPDATE usuarios SET password_hash = $1 WHERE id = $2 RETURNING id", [hash, id]);
+  const r = await pool.query("UPDATE usuarios SET password_hash = $1, debe_cambiar_password = true WHERE id = $2 RETURNING id", [hash, id]);
   if(!r.rows[0]) return res.status(404).json({ error:"Usuario no encontrado." });
   res.json({ ok:true });
 });

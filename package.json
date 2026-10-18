@@ -14,7 +14,8 @@
     "pm2:stop": "pm2 stop santa-isabel",
     "pm2:restart": "pm2 restart santa-isabel",
     "pm2:logs": "pm2 logs santa-isabel",
-    "cert:selfsigned": "sh scripts/gen-selfsigned-cert.sh"
+    "cert:selfsigned": "sh scripts/gen-selfsigned-cert.sh",
+    "db:reset": "node src/db/reset.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

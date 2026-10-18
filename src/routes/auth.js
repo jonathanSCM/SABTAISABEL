@@ -19,7 +19,7 @@ router.post("/login", loginLimiter, async (req, res) => {
   if(!email || !password) return res.status(400).json({ error:"Faltan credenciales." });
 
   const r = await pool.query(
-    "SELECT id, nombre, email, password_hash, rol, activo FROM usuarios WHERE email = $1",
+    "SELECT id, nombre, email, password_hash, rol, activo, debe_cambiar_password FROM usuarios WHERE email = $1",
     [String(email).trim().toLowerCase()]
   );
   const u = r.rows[0];
@@ -34,7 +34,7 @@ router.post("/login", loginLimiter, async (req, res) => {
     // "recuérdame": cookie persistente 30 días; sin marcar, la cookie muere al cerrar el navegador
     req.session.cookie.maxAge = recordar ? 1000 * 60 * 60 * 24 * 30 : null;
     req.session.save(() => {
-      res.json({ id:u.id, nombre:u.nombre, email:u.email, rol:u.rol });
+      res.json({ id:u.id, nombre:u.nombre, email:u.email, rol:u.rol, debeCambiarPassword:u.debe_cambiar_password });
     });
   });
 });
@@ -47,7 +47,7 @@ router.post("/logout", (req, res) => {
 });
 
 router.get("/me", requireAuth, async (req, res) => {
-  res.json({ id:req.user.id, nombre:req.user.nombre, email:req.user.email, rol:req.user.rol });
+  res.json({ id:req.user.id, nombre:req.user.nombre, email:req.user.email, rol:req.user.rol, debeCambiarPassword:req.user.debe_cambiar_password });
 });
 
 const pwLimiter = rateLimit({
@@ -64,8 +64,9 @@ router.post("/change-password", requireAuth, pwLimiter, async (req, res) => {
   const ok = await bcrypt.compare(actual, r.rows[0].password_hash);
   if(!ok) return res.status(401).json({ error:"La contraseña actual no es correcta." });
 
+  if(nueva === actual) return res.status(400).json({ error:"La nueva contraseña debe ser distinta de la actual." });
   const hash = await bcrypt.hash(nueva, 10);
-  await pool.query("UPDATE usuarios SET password_hash = $1 WHERE id = $2", [hash, req.user.id]);
+  await pool.query("UPDATE usuarios SET password_hash = $1, debe_cambiar_password = false WHERE id = $2", [hash, req.user.id]);
   res.json({ ok:true });
 });
 

@@ -26,12 +26,25 @@ async function migrarMatriz(tabla){
   console.log("  matriz en "+tabla+": "+convertidos+" convertidos, "+pendientes+" con varios colores (se reparten a mano)");
 }
 
+/* S1: quien todavía tiene la contraseña inicial publicada debe cambiarla en su próximo ingreso. */
+async function exigirCambioDeClaveInicial(){
+  const bcrypt = require("bcryptjs");
+  const INICIAL = "SantaIsabel2026!";
+  const r = await pool.query("SELECT id, password_hash FROM usuarios WHERE debe_cambiar_password = false");
+  let marcados = 0;
+  for(const u of r.rows){
+    if(await bcrypt.compare(INICIAL, u.password_hash)){ await pool.query("UPDATE usuarios SET debe_cambiar_password = true WHERE id = $1", [u.id]); marcados++; }
+  }
+  console.log("  usuarios obligados a cambiar la contraseña inicial: "+marcados);
+}
+
 async function migrate(){
   const sql = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
   await pool.query(sql);
   console.log("OK: esquema aplicado a la base de datos.");
   await migrarMatriz("cotizaciones");
   await migrarMatriz("pedidos");
+  await exigirCambioDeClaveInicial();
   await pool.end();
 }
 

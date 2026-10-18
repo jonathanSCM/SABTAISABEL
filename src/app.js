@@ -9,6 +9,7 @@ const authRoutes = require("./routes/auth");
 const pedidosRoutes = require("./routes/pedidos");
 const cotizacionesRoutes = require("./routes/cotizaciones");
 const usuariosRoutes = require("./routes/usuarios");
+const responsablesRoutes = require("./routes/responsables");
 const moldesRoutes = require("./routes/moldes");
 const adjuntosRoutes = require("./routes/adjuntos");
 
@@ -36,6 +37,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/pedidos", pedidosRoutes);
 app.use("/api/cotizaciones", cotizacionesRoutes);
 app.use("/api/usuarios", usuariosRoutes);
+app.use("/api/responsables", responsablesRoutes);
 app.use("/api/moldes", moldesRoutes);
 app.use("/api/adjuntos", adjuntosRoutes);
 

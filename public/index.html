@@ -1124,18 +1124,18 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
   <form class="form" id="form" novalidate>
     <div class="field full"><label for="f-cliente">Cliente</label><input class="input" id="f-cliente" list="clientes" placeholder="Nombre del cliente" required><datalist id="clientes"></datalist></div>
     <div class="field full"><label for="f-producto">Prenda</label><input class="input" id="f-producto" list="productos" placeholder="Ej. Vestido de quinceañera" required><datalist id="productos"></datalist></div>
-    <div class="field"><label for="f-cantidad">Cantidad</label><input class="input num" id="f-cantidad" type="number" min="1" step="1" value="1" required></div>
+    <div class="field"><label for="f-cantidad">Cantidad</label><input class="input num" id="f-cantidad" type="number" min="1" step="1" value="1" required><span class="muted" id="f-cantidad-nota" style="font-size:11.5px"></span></div>
     <div class="field"><label for="f-compromiso">Fecha comprometida</label><input class="input" id="f-compromiso" type="date" required></div>
     <div class="field full"><label for="f-responsable">Responsable</label><input class="input" id="f-responsable" list="responsables" placeholder="Opcional"><datalist id="responsables"></datalist></div>
+    <div class="field full"><label>Tallas y colores <span class="muted">(opcional: si los cargas, la cantidad se calcula sola)</span></label><div id="f-matriz"></div></div>
     <div class="field full"><label>¿Requiere muestra?</label>
       <div class="chips" id="f-requiere-muestra">
         <button type="button" class="chip" data-val="si" aria-pressed="true">Sí</button>
         <button type="button" class="chip" data-val="no" aria-pressed="false">No</button>
       </div>
     </div>
-    <button type="button" class="seemore full" id="btnVerMasForm" aria-expanded="false">Ver más detalles (etapa, prioridad, fecha solicitada, observaciones)</button>
+    <button type="button" class="seemore full" id="btnVerMasForm" aria-expanded="false">Ver más detalles (prioridad, fecha solicitada, observaciones)</button>
     <div class="full" id="formMas" style="display:none;grid-template-columns:1fr 1fr;gap:14px">
-      <div class="field"><label for="f-etapa">Etapa</label><select class="input" id="f-etapa"><option value="">Sin asignar</option></select></div>
       <div class="field"><label for="f-prioridad">Prioridad</label><select class="input" id="f-prioridad"><option>Normal</option><option>Alta</option><option>Baja</option></select></div>
       <div class="field"><label for="f-solicitada">Fecha solicitada</label><input class="input" id="f-solicitada" type="date"></div>
       <div class="field full"><label for="f-obs">Observaciones</label><textarea class="input" id="f-obs" placeholder="Tallas, colores, telas, referencia de cotización…"></textarea></div>
@@ -1174,9 +1174,25 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
   <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnMiCuentaCancel">Cancelar</button><button type="submit" form="formMiCuenta" class="btn btn--primary" id="btnMiCuentaSave">Guardar</button></div>
 </div>
 
+<div class="modal" id="modalResumen" role="dialog" aria-modal="true" aria-labelledby="modalResumenTitle">
+  <div class="modal__h"><h2 id="modalResumenTitle">Editar resumen del pedido</h2><button class="btn btn--ghost btn--sm" id="modalResumenClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <form class="form" id="formResumen" novalidate>
+    <div class="field full"><label for="rs-cliente">Cliente</label><input class="input" id="rs-cliente" list="clientes" required></div>
+    <div class="field full"><label for="rs-producto">Prenda</label><input class="input" id="rs-producto" list="productos" required></div>
+    <div class="field"><label for="rs-cantidad">Cantidad</label><input class="input num" id="rs-cantidad" type="number" min="1" step="1" required><span class="muted" id="rs-cantidad-nota" style="font-size:11.5px"></span></div>
+    <div class="field"><label for="rs-prioridad">Prioridad</label><select class="input" id="rs-prioridad"><option>Normal</option><option>Alta</option><option>Baja</option></select></div>
+    <div class="field"><label for="rs-solicitada">Fecha solicitada</label><input class="input" id="rs-solicitada" type="date"></div>
+    <div class="field"><label for="rs-compromiso">Fecha comprometida</label><input class="input" id="rs-compromiso" type="date"><span class="muted" id="rs-compromiso-nota" style="font-size:11.5px"></span></div>
+    <div class="field full"><label for="rs-responsable">Responsable</label><input class="input" id="rs-responsable" list="responsables"></div>
+    <div class="field full"><label for="rs-obs">Observaciones</label><textarea class="input" id="rs-obs"></textarea></div>
+  </form>
+  <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnResumenCancel">Cancelar</button><button type="submit" form="formResumen" class="btn btn--primary" id="btnResumenSave">Guardar cambios</button></div>
+</div>
+
 <div class="modal" id="modalMuestra" role="dialog" aria-modal="true" aria-labelledby="modalMuestraTitle">
   <div class="modal__h"><h2 id="modalMuestraTitle">Nueva versión de muestra</h2><button class="btn btn--ghost btn--sm" id="modalMuestraClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
   <form class="form" id="formMuestra" novalidate>
+    <div class="field full"><label for="ms-titulo">Título de la muestra</label><input class="input" id="ms-titulo" placeholder="Ej. Blusa de lino, vestido modelo A"></div>
     <div class="field full"><label for="ms-responsable">Responsable</label><input class="input" id="ms-responsable" list="responsables" placeholder="Opcional"></div>
     <div class="field"><label for="ms-talla">Talla aprobada</label><input class="input" id="ms-talla" placeholder="Ej. S"></div>
     <div class="field"><label for="ms-materiales">Materiales</label><input class="input" id="ms-materiales" placeholder="Tela, encaje, forro…"></div>
@@ -1224,6 +1240,8 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
 <div class="modal" id="modalMolde" role="dialog" aria-modal="true" aria-labelledby="modalMoldeTitle">
   <div class="modal__h"><h2 id="modalMoldeTitle">Archivar molde</h2><button class="btn btn--ghost btn--sm" id="modalMoldeClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
   <form class="form" id="formMolde" novalidate>
+    <div class="field"><label for="md-codigo">Código del molde</label><input class="input" id="md-codigo" placeholder="Ej. MOL-014"></div>
+    <div class="field"><label for="md-ubicacion">Ubicación física</label><input class="input" id="md-ubicacion" placeholder="Ej. Estante 2, caja azul"></div>
     <div class="field full"><label for="md-responsable">Responsable</label><input class="input" id="md-responsable" list="responsables" placeholder="Opcional"></div>
     <div class="field full"><label for="md-notas">Notas</label><textarea class="input" id="md-notas" placeholder="De qué prenda es, medidas, ajustes hechos…"></textarea></div>
     <div class="field full"><label>Fotos del molde (hasta 6)</label>
@@ -1242,8 +1260,10 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
     <div class="field"><label for="pr-tipo">Tipo</label><select class="input" id="pr-tipo"><option value="Interno">Interno</option><option value="Tercerizado">Tercerizado</option></select></div>
     <div class="field"><label for="pr-estado">Estado</label><select class="input" id="pr-estado"><option>Pendiente</option><option>En proceso</option><option>Completado</option></select></div>
     <div class="field full"><label for="pr-responsable" id="pr-responsable-label">Responsable</label><input class="input" id="pr-responsable" list="responsables"></div>
-    <div class="field"><label for="pr-fecha-prevista">Fecha prevista</label><input class="input" id="pr-fecha-prevista" type="date"></div>
-    <div class="field"><label for="pr-fecha-real">Fecha real</label><input class="input" id="pr-fecha-real" type="date"></div>
+    <div class="field full" id="pr-proveedor-box" style="display:none"><label for="pr-proveedor">Proveedor del servicio</label><input class="input" id="pr-proveedor" list="proveedores" placeholder="Taller o persona externa que hace este servicio"><datalist id="proveedores"></datalist></div>
+    <div class="field"><label for="pr-fecha-inicio">Fecha de inicio</label><input class="input" id="pr-fecha-inicio" type="date"></div>
+    <div class="field"><label for="pr-fecha-prevista">Fecha de fin prevista</label><input class="input" id="pr-fecha-prevista" type="date"></div>
+    <div class="field"><label for="pr-fecha-real">Fecha de fin real</label><input class="input" id="pr-fecha-real" type="date"></div>
     <div class="field full"><label for="pr-notas">Instrucciones para esta etapa</label>
       <textarea class="input" id="pr-notas" rows="10" placeholder="Escribe aquí todo el detalle, tan largo como haga falta.&#10;&#10;1. Qué hacer primero…&#10;2. Medidas, márgenes, tolerancias…&#10;3. Cuidados especiales…"></textarea>
       <span class="muted" style="font-size:11px">Se imprime tal cual, respetando saltos de línea. Sin límite práctico de largo.</span>
@@ -1319,7 +1339,22 @@ const ORDEN_ESTADO = { "Atrasado":0, "Preparación":1, "En producción":2, "Term
 const CLASE = { "Preparación":"s-preparacion","En producción":"s-produccion","Terminado":"s-terminado","Entregado":"s-entregado","Atrasado":"s-atrasado" };
 const REGLA = { media:3, alta:5 };
 
-const RESPONSABLES = ["Marta","Luis","Rosa","Diego","Henry"];
+let RESPONSABLES = [];
+let responsablesCat = [];
+/* sugerencias: el catálogo editable; si está vacío, los nombres que ya aparecen en pedidos y etapas */
+function actualizarResponsables(){
+  const usados = new Set();
+  pedidos.forEach(p => { if(p.responsable) usados.add(p.responsable); (p.produccion || []).forEach(t => { if(t.responsable) usados.add(t.responsable); }); });
+  const base = responsablesCat.length ? responsablesCat.map(r => r.nombre) : [...usados];
+  RESPONSABLES = [...new Set(base)].sort((a,b) => a.localeCompare(b));
+  const dl = $("#responsables"); if(dl) dl.innerHTML = RESPONSABLES.map(c => '<option value="'+esc(c)+'">').join("");
+  const dp = $("#proveedores");
+  if(dp){ const prov = new Set(); pedidos.forEach(p => (p.produccion || []).forEach(t => { if(t.proveedor) prov.add(t.proveedor); })); dp.innerHTML = [...prov].sort().map(c => '<option value="'+esc(c)+'">').join(""); }
+}
+async function cargarResponsables(){
+  try{ responsablesCat = await api("/responsables"); }catch(e){ responsablesCat = []; }
+  actualizarResponsables();
+}
 const ETAPAS = ["Corte","Costura","Bordado/Sublimado","Acabado","Planchado"];
 const PRODUCTOS = ["Vestido de quinceañera","Vestido de gala","Vestido de dama de honor","Vestido de primera comunión",
   "Traje de bautizo","Trajes de bautizo (niño y niña)","Conjunto madre e hija","Uniforme de gala escolar",
@@ -1454,7 +1489,10 @@ function montarMatriz(host, mx, opt){
 function qUnidades(q){ return q.curva.reduce((s,r)=>s+r.cant,0); }
 function qCostoUnit(q){ return q.groups.reduce((s,g)=>s+groupTotal(g),0); }
 function qTotalProd(q){ return qCostoUnit(q) * qUnidades(q); }
-function qTotal(q){ return qTotalProd(q) + Number(q.muestra||0) + Number(q.molde||0); }
+const IGV_PCT = 18;
+function qSubtotal(q){ return qTotalProd(q) + Number(q.muestra||0) + Number(q.molde||0); }
+function qIGV(q){ return Math.round(qSubtotal(q) * IGV_PCT) / 100; }
+function qTotal(q){ return qSubtotal(q) + qIGV(q); }
 
 const TERMS_PROD_DEFAULT = `Los precios no incluyen IGV. La presente cotización se ha realizado en base a {{UND}} unidades y tiene una vigencia de {{VIG}} días.
 Al realizar el pago se deberá previamente solicitar la factura, la cual se emite a nombre del cliente, incluyendo el IGV.
@@ -2039,6 +2077,15 @@ function vUsuarios(){
       '<button class="btn btn--primary btn--sm" id="btnNuevoUsuario" style="margin-left:auto">+ Nuevo usuario</button>'+
     "</div>"+
     '<div class="rows">'+(filas || '<div class="empty">Sin usuarios.</div>')+"</div>"+
+  "</section>"+
+  '<section class="card" style="margin-top:14px">'+
+    '<div class="card__head"><h2>Responsables</h2><span class="muted">las sugerencias que aparecen al asignar tareas</span></div>'+
+    '<div class="rows">'+(responsablesCat.length ? responsablesCat.map(r =>
+      '<div class="row urow"><span class="row__main"><span class="row__t">'+esc(r.nombre)+"</span></span>"+
+        '<span class="row__r urow__acciones"><button class="btn btn--ghost btn--sm" data-resp-edit="'+r.id+'">Renombrar</button>'+
+        '<button class="btn btn--danger btn--sm" data-resp-del="'+r.id+'">Quitar</button></span></div>').join("")
+      : '<div class="empty">Todavía no hay responsables en la lista. Agrégalos aquí para que se sugieran al asignar tareas.</div>')+"</div>"+
+    '<div style="display:flex;gap:8px;margin-top:12px"><input class="input" id="resp-nuevo" placeholder="Nombre del responsable" style="flex:1"><button class="btn btn--primary btn--sm" id="btnRespAgregar">+ Agregar</button></div>'+
   "</section>";
 }
 
@@ -2226,11 +2273,13 @@ function sheetHTML(q, opts){
   '<div class="totalbox">'+
     '<div class="totalbox__row"><span>Producción ('+und+' und.)</span><span class="amt">'+money(qTotalProd(q))+"</span></div>"+
     '<div class="totalbox__row"><span>Muestra + molde</span><span class="amt">'+money(Number(q.muestra||0)+Number(q.molde||0))+"</span></div>"+
+    '<div class="totalbox__row"><span>Subtotal</span><span class="amt">'+money(qSubtotal(q))+"</span></div>"+
+    '<div class="totalbox__row"><span>IGV ('+IGV_PCT+'%)</span><span class="amt">'+money(qIGV(q))+"</span></div>"+
     '<div class="totalbox__row grand"><span>Total cotización</span><span class="amt">'+money(qTotal(q))+"</span></div>"+
   "</div>"+
   '<div class="sheet__terms"><h4 class="lbl">Sobre la producción</h4>'+esc(q.termsProd)+'<br><br><h4 class="lbl">Sobre la muestra y el molde</h4>'+esc(q.termsMuestra)+"</div>"+
   '<hr class="sheet__stitch">'+
-  '<div class="sheet__foot"><span>Taller Santa Isabel · Precios no incluyen IGV</span><span class="signature">Conforme cliente</span></div>';
+  '<div class="sheet__foot"><span>Taller Santa Isabel · Total incluye IGV (18%)</span><span class="signature">Conforme cliente</span></div>';
 }
 
 /* ---- vista: ver cotización (solo lectura) ---- */
@@ -2668,12 +2717,12 @@ function exportarPedidosExcel(){
 function exportarCotizacionesExcel(){
   const lista = qListaVisible();
   const filas = lista.map(q => { const a = qAlerta(q), cerrada = a.k === "cerrada";
-    return { cod:q.id, cli:q.cliente, pre:q.prenda, est:q.estado, fec:q.fecha, vig:Number(q.vigencia)||0, ven:cerrada ? "" : qVence(q), ale:cerrada ? "" : ({ vencida:"Vencida", proxima:"Por vencer", pendiente:"Pendiente" })[a.k], det:cerrada ? "" : a.txt, und:qUnidades(q), tot:qTotal(q) }; });
+    return { cod:q.id, cli:q.cliente, pre:q.prenda, est:q.estado, fec:q.fecha, vig:Number(q.vigencia)||0, ven:cerrada ? "" : qVence(q), ale:cerrada ? "" : ({ vencida:"Vencida", proxima:"Por vencer", pendiente:"Pendiente" })[a.k], det:cerrada ? "" : a.txt, und:qUnidades(q), sub:qSubtotal(q), igv:qIGV(q), tot:qTotal(q) }; });
   descargarExcel("cotizaciones.xlsx", [{ nombre:"Cotizaciones", titulo:"Santa Isabel · Cotizaciones", subtitulo: lista.length+" cotizacion"+(lista.length===1?"":"es")+" · exportado el "+ahoraTexto(),
     columnas:[{ k:"cod", h:"Código", w:12, t:"fuerte" }, { k:"cli", h:"Cliente", w:28 }, { k:"pre", h:"Prenda", w:32 }, { k:"est", h:"Estado", w:14, t:"estado" },
       { k:"fec", h:"Fecha", w:13, t:"fecha" }, { k:"vig", h:"Vigencia (días)", w:11, t:"num" }, { k:"ven", h:"Vence", w:13, t:"fecha" }, { k:"ale", h:"Alerta", w:14, t:"estado" }, { k:"det", h:"Detalle", w:26, t:"centro" },
-      { k:"und", h:"Unidades", w:10, t:"num" }, { k:"tot", h:"Total", w:17, t:"moneda" }],
-    filas, totales:["und","tot"], marcar:(f,k) => (k === "ven" && f.ale === "Vencida") ? "rojo" : null }]);
+      { k:"und", h:"Unidades", w:10, t:"num" }, { k:"sub", h:"Subtotal", w:15, t:"moneda" }, { k:"igv", h:"IGV (18%)", w:14, t:"moneda" }, { k:"tot", h:"Total", w:16, t:"moneda" }],
+    filas, totales:["und","sub","igv","tot"], marcar:(f,k) => (k === "ven" && f.ale === "Vencida") ? "rojo" : null }]);
 }
 function gruposSemana(){
   const modo = state.semanaModo || "estado";
@@ -2757,6 +2806,24 @@ function wire(){
 
   const bnu = page.querySelector("#btnNuevoUsuario"); if(bnu) bnu.onclick = abrirModalUsuario;
   page.querySelectorAll("[data-toggle-usuario]").forEach(b => b.onclick = () => alternarUsuario(b.dataset.toggleUsuario, b.dataset.activo !== "true"));
+  const bra = page.querySelector("#btnRespAgregar");
+  if(bra) bra.onclick = async () => {
+    const inp = page.querySelector("#resp-nuevo"), nombre = inp.value.trim(); if(!nombre) return;
+    try{ await api("/responsables", { method:"POST", body:JSON.stringify({ nombre }) }); await cargarResponsables(); render(); toast("Responsable agregado."); }
+    catch(err){ toast(err.message); }
+  };
+  page.querySelectorAll("[data-resp-edit]").forEach(b => b.onclick = async () => {
+    const r = responsablesCat.find(x => String(x.id) === b.dataset.respEdit); const nombre = prompt("Nuevo nombre para «"+r.nombre+"»:", r.nombre);
+    if(nombre == null || !nombre.trim() || nombre.trim() === r.nombre) return;
+    try{ await api("/responsables/"+r.id, { method:"PATCH", body:JSON.stringify({ nombre }) }); await cargarResponsables(); render(); toast("Nombre actualizado."); }
+    catch(err){ toast(err.message); }
+  });
+  page.querySelectorAll("[data-resp-del]").forEach(b => b.onclick = async () => {
+    const r = responsablesCat.find(x => String(x.id) === b.dataset.respDel);
+    if(!confirm("¿Quitar a «"+r.nombre+"» de las sugerencias? Los pedidos que ya lo tienen no cambian.")) return;
+    try{ await api("/responsables/"+r.id, { method:"DELETE" }); await cargarResponsables(); render(); toast("Responsable quitado."); }
+    catch(err){ toast(err.message); }
+  });
   page.querySelectorAll("[data-reset-usuario]").forEach(b => b.onclick = () => abrirModalResetPw(b.dataset.resetUsuario, b.dataset.nombre));
 
   const bep = page.querySelector("#btnExportPedidos"); if(bep) bep.onclick = exportarPedidosExcel;
@@ -2791,14 +2858,14 @@ function debounce(fn,ms){ let t; return function(){ clearTimeout(t); t = setTime
 /* ---- drawer ---- */
 const scrim = $("#scrim"), drawer = $("#drawer"), modal = $("#modal");
 /* varios overlays comparten un mismo scrim; se oculta recién cuando ninguno queda abierto */
-const OVERLAY_IDS = ["drawer","modal","actsheet","modalUsuario","modalResetPw","modalMiCuenta","modalMuestra","modalProduccion","modalMolde","modalCurva","modalCompras","modalTransfer"];
+const OVERLAY_IDS = ["drawer","modal","actsheet","modalUsuario","modalResetPw","modalMiCuenta","modalResumen","modalMuestra","modalProduccion","modalMolde","modalCurva","modalCompras","modalTransfer"];
 function otroOverlayAbierto(exceptoId){
   return OVERLAY_IDS.some(id => id !== exceptoId && $("#"+id).dataset.open === "true");
 }
 function abrirDrawer(){ scrim.dataset.open = "true"; drawer.dataset.open = "true"; drawer.focus(); }
 function cerrarDrawer(){ drawer.dataset.open = "false"; if(!otroOverlayAbierto("drawer")) scrim.dataset.open = "false"; state.pedidoAbierto = null; }
 $("#drawerClose").onclick = cerrarDrawer;
-function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalMuestra(); cerrarModalProduccion(); cerrarModalMolde(); cerrarModalCurva(); cerrarModalCompras(); cerrarModalTransfer(); }
+function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalResumen(); cerrarModalMuestra(); cerrarModalProduccion(); cerrarModalMolde(); cerrarModalCurva(); cerrarModalCompras(); cerrarModalTransfer(); }
 scrim.onclick = cerrarTodosLosOverlays;
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ cerrarTodosLosOverlays(); cerrarFabMenu(); } });
 
@@ -2898,8 +2965,9 @@ function paneChecklistHTML(p){
 }
 function moldeCardHTML(m){
   return '<div class="muestra-card">'+
-    '<div class="muestra-card__h"><b>Molde</b><span class="muted" style="font-size:11.5px">'+fechaCorta((m.creadoEn||"").slice(0,10)||isoOff(0))+"</span></div>"+
+    '<div class="muestra-card__h"><b>Molde'+(m.codigo ? " · "+esc(m.codigo) : "")+'</b><span class="muted" style="font-size:11.5px">'+fechaCorta((m.creadoEn||"").slice(0,10)||isoOff(0))+"</span></div>"+
     (m.responsable ? '<div class="muted" style="font-size:12px;margin-top:2px">'+esc(m.responsable)+"</div>" : "")+
+    (m.ubicacion ? '<div style="font-size:13px;margin-top:6px"><b>Ubicación:</b> '+esc(m.ubicacion)+"</div>" : "")+
     (m.notas ? '<div style="font-size:13px;margin-top:6px">'+esc(m.notas)+"</div>" : "")+
     (m.fotos && m.fotos.length ? '<div class="muestra-card__fotos">'+m.fotos.map(f=>'<img src="'+f+'">').join("")+"</div>" : "")+
   "</div>";
@@ -2914,9 +2982,9 @@ function paneMoldesHTML(p){
       : '<div class="empty">Todavía no hay moldes archivados para este cliente.</div>');
 }
 function muestraCardHTML(m){
-  const cls = m.estado==="Aprobada"?"s-terminado":m.estado==="Rechazada"?"s-atrasado":"s-preparacion";
-  return '<div class="muestra-card">'+
-    '<div class="muestra-card__h"><b>Muestra '+m.version+'</b><span class="badge '+cls+'">'+m.estado+"</span></div>"+
+  const cls = m.estado==="Aprobada"?"s-terminado":m.estado==="Rechazada"?"s-atrasado":m.estado==="Anulada"?"s-entregado":"s-preparacion";
+  return '<div class="muestra-card"'+(m.estado==="Anulada" ? ' style="opacity:.6"' : "")+'>'+
+    '<div class="muestra-card__h"><b>Muestra '+m.version+(m.titulo ? " · "+esc(m.titulo) : "")+'</b><span class="badge '+cls+'">'+m.estado+"</span></div>"+
     '<div class="muted" style="font-size:12px;margin-top:2px">'+fechaCorta(m.fecha)+(m.responsable?" · "+esc(m.responsable):"")+"</div>"+
     (m.tallaAprobada ? '<div style="font-size:13px;margin-top:8px"><b>Talla aprobada:</b> '+esc(m.tallaAprobada)+"</div>" : "")+
     (m.materiales ? '<div style="font-size:13px;margin-top:4px"><b>Materiales:</b> '+esc(m.materiales)+"</div>" : "")+
@@ -2928,6 +2996,8 @@ function muestraCardHTML(m){
       (m.estado === "Pendiente" ? '<button class="btn btn--primary btn--sm" data-muestra-aprobar="'+m.version+'">Aprobar</button>'+
         '<button class="btn btn--danger btn--sm" data-muestra-rechazar="'+m.version+'">Rechazar</button>' : "")+
       '<button type="button" class="btn btn--ghost btn--sm" data-ficha="'+m.version+'">Ficha técnica</button>'+
+      (m.estado !== "Anulada" ? '<button type="button" class="btn btn--ghost btn--sm" data-muestra-editar="'+m.version+'">Editar</button>'+
+        '<button type="button" class="btn btn--ghost btn--sm" data-muestra-anular="'+m.version+'">Anular</button>' : "")+
     "</div>"+
   "</div>";
 }
@@ -2958,8 +3028,8 @@ function paneProduccionHTML(p){
     '<div class="prod-item">'+
       '<span class="prod-item__txt">'+
         '<input class="prod-item__label-input" data-prod-label="'+t.id+'" value="'+esc(t.label)+'">'+
-        '<span class="prod-item__meta">'+(t.responsable ? esc(t.responsable)+" · " : "")+
-          (t.fechaPrevista ? "prevista "+fechaCorta(t.fechaPrevista) : "sin fecha prevista")+
+        '<span class="prod-item__meta">'+(t.responsable ? esc(t.responsable)+" · " : "")+(t.tipo === "Tercerizado" ? "proveedor: "+(esc(t.proveedor) || "sin asignar")+" · " : "")+
+          (t.fechaInicio ? "inicio "+fechaCorta(t.fechaInicio)+" · " : "")+(t.fechaPrevista ? "fin "+fechaCorta(t.fechaPrevista) : "sin fecha de fin")+
           (t.fechaReal ? " · real "+fechaCorta(t.fechaReal) : "")+
         "</span>"+
       "</span>"+
@@ -3019,8 +3089,15 @@ function guiaSheetHTML(p){
   '<dl class="sheet__client">'+
     "<div><dt>Cliente</dt><dd>"+esc(p.cliente)+"</dd></div>"+
     "<div><dt>Fecha de entrega</dt><dd>"+fechaLarga(p.compromiso)+"</dd></div>"+
+    "<div><dt>Modelo / prenda</dt><dd>"+esc(p.producto)+"</dd></div>"+
+    "<div><dt>Total de unidades</dt><dd>"+nf(p.cantidad)+"</dd></div>"+
   "</dl>"+
   '<div class="sheet__hero"><div class="sheet__desc"><h3>'+esc(p.producto)+"</h3><p>"+nf(p.cantidad)+" unidades</p></div></div>"+
+  '<div><h4 class="lbl">Detalle entregado: tallas y colores</h4>'+
+    ((p.matriz && p.matriz.length) ? matrizTablaHTML(p.matriz)
+      : (((p.curva||[]).length || (p.colores||[]).length)
+          ? '<p style="font-size:12.5px;color:var(--ink-2)">'+matrizResumenHTML(p)+"</p>"
+          : '<p style="font-size:12.5px;color:var(--ink-3)">Sin tallas ni colores registrados.</p>'))+"</div>"+
   (p.obs ? '<div><h4 class="lbl">Observaciones</h4><p style="font-size:12.5px;color:var(--ink-2)">'+esc(p.obs)+"</p></div>" : "")+
   '<hr class="sheet__stitch">'+
   '<div class="sheet__foot"><span>Taller Santa Isabel</span><span class="signature">Conforme cliente</span></div>';
@@ -3139,7 +3216,7 @@ function completoSheetHTML(p, opts){
       p.produccion.map((t,i) => "<tr><td><b>"+(i+1)+". "+esc(t.label)+"</b></td><td>"+t.tipo+"</td><td>"+(esc(t.responsable)||"—")+"</td><td>"+t.estado+"</td><td>"+(t.fechaPrevista ? fechaCorta(t.fechaPrevista) : "—")+'</td><td class="r">'+((t.fotos||[]).length)+"</td></tr>").join(""))) :
   sec("Producción por etapa", p.produccion.length+" etapas",
     p.produccion.map((t,i) => '<div class="fi-card"><div class="fi-card__h"><b>'+(i+1)+". "+esc(t.label)+'</b><span class="fi-chip">'+t.tipo+'</span><span class="fi-chip">'+t.estado+"</span>"+
-      '<span class="fi-card__meta">'+(t.responsable?esc(t.responsable)+" · ":"")+"prevista "+(t.fechaPrevista ? fechaCorta(t.fechaPrevista) : "—")+(t.fechaReal ? " · real "+fechaCorta(t.fechaReal) : "")+"</span></div>"+
+      '<span class="fi-card__meta">'+(t.responsable?esc(t.responsable)+" · ":"")+"inicio "+(t.fechaInicio ? fechaCorta(t.fechaInicio) : "—")+" · fin "+(t.fechaPrevista ? fechaCorta(t.fechaPrevista) : "—")+(t.fechaReal ? " · real "+fechaCorta(t.fechaReal) : "")+"</span></div>"+
       (t.notas ? '<div class="fi-instr">'+esc(t.notas)+"</div>" : '<p class="fi-none">Sin instrucciones registradas.</p>')+
     "</div>").join("")))+
 
@@ -3194,7 +3271,7 @@ function hojaEtapaHTML(p, t){
   const dd = (a,b) => "<div><dt>"+a+"</dt><dd>"+b+"</dd></div>";
   const cuerpo = hojaDatos(p,
       dd(t.tipo === "Tercerizado" ? "Proveedor" : "Responsable", esc(t.responsable) || '<span class="muted">Sin asignar</span>')+
-      dd("Tipo", t.tipo)+dd("Fecha prevista", t.fechaPrevista ? fechaLarga(t.fechaPrevista) : "—")+dd("Estado", t.estado))+
+      dd("Tipo", t.tipo)+dd("Inicio", t.fechaInicio ? fechaLarga(t.fechaInicio) : "—")+dd("Fin prevista", t.fechaPrevista ? fechaLarga(t.fechaPrevista) : "—")+dd("Estado", t.estado))+
     hojaDesglose(p)+hojaFichaExtras(p)+
     '<h4 class="hoja-h">Instrucciones</h4>'+
     (t.notas ? '<div class="hoja-instr">'+esc(t.notas)+"</div>" : '<p class="hoja-vacio">Sin instrucciones registradas para esta etapa.</p>')+
@@ -3401,15 +3478,17 @@ function abrirPedido(id, tabIni){
       "<dl class=\"dl\">"+
         "<dt>Prenda</dt><dd>"+esc(p.producto)+"</dd>"+
         '<dt>Cantidad</dt><dd class="num">'+nf(p.cantidad)+" unidades</dd>"+
-        "<dt>Comprometida</dt><dd>"+fechaLarga(p.compromiso)+' <span class="muted">('+relativo(p.compromiso)+")</span></dd>"+
+        "<dt>Fecha de creación</dt><dd>"+fechaLarga(p.registro)+"</dd>"+
+        "<dt>Entrega comprometida</dt><dd>"+fechaLarga(p.compromiso)+' <span class="muted">('+relativo(p.compromiso)+")</span></dd>"+
+        "<dt>Entrega real</dt><dd>"+(p.entregadoEn ? fechaLarga(p.entregadoEn) : '<span class="muted">Aún no entregado</span>')+"</dd>"+
         "<dt>Responsable</dt><dd>"+(esc(p.responsable) || '<span class="muted">Sin asignar</span>')+"</dd>"+
         "<dt>Etapa</dt><dd>"+(esc(p.etapa) || '<span class="muted">Sin asignar</span>')+"</dd>"+
         "<dt>¿Requiere muestra?</dt><dd>"+(p.requiereMuestra ? "Sí" : "No")+
           ' <button type="button" class="seemore" id="btnToggleRequiereMuestra" style="display:inline;margin-left:6px">cambiar</button></dd>'+
       "</dl>"+
+      '<button type="button" class="btn btn--ghost btn--sm" id="btnEditarResumen" style="margin:2px 0 6px">Editar resumen</button>'+
       '<button type="button" class="seemore" id="btnVerMasPedido" aria-expanded="false">Ver más detalles</button>'+
       '<dl class="dl" id="pedidoMas" style="display:none">'+
-        "<dt>Registrado</dt><dd>"+fechaLarga(p.registro)+"</dd>"+
         "<dt>Solicitada</dt><dd>"+fechaLarga(p.solicitada)+"</dd>"+
         "<dt>Carga del día</dt><dd>"+NIVEL_TXT[c.nivel]+' <span class="muted">· '+c.n+" pedido"+(c.n===1?"":"s")+"</span></dd>"+
         "<dt>Observaciones</dt><dd>"+(esc(p.obs) || '<span class="muted">—</span>')+"</dd>"+
@@ -3472,6 +3551,12 @@ function abrirPedido(id, tabIni){
   const btnChkAgregar = $("#btnChkAgregar");
   if(btnChkAgregar) btnChkAgregar.onclick = () => agregarChecklist(p);
   const btnNuevaMuestra = $("#btnNuevaMuestra"); if(btnNuevaMuestra) btnNuevaMuestra.onclick = () => abrirModalMuestra(p.id);
+  $("#drawerBody").querySelectorAll("[data-muestra-editar]").forEach(b => b.onclick = () => abrirModalMuestra(p.id, p.muestras.find(x => String(x.version) === b.dataset.muestraEditar)));
+  $("#drawerBody").querySelectorAll("[data-muestra-anular]").forEach(b => b.onclick = async () => {
+    if(!confirm("¿Anular la muestra "+b.dataset.muestraAnular+"? Queda en el historial, pero deja de contar.")) return;
+    try{ const act = await api("/pedidos/"+p.id+"/muestras/"+b.dataset.muestraAnular+"/anular", { method:"POST" }); Object.assign(p, act); toast("Muestra anulada."); render(); abrirPedido(p.id, "muestra"); }
+    catch(err){ toast(err.message); }
+  });
   $("#drawerBody").querySelectorAll("[data-muestra-aprobar]").forEach(b => b.onclick = () => actualizarEstadoMuestra(p, b.dataset.muestraAprobar, "Aprobada"));
   $("#drawerBody").querySelectorAll("[data-muestra-rechazar]").forEach(b => b.onclick = () => actualizarEstadoMuestra(p, b.dataset.muestraRechazar, "Rechazada"));
   $("#drawerBody").querySelectorAll("[data-ficha]").forEach(b => b.onclick = () => abrirFicha(p.id, Number(b.dataset.ficha)));
@@ -3498,6 +3583,7 @@ function abrirPedido(id, tabIni){
   const btnImprimirCompleto = $("#btnImprimirCompleto"); if(btnImprimirCompleto) btnImprimirCompleto.onclick = () => abrirPaquete(p.id);
   const btnEntregado = $("#btnMarcarEntregado"); if(btnEntregado) btnEntregado.onclick = () => cambiarEstado(p, "Entregado");
   const btnToggleRM = $("#btnToggleRequiereMuestra"); if(btnToggleRM) btnToggleRM.onclick = () => cambiarRequiereMuestra(p, !p.requiereMuestra);
+  const btnEditarResumen = $("#btnEditarResumen"); if(btnEditarResumen) btnEditarResumen.onclick = () => abrirModalResumen(p);
   const btnEditarCurva = $("#btnEditarCurva"); if(btnEditarCurva) btnEditarCurva.onclick = () => abrirModalCurva(p);
   const btnActivarM = $("#btnActivarMuestra"); if(btnActivarM) btnActivarM.onclick = () => cambiarRequiereMuestra(p, true);
   const btnDesactivarM = $("#btnDesactivarMuestra"); if(btnDesactivarM) btnDesactivarM.onclick = () => cambiarRequiereMuestra(p, false);
@@ -3647,8 +3733,15 @@ function abrirDia(f){
 
 /* ---- modal nuevo pedido ---- */
 const form = $("#form");
+let formMx = [];
+function sincronizarCantidadForm(){
+  const tot = matrizTotal(formMx), c = $("#f-cantidad");
+  if(tot > 0){ c.value = tot; c.readOnly = true; $("#f-cantidad-nota").textContent = "Calculada con la matriz"; }
+  else { c.readOnly = false; $("#f-cantidad-nota").textContent = ""; }
+}
 function abrirModal(fecha){
   form.reset();
+  formMx = []; montarMatriz($("#f-matriz"), formMx, { onChange: sincronizarCantidadForm }); sincronizarCantidadForm();
   $("#f-cantidad").value = 1;
   $("#f-compromiso").value = fecha || isoOff(30);
   $("#f-solicitada").value = fecha || isoOff(30);
@@ -3725,12 +3818,20 @@ formResetPw.addEventListener("submit", async e => {
 
 /* ---- modal: cambiar mi propia contraseña (cualquier usuario logueado) ---- */
 const modalMiCuenta = $("#modalMiCuenta"), formMiCuenta = $("#formMiCuenta");
+let cambioForzado = false;
+function exigirCambioDeClave(){
+  cambioForzado = true;
+  $("#modalMiCuentaTitle").textContent = "Elige tu contraseña nueva";
+  $("#modalMiCuentaClose").style.display = "none"; $("#btnMiCuentaCancel").style.display = "none";
+  if(!$("#cp-aviso")){ const a = document.createElement("div"); a.id = "cp-aviso"; a.className = "notice notice--media"; a.innerHTML = "<h3>Primer ingreso</h3>Por seguridad, cambia la contraseña inicial antes de seguir usando el sistema."; formMiCuenta.prepend(a); }
+  abrirModalMiCuenta();
+}
 function abrirModalMiCuenta(){
   formMiCuenta.reset();
   scrim.dataset.open = "true"; modalMiCuenta.dataset.open = "true";
   setTimeout(() => $("#cp-actual").focus(), 60);
 }
-function cerrarModalMiCuenta(){ modalMiCuenta.dataset.open = "false"; if(!otroOverlayAbierto("modalMiCuenta")) scrim.dataset.open = "false"; }
+function cerrarModalMiCuenta(){ if(cambioForzado) return; modalMiCuenta.dataset.open = "false"; if(!otroOverlayAbierto("modalMiCuenta")) scrim.dataset.open = "false"; }
 $("#btnMiCuenta").onclick = abrirModalMiCuenta;
 $("#modalMiCuentaClose").onclick = cerrarModalMiCuenta;
 $("#btnMiCuentaCancel").onclick = cerrarModalMiCuenta;
@@ -3739,17 +3840,58 @@ formMiCuenta.addEventListener("submit", async e => {
   const btn = $("#btnMiCuentaSave"); btn.disabled = true;
   try{
     await api("/auth/change-password", { method:"POST", body: JSON.stringify({ actual: $("#cp-actual").value, nueva: $("#cp-nueva").value }) });
+    if(cambioForzado){ cambioForzado = false; location.reload(); return; }
     cerrarModalMiCuenta();
     toast("Contraseña actualizada.");
+  } catch(err){ toast(err.message); } finally { btn.disabled = false; }
+});
+
+/* ---- modal: editar el resumen del pedido (la fecha comprometida solo la cambia el administrador) ---- */
+const modalResumen = $("#modalResumen"), formResumen = $("#formResumen");
+function abrirModalResumen(p){
+  formResumen.dataset.pedidoId = p.id;
+  $("#rs-cliente").value = p.cliente; $("#rs-producto").value = p.producto; $("#rs-cantidad").value = p.cantidad;
+  $("#rs-prioridad").value = p.prioridad; $("#rs-solicitada").value = p.solicitada || ""; $("#rs-compromiso").value = p.compromiso || "";
+  $("#rs-responsable").value = p.responsable || ""; $("#rs-obs").value = p.obs || "";
+  const conMatriz = p.matriz && p.matriz.length;
+  $("#rs-cantidad").readOnly = !!conMatriz; $("#rs-cantidad-nota").textContent = conMatriz ? "Se calcula con la matriz de tallas y colores" : "";
+  const admin = usuarioActual && usuarioActual.rol === "admin";
+  $("#rs-compromiso").disabled = !admin; $("#rs-compromiso-nota").textContent = admin ? "" : "Solo el administrador puede cambiarla";
+  scrim.dataset.open = "true"; modalResumen.dataset.open = "true";
+}
+function cerrarModalResumen(){ modalResumen.dataset.open = "false"; if(!otroOverlayAbierto("modalResumen")) scrim.dataset.open = "false"; }
+$("#modalResumenClose").onclick = cerrarModalResumen;
+$("#btnResumenCancel").onclick = cerrarModalResumen;
+formResumen.addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("#btnResumenSave"); btn.disabled = true;
+  try{
+    const id = formResumen.dataset.pedidoId, p = pedidos.find(x => x.id === id);
+    const nuevo = { cliente:$("#rs-cliente").value.trim(), producto:$("#rs-producto").value.trim(), cantidad:Number($("#rs-cantidad").value),
+      prioridad:$("#rs-prioridad").value, solicitada:$("#rs-solicitada").value, responsable:$("#rs-responsable").value.trim(), obs:$("#rs-obs").value.trim() };
+    if(usuarioActual && usuarioActual.rol === "admin") nuevo.compromiso = $("#rs-compromiso").value;
+    const cuerpo = {}; Object.keys(nuevo).forEach(k => { if(String(nuevo[k]) !== String(p[k] == null ? "" : p[k])) cuerpo[k] = nuevo[k]; });
+    if(!Object.keys(cuerpo).length){ cerrarModalResumen(); return; }
+    const actualizado = await api("/pedidos/"+id, { method:"PATCH", body:JSON.stringify(cuerpo) });
+    Object.assign(p, actualizado);
+    cerrarModalResumen(); refrescarDatalists();
+    toast("Resumen actualizado.");
+    render(); abrirPedido(id, "resumen");
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });
 
 /* ---- modal: nueva versión de muestra ---- */
 const modalMuestra = $("#modalMuestra"), formMuestra = $("#formMuestra");
 formMuestra._fotos = [];
-function abrirModalMuestra(pedidoId){
+function abrirModalMuestra(pedidoId, m){
   formMuestra.reset();
   formMuestra.dataset.pedidoId = pedidoId;
+  formMuestra.dataset.version = m ? m.version : "";
+  $("#modalMuestraTitle").textContent = m ? "Editar muestra "+m.version : "Nueva versión de muestra";
+  $("#btnMuestraSave").textContent = m ? "Guardar cambios" : "Registrar muestra";
+  $("#ms-fotos-btn").parentElement.style.display = m ? "none" : "";
+  if(m){ $("#ms-titulo").value = m.titulo || ""; $("#ms-responsable").value = m.responsable || ""; $("#ms-talla").value = m.tallaAprobada || "";
+    $("#ms-materiales").value = m.materiales || ""; $("#ms-cambios").value = m.cambiosSolicitados || ""; $("#ms-comentarios").value = m.comentariosCliente || ""; }
   formMuestra._fotos = [];
   $("#ms-fotos-preview").innerHTML = "";
   scrim.dataset.open = "true"; modalMuestra.dataset.open = "true";
@@ -3770,7 +3912,9 @@ formMuestra.addEventListener("submit", async e => {
   try{
     const pedidoId = formMuestra.dataset.pedidoId;
     const p = pedidos.find(x => x.id === pedidoId);
-    const actualizado = await api("/pedidos/"+pedidoId+"/muestras", { method:"POST", body: JSON.stringify({
+    const version = formMuestra.dataset.version;
+    const actualizado = await api("/pedidos/"+pedidoId+"/muestras"+(version ? "/"+version : ""), { method:version ? "PATCH" : "POST", body: JSON.stringify({
+      titulo: $("#ms-titulo").value.trim(),
       responsable: $("#ms-responsable").value.trim(),
       tallaAprobada: $("#ms-talla").value.trim(),
       materiales: $("#ms-materiales").value.trim(),
@@ -3780,7 +3924,7 @@ formMuestra.addEventListener("submit", async e => {
     }) });
     Object.assign(p, actualizado);
     cerrarModalMuestra();
-    toast("Muestra registrada.");
+    toast(version ? "Muestra actualizada." : "Muestra registrada.");
     render(); abrirPedido(pedidoId, "muestra");
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });
@@ -3934,6 +4078,7 @@ formMolde.addEventListener("submit", async e => {
     const pedidoId = formMolde.dataset.pedidoId;
     const p = pedidos.find(x => x.id === pedidoId);
     const molde = await api("/pedidos/"+pedidoId+"/moldes", { method:"POST", body: JSON.stringify({
+      codigo: $("#md-codigo").value.trim(), ubicacion: $("#md-ubicacion").value.trim(),
       responsable: $("#md-responsable").value.trim(),
       notas: $("#md-notas").value.trim(),
       fotos: formMolde._fotos
@@ -3956,8 +4101,10 @@ function abrirModalProduccion(pedidoId, itemId){
   $("#modalProduccionTitle").textContent = t.label;
   $("#pr-tipo").value = t.tipo;
   $("#pr-estado").value = t.estado;
-  $("#pr-responsable-label").textContent = t.tipo === "Tercerizado" ? "Proveedor" : "Responsable";
+  $("#pr-proveedor-box").style.display = t.tipo === "Tercerizado" ? "" : "none";
+  $("#pr-proveedor").value = t.proveedor || "";
   $("#pr-responsable").value = t.responsable || "";
+  $("#pr-fecha-inicio").value = t.fechaInicio || "";
   $("#pr-fecha-prevista").value = t.fechaPrevista || "";
   $("#pr-fecha-real").value = t.fechaReal || "";
   $("#pr-notas").value = t.notas || "";
@@ -4047,7 +4194,7 @@ $("#pr-fotos-input").onchange = async e => {
 function cerrarModalProduccion(){ modalProduccion.dataset.open = "false"; if(!otroOverlayAbierto("modalProduccion")) scrim.dataset.open = "false"; }
 $("#modalProduccionClose").onclick = cerrarModalProduccion;
 $("#btnProduccionCancel").onclick = cerrarModalProduccion;
-$("#pr-tipo").onchange = () => { $("#pr-responsable-label").textContent = $("#pr-tipo").value === "Tercerizado" ? "Proveedor" : "Responsable"; };
+$("#pr-tipo").onchange = () => { $("#pr-proveedor-box").style.display = $("#pr-tipo").value === "Tercerizado" ? "" : "none"; };
 formProduccion.addEventListener("submit", async e => {
   e.preventDefault();
   const btn = $("#btnProduccionSave"); btn.disabled = true;
@@ -4055,8 +4202,8 @@ formProduccion.addEventListener("submit", async e => {
     const pedidoId = formProduccion.dataset.pedidoId, itemId = formProduccion.dataset.itemId;
     const p = pedidos.find(x => x.id === pedidoId);
     const actualizado = await api("/pedidos/"+pedidoId+"/produccion/"+itemId, { method:"PATCH", body: JSON.stringify({
-      tipo: $("#pr-tipo").value, estado: $("#pr-estado").value, responsable: $("#pr-responsable").value.trim(),
-      fechaPrevista: $("#pr-fecha-prevista").value, fechaReal: $("#pr-fecha-real").value, notas: $("#pr-notas").value,
+      tipo: $("#pr-tipo").value, estado: $("#pr-estado").value, responsable: $("#pr-responsable").value.trim(), proveedor: $("#pr-tipo").value === "Tercerizado" ? $("#pr-proveedor").value.trim() : "",
+      fechaInicio: $("#pr-fecha-inicio").value, fechaPrevista: $("#pr-fecha-prevista").value, fechaReal: $("#pr-fecha-real").value, notas: $("#pr-notas").value,
       materiales: $("#pr-materiales").value.split("\n").map(l => l.trim()).filter(Boolean).map(l => { const [item, cantidad, color] = l.split(","); return { item:(item||"").trim(), cantidad:(cantidad||"").trim(), color:(color||"").trim() }; }),
       controles: $("#pr-controles").value.split("\n").map(l => l.trim()).filter(Boolean)
     }) });
@@ -4129,7 +4276,7 @@ form.addEventListener("submit", async e => {
     const p = await crearPedido({
       cliente, producto, cantidad, compromiso, solicitada:$("#f-solicitada").value || compromiso,
       prioridad:$("#f-prioridad").value, responsable:$("#f-responsable").value.trim(),
-      etapa:$("#f-etapa").value, obs:$("#f-obs").value.trim(), requiereMuestra
+      obs:$("#f-obs").value.trim(), requiereMuestra, matriz:formMx.filter(r => (r.talla||"").trim() || r.colores.some(c => c.cant > 0))
     });
     cerrarModal();
     refrescarDatalists();
@@ -4181,11 +4328,11 @@ try{
 
 /* ---- datalists ---- */
 function refrescarDatalists(){
+  actualizarResponsables();
   $("#clientes").innerHTML = [...new Set(pedidos.map(p => p.cliente))].sort().map(c => '<option value="'+esc(c)+'">').join("");
 }
 $("#productos").innerHTML = PRODUCTOS.map(c => '<option value="'+esc(c)+'">').join("");
-$("#responsables").innerHTML = RESPONSABLES.map(c => '<option value="'+esc(c)+'">').join("");
-$("#f-etapa").insertAdjacentHTML("beforeend", ETAPAS.map(e => '<option value="'+esc(e)+'">'+esc(e)+"</option>").join(""));
+actualizarResponsables();
 
 /* ---- sesión / arranque real: sin usuario logueado no hay app ---- */
 $("#btnLogout").onclick = async () => {
@@ -4240,10 +4387,12 @@ async function boot(){
   }
   $("#userNombre").textContent = usuarioActual.nombre;
   $("#userEmail").textContent = usuarioActual.email;
+  if(usuarioActual.debeCambiarPassword){ $("#bootOverlay").remove(); exigirCambioDeClave(); return; }
   $("#btnAcct").textContent = (usuarioActual.nombre || "?").trim().charAt(0).toUpperCase();
 
   const [pd, ct] = await Promise.all([ api("/pedidos"), api("/cotizaciones") ]);
   pedidos = pd; cotizaciones = ct;
+  await cargarResponsables();
   refrescarDatalists();
   render();
   $("#bootOverlay").remove();

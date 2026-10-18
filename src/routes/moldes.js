@@ -11,13 +11,13 @@ router.get("/", async (req, res) => {
   const q = (req.query.cliente || "").trim();
   const r = await pool.query(
     q
-      ? "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, created_at FROM moldes WHERE cliente ILIKE $1 ORDER BY created_at DESC"
-      : "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, created_at FROM moldes ORDER BY created_at DESC LIMIT 100",
+      ? "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, codigo, ubicacion, created_at FROM moldes WHERE cliente ILIKE $1 ORDER BY created_at DESC"
+      : "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, codigo, ubicacion, created_at FROM moldes ORDER BY created_at DESC LIMIT 100",
     q ? ["%"+q+"%"] : []
   );
   res.json(r.rows.map(m => ({
     id:m.id, cliente:m.cliente, prenda:m.prenda, pedidoId:m.pedido_id, notas:m.notas,
-    fotos:m.fotos, responsable:m.responsable, creadoEn:m.created_at
+    fotos:m.fotos, responsable:m.responsable, codigo:m.codigo, ubicacion:m.ubicacion, creadoEn:m.created_at
   })));
 });
 
