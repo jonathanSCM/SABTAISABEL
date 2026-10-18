@@ -266,3 +266,7 @@ CREATE TABLE IF NOT EXISTS responsables (
   nombre TEXT UNIQUE NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 17: varias prendas en una misma cotización (la primera es la principal; el resto va en "extras")
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS extras JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS pedidos_extra JSONB NOT NULL DEFAULT '[]';

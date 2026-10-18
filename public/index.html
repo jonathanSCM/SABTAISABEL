@@ -1486,15 +1486,19 @@ function montarMatriz(host, mx, opt){
   return { totales };
 }
 
-function qUnidades(q){ return q.curva.reduce((s,r)=>s+r.cant,0); }
-function qCostoUnit(q){ return q.groups.reduce((s,g)=>s+groupTotal(g),0); }
-function qTotalProd(q){ return qCostoUnit(q) * qUnidades(q); }
+function itemUnidades(it){ return (it.curva || []).reduce((s,r)=>s+r.cant,0); }
+function itemCostoUnit(it){ return (it.groups || []).reduce((s,g)=>s+groupTotal(g),0); }
+function qItems(q){ return [q].concat(q.extras || []); }   // la principal es la propia cotización; el resto va en extras
+function qUnidades(q){ return qItems(q).reduce((s,it) => s + itemUnidades(it), 0); }
+function qCostoUnit(q){ return itemCostoUnit(q); }
+function qTotalProd(q){ return qItems(q).reduce((s,it) => s + itemCostoUnit(it) * itemUnidades(it), 0); }
+function qPrendaTxt(q){ const n = (q.extras || []).length; return (q.prenda || "") + (n ? " +"+n+" prenda"+(n===1?"":"s") : ""); }
 const IGV_PCT = 18;
 function qSubtotal(q){ return qTotalProd(q) + Number(q.muestra||0) + Number(q.molde||0); }
 function qIGV(q){ return Math.round(qSubtotal(q) * IGV_PCT) / 100; }
 function qTotal(q){ return qSubtotal(q) + qIGV(q); }
 
-const TERMS_PROD_DEFAULT = `Los precios no incluyen IGV. La presente cotización se ha realizado en base a {{UND}} unidades y tiene una vigencia de {{VIG}} días.
+const TERMS_PROD_DEFAULT = `Los precios del detalle no incluyen IGV; el total de la cotización lo incluye (18%). La presente cotización se ha realizado en base a {{UND}} unidades y tiene una vigencia de {{VIG}} días.
 Al realizar el pago se deberá previamente solicitar la factura, la cual se emite a nombre del cliente, incluyendo el IGV.
 La muestra y el molde aprobados son necesarios para programar el inicio de producción y se deben cancelar al 100%.
 Para iniciar la producción se debe abonar el 50% del total de la misma.
@@ -1764,7 +1768,7 @@ function fila(p){
 function filaQ(q){
   return '<button class="row" data-openq="'+q.id+'">'+
     '<span class="row__main"><span class="row__t">'+esc(q.cliente)+"</span>"+
-    '<span class="row__s">'+esc(q.prenda)+" · "+q.id+"</span></span>"+
+    '<span class="row__s">'+esc(qPrendaTxt(q))+" · "+q.id+"</span></span>"+
     '<span class="row__r">'+qbadge(q)+'<span class="row__date num">'+money(qTotal(q))+"</span></span>"+
   "</button>";
 }
@@ -2140,7 +2144,7 @@ function qViewTarjetas(lista){
   return '<section class="qgrid">'+lista.map(q => (
     '<button class="qcard" data-openq="'+q.id+'">'+
       '<div class="qcard__top"><span class="qcard__id">'+q.id+"</span>"+qbadge(q)+"</div>"+
-      '<div><div class="qcard__cliente">'+esc(q.cliente)+'</div><div class="qcard__prenda">'+esc(q.prenda)+"</div></div>"+
+      '<div><div class="qcard__cliente">'+esc(q.cliente)+'</div><div class="qcard__prenda">'+esc(qPrendaTxt(q))+"</div></div>"+
       (qAlerta(q).k !== "cerrada" ? '<div>'+qAlertaBadge(q)+"</div>" : "")+
       '<div class="qcard__foot"><span>'+fechaCorta(q.fecha)+" · "+qUnidades(q)+' und</span><span class="qcard__total">'+money(qTotal(q))+"</span></div>"+
     "</button>")).join("")+"</section>";
@@ -2149,7 +2153,7 @@ function qViewLista(lista){
   return '<section class="card"><div class="rows">'+lista.map(q => (
     '<button class="row" data-openq="'+q.id+'">'+
       '<span class="row__main"><span class="row__t">'+esc(q.cliente)+"</span>"+
-      '<span class="row__s">'+esc(q.prenda)+" · "+q.id+" · "+fechaCorta(q.fecha)+" · "+qUnidades(q)+" und</span></span>"+
+      '<span class="row__s">'+esc(qPrendaTxt(q))+" · "+q.id+" · "+fechaCorta(q.fecha)+" · "+qUnidades(q)+" und</span></span>"+
       '<span class="row__r qrow__r">'+qbadge(q)+qAlertaBadge(q)+'<span class="row__date num">'+money(qTotal(q))+"</span></span>"+
     "</button>")).join("")+"</div></section>";
 }
@@ -2162,7 +2166,7 @@ function qViewTabla(lista){
       "<th>Código</th>"+th("cliente","Cliente")+"<th>Prenda</th>"+th("fecha","Fecha")+th("vence","Vence")+
       '<th class="r">Und</th>'+th("total","Total","r")+"<th>Estado</th><th>Alerta</th>"+
     "</tr></thead><tbody>"+lista.map(q => (
-      '<tr data-openq="'+q.id+'"><td class="num">'+q.id+"</td><td><b>"+esc(q.cliente)+"</b></td><td>"+esc(q.prenda)+"</td>"+
+      '<tr data-openq="'+q.id+'"><td class="num">'+q.id+"</td><td><b>"+esc(q.cliente)+"</b></td><td>"+esc(qPrendaTxt(q))+"</td>"+
       "<td>"+fechaCorta(q.fecha)+"</td><td>"+(qAlerta(q).k==="cerrada" ? '<span class="muted">—</span>' : fechaCorta(qVence(q)))+"</td>"+
       '<td class="r num">'+qUnidades(q)+'</td><td class="r num">'+money(qTotal(q))+"</td><td>"+qbadge(q)+"</td><td>"+(qAlertaBadge(q) || '<span class="muted">—</span>')+"</td></tr>")).join("")+
     "</tbody></table></section>";
@@ -2174,7 +2178,7 @@ function qViewTablero(lista){
         '<span class="qcol__n">'+col.length+'</span><span class="qcol__sum num">'+money(col.reduce((s,q) => s+qTotal(q),0))+"</span></div>"+
       (col.length ? col.map(q => (
         '<button class="qmini" data-openq="'+q.id+'"><span class="qmini__t">'+esc(q.cliente)+"</span>"+
-          '<span class="qmini__s">'+esc(q.prenda)+"</span>"+
+          '<span class="qmini__s">'+esc(qPrendaTxt(q))+"</span>"+
           '<span class="qmini__f"><span class="num">'+q.id+'</span><span class="num">'+money(qTotal(q))+"</span></span>"+
           (qAlerta(q).k !== "cerrada" ? qAlertaBadge(q) : "")+"</button>")).join("") : '<div class="qcol__vacio">Sin cotizaciones</div>')+
     "</div>";
@@ -2220,6 +2224,7 @@ function abrirCotiz(modo, id){
 function draftVacio(){
   return {
     id:null, cliente:"", prenda:"", obs:"", fecha:iso(hoy()), vigencia:15, estado:"Borrador", img:null, pedidoId:null,
+    extras:[],
     curva:[{talla:"Única",consumo:1,cant:1}], colores:[{color:"",cant:1}], matriz:[{talla:"Única",consumo:1,colores:[{color:"",cant:1}]}],
     groups:[
       { key:"tela", label:"Tela", rows:[{n:"Tela base", c:1, p:0}] },
@@ -2265,6 +2270,16 @@ function sheetHTML(q, opts){
     return '<div><h4 class="lbl">'+esc(g.label)+'</h4><table class="sheet-t"><thead><tr><th>Nombre</th><th class="r">Consumo</th><th class="r">Precio</th><th class="r">Total</th></tr></thead><tbody>'+
       g.rows.map(r => "<tr><td>"+esc(r.n)+"</td><td class=\"r\">"+r.c+"</td><td class=\"r\">"+money(r.p)+"</td><td class=\"r\">"+money(r.c*r.p)+"</td></tr>").join("")+
       '<tr class="grp-tot"><td colspan="3">Total '+esc(g.label)+'</td><td class="r">'+money(tot)+"</td></tr></tbody></table></div>";
+  }).join("")+
+  (q.extras || []).map((e, i) => {
+    const cu = itemCostoUnit(e), un = itemUnidades(e);
+    return '<div class="sheet__extra"><hr class="sheet__stitch"><h4 class="lbl">Prenda '+(i+2)+": "+(esc(e.prenda) || "sin nombre")+"</h4>"+
+      (e.obs ? '<p style="font-size:12.5px;color:var(--ink-2);margin:0 0 8px">'+esc(e.obs)+"</p>" : "")+
+      ((e.matriz && e.matriz.length) ? matrizTablaHTML(e.matriz, { consumo:true }) : "")+
+      (e.groups || []).map(g => '<div style="margin-top:10px"><h4 class="lbl">'+esc(g.label)+'</h4><table class="sheet-t"><thead><tr><th>Nombre</th><th class="r">Consumo</th><th class="r">Precio</th><th class="r">Total</th></tr></thead><tbody>'+
+        g.rows.map(r => "<tr><td>"+esc(r.n)+"</td><td class=\"r\">"+r.c+"</td><td class=\"r\">"+money(r.p)+"</td><td class=\"r\">"+money(r.c*r.p)+"</td></tr>").join("")+
+        '<tr class="grp-tot"><td colspan="3">Total '+esc(g.label)+'</td><td class="r">'+money(groupTotal(g))+"</td></tr></tbody></table></div>").join("")+
+      '<table class="sheet-t" style="margin-top:10px"><tbody><tr class="grp-tot"><td>Producción de esta prenda ('+un+' und. × '+money(cu)+")</td><td class=\"r\">"+money(cu*un)+"</td></tr></tbody></table></div>";
   }).join("")+
   '<div><h4 class="lbl">Muestra y molde</h4><table class="sheet-t"><tbody>'+
     "<tr><td>Muestra</td><td class=\"r\">"+money(q.muestra)+"</td></tr>"+
@@ -2330,11 +2345,12 @@ function wireVerCotizacion(){
 
 async function aprobarCotizacion(q){
   try{
-    const { cotizacion, pedido } = await api("/cotizaciones/"+q.id+"/aprobar", { method:"POST" });
+    const { cotizacion, pedido, pedidosExtra } = await api("/cotizaciones/"+q.id+"/aprobar", { method:"POST" });
     Object.assign(q, cotizacion);
     pedidos.push(pedido);
+    if(pedidosExtra && pedidosExtra.length){ const todos = await api("/pedidos"); pedidos.length = 0; todos.forEach(p => pedidos.push(p)); }
     state.recien = pedido.id;
-    toast(q.id+" aprobada · pedido "+pedido.id+" creado");
+    toast(q.id+" aprobada · "+(pedidosExtra && pedidosExtra.length ? (pedidosExtra.length+1)+" pedidos creados" : "pedido "+pedido.id+" creado"));
     go("pedidos");
     setTimeout(()=>abrirPedido(pedido.id), 80);
   } catch(e){ toast(e.message); }
@@ -2369,6 +2385,13 @@ function vCotizEditor(){
       '<hr class="qstitch">'+
 
       '<div class="qsection"><div class="qsection__h"><h3>Costos de producción</h3></div><div id="q-groups"></div></div>'+
+      '<hr class="qstitch">'+
+
+      '<div class="qsection"><div class="qsection__h"><h3>Otras prendas de esta cotización</h3><span class="n" id="q-extrasN"></span></div>'+
+        '<p class="muted" style="font-size:12px;margin:0 0 8px">Para colecciones: cada prenda lleva sus tallas, colores y costos. Al aprobar, cada una nace como su propio pedido.</p>'+
+        '<div id="q-extras"></div>'+
+        '<button type="button" class="addline" id="q-add-prenda">+ Agregar otra prenda</button>'+
+      "</div>"+
       '<hr class="qstitch">'+
 
       '<div class="qsection"><div class="qsection__h"><h3>Muestra y molde</h3></div>'+
@@ -2406,9 +2429,9 @@ function initEditorCotiz(){
 
   function updateSheet(){ qs("#q-sheet").innerHTML = sheetHTML(d); }
 
-  function renderGroups(){
-    const host = qs("#q-groups"); host.innerHTML = "";
-    d.groups.forEach((g,gi)=>{
+  function renderGroupsInto(host, groups){
+    host.innerHTML = "";
+    groups.forEach((g,gi)=>{
       const wrap = document.createElement("div"); wrap.className = "lgroup";
       wrap.innerHTML = '<div class="lgroup__h">'+esc(g.label)+'<span class="tot">'+money(groupTotal(g))+'</span></div>'+
         '<div class="lrow lrow--head"><span>Nombre</span><span>Cons.</span><span>Precio</span><span>Total</span><span></span></div>'+
@@ -2425,12 +2448,41 @@ function initEditorCotiz(){
           wrap.querySelector(".tot").textContent = money(groupTotal(g));
           updateSheet();
         });
-        el.querySelector(".rowdel").onclick = () => { g.rows.splice(ri,1); renderGroups(); updateSheet(); };
+        el.querySelector(".rowdel").onclick = () => { g.rows.splice(ri,1); renderGroupsInto(host, groups); updateSheet(); };
       });
-      wrap.querySelector(".addRow").onclick = () => { g.rows.push({n:"Nuevo ítem",c:1,p:0}); renderGroups(); updateSheet(); };
+      wrap.querySelector(".addRow").onclick = () => { g.rows.push({n:"Nuevo ítem",c:1,p:0}); renderGroupsInto(host, groups); updateSheet(); };
       host.appendChild(wrap);
     });
   }
+  function renderGroups(){ renderGroupsInto(qs("#q-groups"), d.groups); }
+
+  /* otras prendas: una tarjeta por prenda, con su matriz y sus costos */
+  function nuevaPrenda(){
+    return { prenda:"", obs:"", img:null, matriz:[{talla:"Única",consumo:1,colores:[{color:"",cant:1}]}],
+      curva:[{talla:"Única",consumo:1,cant:1}], colores:[{color:"",cant:1}],
+      groups:JSON.parse(JSON.stringify(d.groups)).map(g => ({ key:g.key, label:g.label, rows:g.rows.map(r => ({ n:r.n, c:r.c, p:0 })) })) };
+  }
+  function renderExtras(){
+    d.extras = d.extras || [];
+    const host = qs("#q-extras"); host.innerHTML = "";
+    qs("#q-extrasN").textContent = d.extras.length ? d.extras.length+" adicional"+(d.extras.length===1?"":"es") : "";
+    d.extras.forEach((e, i) => {
+      if(!e.matriz || !e.matriz.length) e.matriz = [{talla:"Única",consumo:1,colores:[{color:"",cant:1}]}];
+      const card = document.createElement("div"); card.className = "lgroup"; card.style.marginBottom = "14px";
+      card.innerHTML = '<div class="lgroup__h"><span>Prenda '+(i+2)+'</span><button type="button" class="rowdel" data-q-del-prenda="'+i+'" aria-label="Quitar prenda">×</button></div>'+
+        '<div class="field"><label>Descripción de la prenda</label><input class="input" data-ex="prenda" value="'+esc(e.prenda)+'"></div>'+
+        '<div class="field"><label>Notas de diseño</label><textarea class="input" data-ex="obs">'+esc(e.obs || "")+'</textarea></div>'+
+        '<h4 class="lbl" style="margin:8px 0 4px">Tallas y variantes de color</h4><div data-ex-mx></div>'+
+        '<h4 class="lbl" style="margin:12px 0 4px">Costos de producción</h4><div data-ex-groups style="display:flex;flex-direction:column;gap:12px"></div>';
+      host.appendChild(card);
+      card.querySelectorAll("[data-ex]").forEach(inp => inp.addEventListener("input", () => { e[inp.dataset.ex] = inp.value; updateSheet(); }));
+      card.querySelector("[data-q-del-prenda]").onclick = () => { d.extras.splice(i, 1); renderExtras(); updateSheet(); };
+      montarMatriz(card.querySelector("[data-ex-mx]"), e.matriz, { consumo:true, onChange:() => { Object.assign(e, matrizDerivar(e.matriz)); updateSheet(); } });
+      Object.assign(e, matrizDerivar(e.matriz));
+      renderGroupsInto(card.querySelector("[data-ex-groups]"), e.groups);
+    });
+  }
+  qs("#q-add-prenda").onclick = () => { d.extras = d.extras || []; d.extras.push(nuevaPrenda()); renderExtras(); updateSheet(); const cards = qs("#q-extras").children; cards[cards.length-1].scrollIntoView({ block:"center" }); };
 
   ["cliente","id","prenda","obs"].forEach(f => qs("#q-"+f).addEventListener("input", () => { d[f] = qs("#q-"+f).value; updateSheet(); }));
   qs("#q-vigencia").addEventListener("input", () => { d.vigencia = Number(qs("#q-vigencia").value)||0; updateSheet(); });
@@ -2477,7 +2529,7 @@ function initEditorCotiz(){
   montarMatriz(qs("#q-matriz"), mx, { consumo:true, antes:conv.lossy ? d.curva.map(r => r.cant) : null,
     aviso:conv.lossy ? "Esta cotización tenía tallas y colores por separado. Reparte la cantidad de cada talla entre sus colores; mientras no lo hagas se mantienen los totales anteriores." : "",
     onChange:() => { aplicarMatriz(); updateSheet(); } });
-  renderGroups(); updateSheet();
+  renderGroups(); renderExtras(); updateSheet();
 }
 
 /* ---- exportar / imprimir (con aviso si corre en iframe con sandbox) ---- */
@@ -2717,7 +2769,7 @@ function exportarPedidosExcel(){
 function exportarCotizacionesExcel(){
   const lista = qListaVisible();
   const filas = lista.map(q => { const a = qAlerta(q), cerrada = a.k === "cerrada";
-    return { cod:q.id, cli:q.cliente, pre:q.prenda, est:q.estado, fec:q.fecha, vig:Number(q.vigencia)||0, ven:cerrada ? "" : qVence(q), ale:cerrada ? "" : ({ vencida:"Vencida", proxima:"Por vencer", pendiente:"Pendiente" })[a.k], det:cerrada ? "" : a.txt, und:qUnidades(q), sub:qSubtotal(q), igv:qIGV(q), tot:qTotal(q) }; });
+    return { cod:q.id, cli:q.cliente, pre:qPrendaTxt(q), est:q.estado, fec:q.fecha, vig:Number(q.vigencia)||0, ven:cerrada ? "" : qVence(q), ale:cerrada ? "" : ({ vencida:"Vencida", proxima:"Por vencer", pendiente:"Pendiente" })[a.k], det:cerrada ? "" : a.txt, und:qUnidades(q), sub:qSubtotal(q), igv:qIGV(q), tot:qTotal(q) }; });
   descargarExcel("cotizaciones.xlsx", [{ nombre:"Cotizaciones", titulo:"Santa Isabel · Cotizaciones", subtitulo: lista.length+" cotizacion"+(lista.length===1?"":"es")+" · exportado el "+ahoraTexto(),
     columnas:[{ k:"cod", h:"Código", w:12, t:"fuerte" }, { k:"cli", h:"Cliente", w:28 }, { k:"pre", h:"Prenda", w:32 }, { k:"est", h:"Estado", w:14, t:"estado" },
       { k:"fec", h:"Fecha", w:13, t:"fecha" }, { k:"vig", h:"Vigencia (días)", w:11, t:"num" }, { k:"ven", h:"Vence", w:13, t:"fecha" }, { k:"ale", h:"Alerta", w:14, t:"estado" }, { k:"det", h:"Detalle", w:26, t:"centro" },

@@ -231,3 +231,12 @@ public/
 ```
 
 > **Migración automática:** `npm run db:migrate` (que corre al arrancar el contenedor) también convierte las cotizaciones y pedidos antiguos al formato de matriz talla × color. Si un registro tiene varios colores sin reparto por talla, se deja sin tocar para completarlo a mano.
+
+## Cambios de la revisión del 13/10/2026
+- **Cotizaciones:** subtotal + IGV (18 %) + total; varias prendas en una misma cotización (al aprobar, cada prenda nace como su propio pedido).
+- **Pedidos:** tallas y colores (matriz) al crear; sin etapa en el alta; resumen editable; tres fechas (creación, comprometida, entrega real) — la comprometida solo la cambia el administrador.
+- **Etapas:** fecha de inicio y de fin; proveedor explícito en los servicios tercerizados.
+- **Muestras:** título, edición y anulación (queda en el historial). **Moldes:** código y ubicación física.
+- **Entrega:** la guía muestra modelo, tallas y colores.
+- **Usuarios:** cambio de contraseña obligatorio en el primer ingreso; catálogo editable de responsables.
+- **Operación:** `npm run db:reset` deja la base en cero y conserva solo al administrador (pide `CONFIRMAR=VACIAR`).
