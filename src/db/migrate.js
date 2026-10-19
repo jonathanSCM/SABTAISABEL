@@ -45,12 +45,15 @@ async function migrarMuestrasExistentes(){
 
 async function migrate(){
   const sql = fs.readFileSync(path.join(__dirname, "schema.sql"), "utf8");
+  /* el cambio forzado de contraseña inicial se aplica solo la primera vez (cuando la columna aún no existe);
+     así, quien ya decidió seguir con su contraseña no vuelve a quedar marcado en cada despliegue */
+  const yaExistia = (await pool.query("SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='debe_cambiar_password'")).rows.length > 0;
   await pool.query(sql);
   console.log("OK: esquema aplicado a la base de datos.");
   await migrarMatriz("cotizaciones");
   await migrarMatriz("pedidos");
   await migrarMuestrasExistentes();
-  await exigirCambioDeClaveInicial();
+  if(!yaExistia) await exigirCambioDeClaveInicial();
   await pool.end();
 }
 
