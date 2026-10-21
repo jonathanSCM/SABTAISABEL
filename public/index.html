@@ -1530,7 +1530,7 @@ const state = {
   filtros:{ estado:"Todos", cliente:"Todos", rango:"Todas", texto:"" },
   mes:(function(){ const d = hoy(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
   pedidoAbierto:null, entrando:true, recien:null, confirmAlta:false, semanaModo:"estado", qTexto:"", qFiltro:"todas", qOrden:"reciente", qVista:null, planSemana:0, planAtrasados:false,
-  vistaGuiaId:null, vistaFichaId:null, vistaFichaVersion:null, mFiltro:"todas", mTexto:"", muestraAbierta:null,
+  vistaGuiaId:null, vistaFichaId:null, vistaFichaVersion:null, mFiltro:"todas", mTexto:"", muestraAbierta:null, vistaMuestraId:null, vistaMuestraVuelta:null,
   vistaPaqueteId:null, paqueteSel:[],
   moldesPorCliente:{}, moldesCargando:new Set(),
   cotiz:{ modo:"lista", verId:null, draft:null, wired:false }
@@ -1590,11 +1590,11 @@ function go(v){
 /* ============ vistas ============ */
 function render(){
   renderNav();
-  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", muestras:"Muestras", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte", paquete:"Hojas del pedido", plan:"Planificación semanal" };
+  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", muestras:"Muestras", muestrahoja:"Hoja de muestra", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte", paquete:"Hojas del pedido", plan:"Planificación semanal" };
   $("#viewTitle").textContent = t[state.view];
   const d = hoy();
   $("#todayLabel").textContent = DOW[(d.getDay()+6)%7].replace(/^./,c=>c.toUpperCase())+" "+d.getDate()+" de "+MESES[d.getMonth()]+" de "+d.getFullYear();
-  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, muestras:vMuestras, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte, paquete:vPaquete, plan:vPlan })[state.view]();
+  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, muestras:vMuestras, muestrahoja:vHojaMuestra, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte, paquete:vPaquete, plan:vPlan })[state.view]();
   wire();
   if(state.view === "guia"){
     const p = pedidos.find(x => x.id === state.vistaGuiaId);
@@ -1609,6 +1609,15 @@ function render(){
       const back = $("#btnVolverFicha"); if(back) back.onclick = () => volverDeFicha(p.id);
       wireExport($("#theSheetFicha"), p, "#btnPrintFicha");
     }
+  }
+  if(state.view === "muestrahoja"){
+    const back = $("#btnVolverMuestra");
+    if(back) back.onclick = () => {
+      const m = muestrasLista.find(x => x.id === state.vistaMuestraId), ped = state.vistaMuestraVuelta;
+      if(ped){ state.view = "pedidos"; state.entrando = true; render(); setTimeout(() => abrirPedido(ped, "muestra"), 60); }
+      else { state.view = "muestras"; state.entrando = true; render(); if(m) setTimeout(() => abrirMuestra(m.id), 60); }
+    };
+    wireExport(null, { id:"muestra", cliente:"hoja" }, "#btnMuestraImprimir", "Muestra");
   }
   if(state.view === "corte"){
     const back = $("#btnVolverCorte"); if(back) back.onclick = () => go("pedidos");
@@ -2137,6 +2146,50 @@ function vMuestras(){
   "</section>";
 }
 
+/* ---- hoja imprimible de una muestra: modelo, tallas y colores, versiones y espacio para la aprobación ---- */
+function hojaMuestraHTML(m0){
+  const m = muestrasLista.find(x => x.id === m0.id) || m0;
+  const aprobada = (m.versiones || []).filter(v => v.estado === "Aprobada").slice(-1)[0];
+  const th = (...c) => "<tr>"+c.map(x => "<th>"+x+"</th>").join("")+"</tr>";
+  const cabecera = '<div class="hoja-head"><div class="hoja-head__brand"><b>Santa Isabel</b><span>Taller de confección</span></div>'+
+    '<div class="hoja-head__doc"><div class="hoja-head__t">Hoja de muestra</div><div class="hoja-head__id">M-'+String(m.id).padStart(4,"0")+"</div></div></div>";
+  const cuerpo = '<dl class="hoja-datos"><div><dt>Cliente</dt><dd>'+esc(m.cliente)+"</dd></div><div><dt>Modelo</dt><dd>"+esc(m.titulo)+"</dd></div>"+
+      "<div><dt>Estado</dt><dd>"+esc(m.estado)+"</dd></div><div><dt>Pedido</dt><dd>"+(m.pedidoId ? esc(m.pedidoId) : "Sin pedido")+"</dd></div></dl>"+
+    '<h4 class="hoja-h">Tallas y colores</h4>'+
+    ((m.matriz && m.matriz.length) ? matrizTablaHTML(m.matriz) : '<p class="hoja-vacio">Este modelo todavía no tiene tallas ni colores.</p>')+
+    '<h4 class="hoja-h">Versiones</h4>'+
+    (m.versiones || []).map(v =>
+      '<div class="fi-card" style="margin-bottom:8px"><div class="fi-card__h"><b>Versión '+v.version+'</b><span class="fi-chip">'+esc(v.estado)+"</span>"+
+        '<span class="muted" style="margin-left:auto;font-size:11.5px">'+fechaCorta(v.fecha)+(v.responsable ? " · "+esc(v.responsable) : "")+"</span></div>"+
+      (v.tallaAprobada ? '<div style="font-size:12.5px"><b>Talla:</b> '+esc(v.tallaAprobada)+"</div>" : "")+
+      (v.materiales ? '<div style="font-size:12.5px"><b>Materiales:</b> '+esc(v.materiales)+"</div>" : "")+
+      (v.cambiosSolicitados ? '<div style="font-size:12.5px"><b>Cambios solicitados:</b> '+esc(v.cambiosSolicitados)+"</div>" : "")+
+      (v.comentariosCliente ? '<div style="font-size:12.5px"><b>Observaciones:</b> '+esc(v.comentariosCliente)+"</div>" : "")+
+      (v.fotos && v.fotos.length ? '<div class="muestra-card__fotos">'+v.fotos.map(f => '<img src="'+f+'" style="width:96px;height:96px">').join("")+"</div>" : "")+
+    "</div>").join("")+
+    '<div class="hoja-cierre"><h4 class="hoja-h">Aprobación</h4><div class="hoja-cierre__g">'+
+      "<div><span>Aprobada por</span>"+(aprobada && aprobada.aprobadoPor ? "<b>"+esc(aprobada.aprobadoPor)+"</b>" : "")+"</div><div><span>Fecha</span></div><div><span>Firma del cliente</span></div></div></div>";
+  return hojaEnvoltorio(cabecera, cuerpo);
+}
+function vHojaMuestra(){
+  const m = muestrasLista.find(x => x.id === state.vistaMuestraId);
+  if(!m) return '<div class="empty">Muestra no encontrada.</div>';
+  return '<div class="paq">'+
+    '<button class="qback paq-noprint" id="btnVolverMuestra">← Volver</button>'+
+    '<div class="paq-panel paq-noprint"><div class="paq-panel__t">Hoja de muestra</div>'+
+      '<div class="paq-acc"><button class="btn btn--primary btn--sm" id="btnMuestraImprimir">Imprimir / PDF</button></div>'+
+      '<div class="muted" style="font-size:11.5px">Imprimir abre el diálogo del navegador (elige "Guardar como PDF" para descargarla).</div></div>'+
+    '<div class="exportNotice" id="exportNotice"><span>Esta vista previa no deja imprimir directamente. Abre la app en su propia pestaña y vuelve a tocar <b>Imprimir</b>, o usa <kbd>Ctrl</kbd>+<kbd>P</kbd>.</span>'+
+      '<button class="exportNotice__close" id="exportNoticeClose" aria-label="Cerrar aviso">×</button></div>'+
+    hojaMuestraHTML(m)+"</div>";
+}
+function abrirHojaMuestra(id, desdePedido){
+  cerrarDrawer();
+  state.vistaMuestraId = id; state.vistaMuestraVuelta = desdePedido || null;
+  state.view = "muestrahoja"; state.entrando = true;
+  render(); window.scrollTo({ top:0 });
+}
+
 /* ---- detalle de una muestra (en el panel lateral) ---- */
 function abrirMuestra(id){
   const m = muestrasLista.find(x => x.id === id);
@@ -2155,6 +2208,8 @@ function abrirMuestra(id){
                     : '<button class="btn btn--primary btn--sm" id="mdVincular">Vincular a un pedido</button>')+
         '<button class="btn btn--ghost btn--sm" id="mdEditar">Editar modelo</button>'+
         '<button class="btn btn--ghost btn--sm" id="mdNuevaVersion">+ Nueva versión</button>'+
+        '<button class="btn btn--primary btn--sm" id="mdImprimir">Imprimir muestra</button>'+
+        (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="mdEliminar" style="color:var(--danger)">Eliminar muestra</button>' : "")+
       "</div></div>"+
     '<h4 class="lbl" style="margin:16px 0 6px">Tallas y colores</h4>'+
     (m.matriz && m.matriz.length ? matrizTablaHTML(m.matriz) : '<div class="muted" style="font-size:13px">Todavía no tiene tallas ni colores. Se cargan desde «Editar modelo».</div>')+
@@ -2166,6 +2221,17 @@ function abrirMuestra(id){
   const vi = $("#mdVincular"); if(vi) vi.onclick = () => vincularMuestraAPedido(m, ctx);
   $("#mdEditar").onclick = () => abrirModalMuestra({ modo:"modelo", muestra:m, ctx });
   $("#mdNuevaVersion").onclick = () => abrirModalMuestra({ modo:"version", muestraId:m.id, ctx });
+  $("#mdImprimir").onclick = () => abrirHojaMuestra(m.id);
+  const el = $("#mdEliminar");
+  if(el) el.onclick = async () => {
+    if(!confirm("¿Eliminar la muestra «"+m.titulo+"» con todas sus versiones? No se puede deshacer.")) return;
+    try{
+      const r = await api("/muestras/"+m.id, { method:"DELETE" });
+      const i = muestrasLista.findIndex(x => x.id === m.id); if(i >= 0) muestrasLista.splice(i, 1);
+      if(r.pedido){ const ped = pedidos.find(x => x.id === r.pedidoId); if(ped) Object.assign(ped, r.pedido); }
+      cerrarDrawer(); render(); toast("Muestra eliminada.");
+    } catch(err){ toast(err.message); }
+  };
   enlazarVersiones(rootB, ctx);
   abrirDrawer();
 }
@@ -2417,6 +2483,8 @@ function sheetHTML(q, opts){
   "</tbody></table></div>"+
   '<div class="totalbox">'+
     '<div class="totalbox__row"><span>Producción ('+und+' und.)</span><span class="amt">'+money(qTotalProd(q))+"</span></div>"+
+    qItems(q).map(it => '<div class="totalbox__row"><span>Precio por unidad'+((q.extras||[]).length ? " · "+(esc(it.prenda)||"prenda") : "")+' (sin IGV)</span><span class="amt">'+money(itemCostoUnit(it))+"</span></div>"+
+      '<div class="totalbox__row"><span>Precio por unidad'+((q.extras||[]).length ? " · "+(esc(it.prenda)||"prenda") : "")+' (con IGV)</span><span class="amt">'+money(Math.round(itemCostoUnit(it) * (100 + IGV_PCT)) / 100)+"</span></div>").join("")+
     '<div class="totalbox__row"><span>Muestra + molde</span><span class="amt">'+money(Number(q.muestra||0)+Number(q.molde||0))+"</span></div>"+
     '<div class="totalbox__row"><span>Subtotal</span><span class="amt">'+money(qSubtotal(q))+"</span></div>"+
     '<div class="totalbox__row"><span>IGV ('+IGV_PCT+'%)</span><span class="amt">'+money(qIGV(q))+"</span></div>"+
@@ -2444,6 +2512,7 @@ function vCotizVer(){
         '<button class="btn btn--ghost btn--sm" id="btnRechazarQ">Rechazar</button>' : "")+
       (q.pedidoId ? '<button class="btn btn--ghost btn--sm" data-open="'+q.pedidoId+'">Ver pedido '+q.pedidoId+"</button>" : "")+
       '<button class="btn btn--ghost btn--sm" id="btnEditarQ">Editar</button>'+
+      (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="btnEliminarQ" style="color:var(--danger)">Eliminar</button>' : "")+
       '<button class="btn btn--primary btn--sm" id="btnPrintQ" title="Abre el diálogo de impresión: elegí “Guardar como PDF” para descargarla">Exportar a PDF</button>'+
     "</div>"+
     '<div class="exportNotice" id="exportNotice">'+
@@ -2460,6 +2529,15 @@ function wireVerCotizacion(){
   if(!q) return;
   const back = page.querySelector('[data-back="cotizaciones"]'); if(back) back.onclick = () => { state.cotiz.modo="lista"; render(); };
   const edit = $("#btnEditarQ"); if(edit) edit.onclick = () => abrirCotiz("editar", q.id);
+  const eliminarQ = $("#btnEliminarQ");
+  if(eliminarQ) eliminarQ.onclick = async () => {
+    if(!confirm("¿Eliminar la cotización "+q.id+" ("+q.cliente+")?"+(q.pedidoId ? "\n\nLos pedidos que generó no se borran." : "")+"\n\nEsta acción no se puede deshacer.")) return;
+    try{
+      await api("/cotizaciones/"+q.id, { method:"DELETE" });
+      const i = cotizaciones.findIndex(x => x.id === q.id); if(i >= 0) cotizaciones.splice(i, 1);
+      state.cotiz.modo = "lista"; render(); toast("Cotización "+q.id+" eliminada.");
+    } catch(e){ toast(e.message); }
+  };
   const aprobar = $("#btnAprobarQ"); if(aprobar) aprobar.onclick = () => aprobarCotizacion(q);
   const enviar = $("#btnMarcarEnviada"); if(enviar) enviar.onclick = async () => {
     try{ Object.assign(q, await api("/cotizaciones/"+q.id+"/enviar", { method:"POST" })); toast(q.id+" marcada como enviada"); render(); }
@@ -2899,11 +2977,11 @@ function exportarPedidosExcel(){
 function exportarCotizacionesExcel(){
   const lista = qListaVisible();
   const filas = lista.map(q => { const a = qAlerta(q), cerrada = a.k === "cerrada";
-    return { cod:q.id, cli:q.cliente, pre:qPrendaTxt(q), est:q.estado, fec:q.fecha, vig:Number(q.vigencia)||0, ven:cerrada ? "" : qVence(q), ale:cerrada ? "" : ({ vencida:"Vencida", proxima:"Por vencer", pendiente:"Pendiente" })[a.k], det:cerrada ? "" : a.txt, und:qUnidades(q), sub:qSubtotal(q), igv:qIGV(q), tot:qTotal(q) }; });
+    return { cod:q.id, cli:q.cliente, pre:qPrendaTxt(q), est:q.estado, fec:q.fecha, vig:Number(q.vigencia)||0, ven:cerrada ? "" : qVence(q), ale:cerrada ? "" : ({ vencida:"Vencida", proxima:"Por vencer", pendiente:"Pendiente" })[a.k], det:cerrada ? "" : a.txt, und:qUnidades(q), pun:qUnidades(q) ? qTotalProd(q) / qUnidades(q) : 0, sub:qSubtotal(q), igv:qIGV(q), tot:qTotal(q) }; });
   descargarExcel("cotizaciones.xlsx", [{ nombre:"Cotizaciones", titulo:"Santa Isabel · Cotizaciones", subtitulo: lista.length+" cotizacion"+(lista.length===1?"":"es")+" · exportado el "+ahoraTexto(),
     columnas:[{ k:"cod", h:"Código", w:12, t:"fuerte" }, { k:"cli", h:"Cliente", w:28 }, { k:"pre", h:"Prenda", w:32 }, { k:"est", h:"Estado", w:14, t:"estado" },
       { k:"fec", h:"Fecha", w:13, t:"fecha" }, { k:"vig", h:"Vigencia (días)", w:11, t:"num" }, { k:"ven", h:"Vence", w:13, t:"fecha" }, { k:"ale", h:"Alerta", w:14, t:"estado" }, { k:"det", h:"Detalle", w:26, t:"centro" },
-      { k:"und", h:"Unidades", w:10, t:"num" }, { k:"sub", h:"Subtotal", w:15, t:"moneda" }, { k:"igv", h:"IGV (18%)", w:14, t:"moneda" }, { k:"tot", h:"Total", w:16, t:"moneda" }],
+      { k:"und", h:"Unidades", w:10, t:"num" }, { k:"pun", h:"Precio x unidad (sin IGV)", w:15, t:"moneda" }, { k:"sub", h:"Subtotal", w:15, t:"moneda" }, { k:"igv", h:"IGV (18%)", w:14, t:"moneda" }, { k:"tot", h:"Total", w:16, t:"moneda" }],
     filas, totales:["und","sub","igv","tot"], marcar:(f,k) => (k === "ven" && f.ale === "Vencida") ? "rojo" : null }]);
 }
 function gruposSemana(){
@@ -3156,6 +3234,7 @@ function moldeCardHTML(m){
     (m.responsable ? '<div class="muted" style="font-size:12px;margin-top:2px">'+esc(m.responsable)+"</div>" : "")+
     (m.ubicacion ? '<div style="font-size:13px;margin-top:6px"><b>Ubicación:</b> '+esc(m.ubicacion)+"</div>" : "")+
     (m.notas ? '<div style="font-size:13px;margin-top:6px">'+esc(m.notas)+"</div>" : "")+
+    (usuarioActual && usuarioActual.rol === "admin" ? '<div class="muestra-card__acciones"><button type="button" class="btn btn--ghost btn--sm" data-molde-del="'+m.id+'" style="color:var(--danger)">Eliminar molde</button></div>' : "")+
     (m.fotos && m.fotos.length ? '<div class="muestra-card__fotos">'+m.fotos.map(f=>'<img src="'+f+'">').join("")+"</div>" : "")+
   "</div>";
 }
@@ -3204,6 +3283,7 @@ function modeloBloqueHTML(g, ctx){
       '<button class="btn btn--primary btn--sm" data-mm-version="'+g.id+'">+ Nueva versión</button>'+
       '<button class="btn btn--ghost btn--sm" data-mm-editar="'+g.id+'">Editar modelo</button>'+
       '<button class="btn btn--ghost btn--sm" data-mm-abrir="'+g.id+'">Abrir muestra</button>'+
+      '<button class="btn btn--ghost btn--sm" data-mm-imprimir="'+g.id+'">Imprimir</button>'+
       '<button class="btn btn--ghost btn--sm" data-mm-quitar="'+g.id+'">Quitar del pedido</button>'+
     "</div></div>";
 }
@@ -3506,6 +3586,7 @@ function hojaPortadaHTML(p){
 function paqueteHojas(p){
   const lista = [{ key:"portada", label:"Portada del pedido", html:() => hojaPortadaHTML(p) }];
   p.produccion.forEach(t => lista.push({ key:"e"+t.id, label:t.label, html:() => hojaEtapaHTML(p, t) }));
+  (p.modelos || []).forEach(g => lista.push({ key:"m"+g.id, label:"Muestra: "+g.titulo, html:() => hojaMuestraHTML(g) }));
   if((p.compras||[]).length) lista.push({ key:"compras", label:"Lista de compras", html:() => hojaComprasHTML(p) });
   return lista;
 }
@@ -3663,6 +3744,7 @@ function abrirPedido(id, tabIni){
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
         '<button class="btn btn--ghost btn--sm" id="btnCambiarEstado">Cambiar estado…</button>'+
         '<button class="btn btn--ghost btn--sm" id="btnImprimirCompletoTop">Imprimir hojas del pedido</button>'+
+        (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="btnEliminarPedido" style="color:var(--danger)">Eliminar pedido</button>' : "")+
       "</div>"+
     "</div>"+
     '<div class="dtabs" role="tablist">'+
@@ -3761,6 +3843,7 @@ function abrirPedido(id, tabIni){
   const bme = $("#btnMuestraExistente"); if(bme) bme.onclick = () => vincularExistente(p);
   $("#drawerBody").querySelectorAll("[data-mm-version]").forEach(b => b.onclick = () => abrirModalMuestra({ modo:"version", muestraId:Number(b.dataset.mmVersion), ctx:ctxM }));
   $("#drawerBody").querySelectorAll("[data-mm-editar]").forEach(b => b.onclick = () => { const m = muestrasLista.find(x => x.id === Number(b.dataset.mmEditar)); if(m) abrirModalMuestra({ modo:"modelo", muestra:m, ctx:ctxM }); });
+  $("#drawerBody").querySelectorAll("[data-mm-imprimir]").forEach(b => b.onclick = () => abrirHojaMuestra(Number(b.dataset.mmImprimir), p.id));
   $("#drawerBody").querySelectorAll("[data-mm-abrir]").forEach(b => b.onclick = () => abrirMuestra(Number(b.dataset.mmAbrir)));
   $("#drawerBody").querySelectorAll("[data-mm-quitar]").forEach(b => b.onclick = () => quitarMuestraDePedido(Number(b.dataset.mmQuitar), ctxM));
   enlazarVersiones($("#drawerBody"), ctxM);
@@ -3787,10 +3870,28 @@ function abrirPedido(id, tabIni){
   const btnImprimirCompleto = $("#btnImprimirCompleto"); if(btnImprimirCompleto) btnImprimirCompleto.onclick = () => abrirPaquete(p.id);
   const btnEntregado = $("#btnMarcarEntregado"); if(btnEntregado) btnEntregado.onclick = () => cambiarEstado(p, "Entregado");
   const btnToggleRM = $("#btnToggleRequiereMuestra"); if(btnToggleRM) btnToggleRM.onclick = () => cambiarRequiereMuestra(p, !p.requiereMuestra);
+  const btnEliminarPedido = $("#btnEliminarPedido");
+  if(btnEliminarPedido) btnEliminarPedido.onclick = async () => {
+    if(!confirm("¿Eliminar el pedido "+p.id+" ("+p.cliente+" · "+p.producto+")?\n\nSe borran también su checklist, etapas, fotos, documentos e historial. Las muestras quedan sueltas. Esta acción no se puede deshacer.")) return;
+    try{
+      await api("/pedidos/"+p.id, { method:"DELETE" });
+      const i = pedidos.findIndex(x => x.id === p.id); if(i >= 0) pedidos.splice(i, 1);
+      await cargarMuestras();
+      cerrarDrawer(); render(); toast("Pedido "+p.id+" eliminado.");
+    } catch(err){ toast(err.message); }
+  };
   const btnEditarResumen = $("#btnEditarResumen"); if(btnEditarResumen) btnEditarResumen.onclick = () => abrirModalResumen(p);
   const btnEditarCurva = $("#btnEditarCurva"); if(btnEditarCurva) btnEditarCurva.onclick = () => abrirModalCurva(p);
   const btnActivarM = $("#btnActivarMuestra"); if(btnActivarM) btnActivarM.onclick = () => cambiarRequiereMuestra(p, true);
   const btnDesactivarM = $("#btnDesactivarMuestra"); if(btnDesactivarM) btnDesactivarM.onclick = () => cambiarRequiereMuestra(p, false);
+  $("#drawerBody").querySelectorAll("[data-molde-del]").forEach(b => b.onclick = async () => {
+    if(!confirm("¿Eliminar este molde del archivo? No se puede deshacer.")) return;
+    try{
+      await api("/moldes/"+b.dataset.moldeDel, { method:"DELETE" });
+      const l = state.moldesPorCliente[p.cliente]; if(l){ const i = l.findIndex(x => String(x.id) === b.dataset.moldeDel); if(i >= 0) l.splice(i, 1); }
+      toast("Molde eliminado."); abrirPedido(p.id, "preparacion");
+    } catch(err){ toast(err.message); }
+  });
   const btnNuevoMolde = $("#btnNuevoMolde"); if(btnNuevoMolde) btnNuevoMolde.onclick = () => abrirModalMolde(p.id);
   if(state.moldesPorCliente[p.cliente] === undefined && !state.moldesCargando.has(p.cliente)){
     state.moldesCargando.add(p.cliente); cargarMoldes(p.cliente, p.id);
@@ -3939,8 +4040,8 @@ function abrirModal(fecha){
   form.reset();
   formMx = []; montarMatriz($("#f-matriz"), formMx, { onChange: sincronizarCantidadForm }); sincronizarCantidadForm();
   $("#f-cantidad").value = 1;
-  $("#f-compromiso").value = fecha || isoOff(30);
-  $("#f-solicitada").value = fecha || isoOff(30);
+  $("#f-compromiso").value = fecha || isoOff(0);
+  $("#f-solicitada").value = fecha || isoOff(0);
   state.confirmAlta = false;
   $("#f-requiere-muestra").querySelectorAll("[data-val]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.val === "si")));
   $("#formMas").style.display = "none";

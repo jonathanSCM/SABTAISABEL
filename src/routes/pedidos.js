@@ -1,6 +1,7 @@
 const express = require("express");
 const pool = require("../db/pool");
 const requireAuth = require("../middleware/requireAuth");
+const requireAdmin = require("../middleware/requireAdmin");
 const { CHECKLIST_ITEMS, CHECKLIST_LABEL, sembrarChecklist } = require("../db/checklist");
 const { ETAPAS_PRODUCCION, ETAPA_LABEL, sembrarProduccion } = require("../db/produccion");
 const { normalizarMatriz, derivarMatriz } = require("../db/matriz");
@@ -185,6 +186,28 @@ router.patch("/:id/estado", async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+/* ---- eliminar un pedido (solo administrador). Sus datos propios se van con él; las muestras quedan sueltas y las
+   cotizaciones que lo generaron pierden el vínculo ---- */
+router.delete("/:id", requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const ped = (await client.query("SELECT id, cliente, producto FROM pedidos WHERE id = $1 FOR UPDATE", [id])).rows[0];
+    if(!ped){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido no encontrado." }); }
+    await client.query("UPDATE muestras SET pedido_id = NULL WHERE pedido_id = $1", [id]);
+    await client.query("UPDATE cotizaciones SET pedido_id = NULL WHERE pedido_id = $1", [id]);
+    await client.query("UPDATE cotizaciones SET pedidos_extra = pedidos_extra - $1::text WHERE pedidos_extra ? $1::text", [id]);
+    await client.query("DELETE FROM pedidos WHERE id = $1", [id]);
+    await client.query("COMMIT");
+    console.log("Pedido "+id+" ("+ped.cliente+" · "+ped.producto+") eliminado por "+req.user.email);
+    res.json({ ok:true, id });
+  } catch(err){
+    await client.query("ROLLBACK"); console.error(err);
+    res.status(500).json({ error:"No se pudo eliminar el pedido." });
+  } finally { client.release(); }
 });
 
 /* ---- editar los datos del resumen. La fecha comprometida la cambia solo el administrador ---- */

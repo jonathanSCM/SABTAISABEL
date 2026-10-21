@@ -1,6 +1,7 @@
 const express = require("express");
 const pool = require("../db/pool");
 const requireAuth = require("../middleware/requireAuth");
+const requireAdmin = require("../middleware/requireAdmin");
 const { normalizarMatriz } = require("../db/matriz");
 
 const router = express.Router();
@@ -143,6 +144,16 @@ router.post("/:id/desvincular", async (req, res) => {
   await pool.query("UPDATE muestras SET pedido_id = NULL WHERE id = $1", [cur.id]);
   await hist(pool, req, cur.pedido_id, "Muestra «"+cur.titulo+"» quitada del pedido", { tipo:"muestra" });
   res.json(await respuesta(pool, cur.id, [cur.pedido_id]));
+});
+
+/* eliminar una muestra completa (con todas sus versiones); solo administrador */
+router.delete("/:id", requireAdmin, async (req, res) => {
+  const cur = (await pool.query("SELECT * FROM muestras WHERE id = $1", [req.params.id])).rows[0];
+  if(!cur) return res.status(404).json({ error:"Muestra no encontrada." });
+  await pool.query("DELETE FROM muestras WHERE id = $1", [cur.id]);
+  await hist(pool, req, cur.pedido_id, "Muestra «"+cur.titulo+"» eliminada", { tipo:"muestra" });
+  const pedido = cur.pedido_id ? await pedidosRoutes().pedidoCompleto(pool, cur.pedido_id) : null;
+  res.json({ ok:true, id:cur.id, pedidoId:cur.pedido_id, pedido });
 });
 
 /* ---- versiones ---- */

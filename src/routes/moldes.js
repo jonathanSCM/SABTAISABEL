@@ -1,6 +1,7 @@
 const express = require("express");
 const pool = require("../db/pool");
 const requireAuth = require("../middleware/requireAuth");
+const requireAdmin = require("../middleware/requireAdmin");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -19,6 +20,12 @@ router.get("/", async (req, res) => {
     id:m.id, cliente:m.cliente, prenda:m.prenda, pedidoId:m.pedido_id, notas:m.notas,
     fotos:m.fotos, responsable:m.responsable, codigo:m.codigo, ubicacion:m.ubicacion, creadoEn:m.created_at
   })));
+});
+
+router.delete("/:id", requireAdmin, async (req, res) => {
+  const r = await pool.query("DELETE FROM moldes WHERE id = $1 RETURNING id", [Number(req.params.id)]);
+  if(!r.rows[0]) return res.status(404).json({ error:"Molde no encontrado." });
+  res.json({ ok:true, id:r.rows[0].id });
 });
 
 module.exports = router;

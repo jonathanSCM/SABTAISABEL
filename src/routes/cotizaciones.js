@@ -1,6 +1,7 @@
 const express = require("express");
 const pool = require("../db/pool");
 const requireAuth = require("../middleware/requireAuth");
+const requireAdmin = require("../middleware/requireAdmin");
 const { sembrarChecklist, CHECKLIST_LABEL } = require("../db/checklist");
 const { sembrarProduccion, ETAPA_LABEL } = require("../db/produccion");
 const { normalizarMatriz, derivarMatriz } = require("../db/matriz");
@@ -89,6 +90,13 @@ router.put("/:id", async (req, res) => {
   );
   if(!r.rows[0]) return res.status(404).json({ error:"Cotización no encontrada." });
   res.json(fila(r.rows[0]));
+});
+
+router.delete("/:id", requireAdmin, async (req, res) => {
+  const r = await pool.query("DELETE FROM cotizaciones WHERE id = $1 RETURNING id", [req.params.id]);
+  if(!r.rows[0]) return res.status(404).json({ error:"Cotización no encontrada." });
+  console.log("Cotización "+r.rows[0].id+" eliminada por "+req.user.email);
+  res.json({ ok:true, id:r.rows[0].id });
 });
 
 router.post("/:id/enviar", async (req, res) => {
