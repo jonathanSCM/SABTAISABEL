@@ -285,3 +285,6 @@ ALTER TABLE pedido_muestras ADD COLUMN IF NOT EXISTS muestra_id INT REFERENCES m
 ALTER TABLE pedido_muestras ALTER COLUMN pedido_id DROP NOT NULL;
 ALTER TABLE pedido_muestras DROP CONSTRAINT IF EXISTS pedido_muestras_pedido_id_version_key;
 CREATE UNIQUE INDEX IF NOT EXISTS pedido_muestras_muestra_version ON pedido_muestras (muestra_id, version) WHERE muestra_id IS NOT NULL;
+
+-- el IGV se puede incluir o no en cada cotización
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS incluir_igv BOOLEAN NOT NULL DEFAULT true;

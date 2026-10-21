@@ -43,7 +43,7 @@ function fila(row){
   return {
     id: row.id, cliente: row.cliente, prenda: row.prenda, obs: row.obs,
     fecha: row.fecha, vigencia: row.vigencia, estado: row.estado, img: row.img,
-    pedidoId: row.pedido_id, curva: row.curva, colores: row.colores, matriz: row.matriz || [], groups: row.groups, extras: row.extras || [], pedidosExtra: row.pedidos_extra || [],
+    pedidoId: row.pedido_id, curva: row.curva, colores: row.colores, matriz: row.matriz || [], groups: row.groups, incluirIgv: row.incluir_igv !== false, extras: row.extras || [], pedidosExtra: row.pedidos_extra || [],
     muestra: Number(row.muestra), molde: Number(row.molde),
     termsProd: row.terms_prod, termsMuestra: row.terms_muestra
   };
@@ -64,13 +64,13 @@ router.post("/", async (req, res) => {
   const curva = der ? der.curva : (b.curva || []), colores = der ? der.colores : (b.colores || []);
   const und = qUnidades(curva);
   const r = await pool.query(
-    `INSERT INTO cotizaciones (id,cliente,prenda,obs,fecha,vigencia,estado,img,curva,colores,matriz,groups,muestra,molde,terms_prod,terms_muestra,created_by,extras)
-     VALUES ($1,$2,$3,$4,$5,$6,'Borrador',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+    `INSERT INTO cotizaciones (id,cliente,prenda,obs,fecha,vigencia,estado,img,curva,colores,matriz,groups,muestra,molde,terms_prod,terms_muestra,created_by,extras,incluir_igv)
+     VALUES ($1,$2,$3,$4,$5,$6,'Borrador',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
     [id, b.cliente || "", b.prenda || "", b.obs || "", b.fecha || isoHoy(), vigencia, b.img || null,
      JSON.stringify(curva), JSON.stringify(colores), JSON.stringify(matriz), JSON.stringify(b.groups || []),
      Number(b.muestra || 0), Number(b.molde || 0),
      b.termsProd || TERMS_PROD_DEFAULT.replace("{{UND}}", String(und)).replace("{{VIG}}", String(vigencia)),
-     b.termsMuestra || TERMS_MUESTRA_DEFAULT, req.session.userId, JSON.stringify(normalizarExtras(b.extras))]
+     b.termsMuestra || TERMS_MUESTRA_DEFAULT, req.session.userId, JSON.stringify(normalizarExtras(b.extras)), b.incluirIgv !== false]
   );
   res.status(201).json(fila(r.rows[0]));
 });
@@ -82,11 +82,11 @@ router.put("/:id", async (req, res) => {
   const der = matriz.length ? derivarMatriz(matriz) : null;
   const r = await pool.query(
     `UPDATE cotizaciones SET cliente=$1, prenda=$2, obs=$3, fecha=$4, vigencia=$5, img=$6,
-       curva=$7, colores=$8, matriz=$9, groups=$10, muestra=$11, molde=$12, terms_prod=$13, terms_muestra=$14, extras=$16, updated_at=now()
+       curva=$7, colores=$8, matriz=$9, groups=$10, muestra=$11, molde=$12, terms_prod=$13, terms_muestra=$14, extras=$16, incluir_igv=$17, updated_at=now()
      WHERE id=$15 RETURNING *`,
     [b.cliente || "", b.prenda || "", b.obs || "", b.fecha, b.vigencia || 15, b.img || null,
      JSON.stringify(der ? der.curva : (b.curva || [])), JSON.stringify(der ? der.colores : (b.colores || [])), JSON.stringify(matriz), JSON.stringify(b.groups || []),
-     Number(b.muestra || 0), Number(b.molde || 0), b.termsProd || "", b.termsMuestra || "", id, JSON.stringify(normalizarExtras(b.extras))]
+     Number(b.muestra || 0), Number(b.molde || 0), b.termsProd || "", b.termsMuestra || "", id, JSON.stringify(normalizarExtras(b.extras)), b.incluirIgv !== false]
   );
   if(!r.rows[0]) return res.status(404).json({ error:"Cotización no encontrada." });
   res.json(fila(r.rows[0]));

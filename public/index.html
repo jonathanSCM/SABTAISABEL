@@ -1507,7 +1507,7 @@ function qTotalProd(q){ return qItems(q).reduce((s,it) => s + itemCostoUnit(it) 
 function qPrendaTxt(q){ const n = (q.extras || []).length; return (q.prenda || "") + (n ? " +"+n+" prenda"+(n===1?"":"s") : ""); }
 const IGV_PCT = 18;
 function qSubtotal(q){ return qTotalProd(q) + Number(q.muestra||0) + Number(q.molde||0); }
-function qIGV(q){ return Math.round(qSubtotal(q) * IGV_PCT) / 100; }
+function qIGV(q){ return q.incluirIgv === false ? 0 : Math.round(qSubtotal(q) * IGV_PCT) / 100; }
 function qTotal(q){ return qSubtotal(q) + qIGV(q); }
 
 const TERMS_PROD_DEFAULT = `Los precios del detalle no incluyen IGV; el total de la cotización lo incluye (18%). La presente cotización se ha realizado en base a {{UND}} unidades y tiene una vigencia de {{VIG}} días.
@@ -2420,7 +2420,7 @@ function abrirCotiz(modo, id){
 function draftVacio(){
   return {
     id:null, cliente:"", prenda:"", obs:"", fecha:iso(hoy()), vigencia:15, estado:"Borrador", img:null, pedidoId:null,
-    extras:[],
+    extras:[], incluirIgv:true,
     curva:[{talla:"Única",consumo:1,cant:1}], colores:[{color:"",cant:1}], matriz:[{talla:"Única",consumo:1,colores:[{color:"",cant:1}]}],
     groups:[
       { key:"tela", label:"Tela", rows:[{n:"Tela base", c:1, p:0}] },
@@ -2483,16 +2483,16 @@ function sheetHTML(q, opts){
   "</tbody></table></div>"+
   '<div class="totalbox">'+
     '<div class="totalbox__row"><span>Producción ('+und+' und.)</span><span class="amt">'+money(qTotalProd(q))+"</span></div>"+
-    qItems(q).map(it => '<div class="totalbox__row"><span>Precio por unidad'+((q.extras||[]).length ? " · "+(esc(it.prenda)||"prenda") : "")+' (sin IGV)</span><span class="amt">'+money(itemCostoUnit(it))+"</span></div>"+
-      '<div class="totalbox__row"><span>Precio por unidad'+((q.extras||[]).length ? " · "+(esc(it.prenda)||"prenda") : "")+' (con IGV)</span><span class="amt">'+money(Math.round(itemCostoUnit(it) * (100 + IGV_PCT)) / 100)+"</span></div>").join("")+
+    qItems(q).map(it => '<div class="totalbox__row"><span>Precio por unidad'+((q.extras||[]).length ? " · "+(esc(it.prenda)||"prenda") : "")+' ('+(q.incluirIgv === false ? "precio final" : "sin IGV")+')</span><span class="amt">'+money(itemCostoUnit(it))+"</span></div>"+
+      (q.incluirIgv === false ? "" : '<div class="totalbox__row"><span>Precio por unidad'+((q.extras||[]).length ? " · "+(esc(it.prenda)||"prenda") : "")+' (con IGV)</span><span class="amt">'+money(Math.round(itemCostoUnit(it) * (100 + IGV_PCT)) / 100)+"</span></div>")).join("")+
     '<div class="totalbox__row"><span>Muestra + molde</span><span class="amt">'+money(Number(q.muestra||0)+Number(q.molde||0))+"</span></div>"+
     '<div class="totalbox__row"><span>Subtotal</span><span class="amt">'+money(qSubtotal(q))+"</span></div>"+
-    '<div class="totalbox__row"><span>IGV ('+IGV_PCT+'%)</span><span class="amt">'+money(qIGV(q))+"</span></div>"+
-    '<div class="totalbox__row grand"><span>Total cotización</span><span class="amt">'+money(qTotal(q))+"</span></div>"+
+    (q.incluirIgv === false ? "" : '<div class="totalbox__row"><span>IGV ('+IGV_PCT+'%)</span><span class="amt">'+money(qIGV(q))+"</span></div>")+
+    '<div class="totalbox__row grand"><span>Total cotización'+(q.incluirIgv === false ? " (sin IGV)" : "")+'</span><span class="amt">'+money(qTotal(q))+"</span></div>"+
   "</div>"+
   '<div class="sheet__terms"><h4 class="lbl">Sobre la producción</h4>'+esc(q.termsProd)+'<br><br><h4 class="lbl">Sobre la muestra y el molde</h4>'+esc(q.termsMuestra)+"</div>"+
   '<hr class="sheet__stitch">'+
-  '<div class="sheet__foot"><span>Taller Santa Isabel · Total incluye IGV (18%)</span><span class="signature">Conforme cliente</span></div>';
+  '<div class="sheet__foot"><span>Taller Santa Isabel · '+(q.incluirIgv === false ? "Precios sin IGV" : "Total incluye IGV (18%)")+'</span><span class="signature">Conforme cliente</span></div>';
 }
 
 /* ---- vista: ver cotización (solo lectura) ---- */
@@ -2577,6 +2577,7 @@ function vCotizEditor(){
           '<div class="field"><label for="q-id">N.º de cotización</label><input class="input" id="q-id" readonly></div>'+
           '<div class="field"><label for="q-vigencia">Vigencia (días)</label><input class="input num" id="q-vigencia" type="number" min="1"></div>'+
         "</div>"+
+        '<label class="paq-opt" style="margin:2px 0 8px"><input type="checkbox" id="q-igv"> Incluir IGV ('+IGV_PCT+' %) en el total</label>'+
         '<div class="field"><label for="q-prenda">Descripción de la prenda</label><input class="input" id="q-prenda"></div>'+
         '<div class="field"><label for="q-obs">Notas de diseño</label><textarea class="input" id="q-obs"></textarea></div>'+
         '<div class="field"><label>Imagen de referencia</label>'+
@@ -2693,6 +2694,8 @@ function initEditorCotiz(){
   qs("#q-add-prenda").onclick = () => { d.extras = d.extras || []; d.extras.push(nuevaPrenda()); renderExtras(); updateSheet(); const cards = qs("#q-extras").children; cards[cards.length-1].scrollIntoView({ block:"center" }); };
 
   ["cliente","id","prenda","obs"].forEach(f => qs("#q-"+f).addEventListener("input", () => { d[f] = qs("#q-"+f).value; updateSheet(); }));
+  qs("#q-igv").checked = d.incluirIgv !== false;
+  qs("#q-igv").addEventListener("change", () => { d.incluirIgv = qs("#q-igv").checked; updateSheet(); });
   qs("#q-vigencia").addEventListener("input", () => { d.vigencia = Number(qs("#q-vigencia").value)||0; updateSheet(); });
   qs("#q-muestra").addEventListener("input", () => { d.muestra = Number(qs("#q-muestra").value)||0; updateSheet(); });
   qs("#q-molde").addEventListener("input", () => { d.molde = Number(qs("#q-molde").value)||0; updateSheet(); });
@@ -2981,7 +2984,7 @@ function exportarCotizacionesExcel(){
   descargarExcel("cotizaciones.xlsx", [{ nombre:"Cotizaciones", titulo:"Santa Isabel · Cotizaciones", subtitulo: lista.length+" cotizacion"+(lista.length===1?"":"es")+" · exportado el "+ahoraTexto(),
     columnas:[{ k:"cod", h:"Código", w:12, t:"fuerte" }, { k:"cli", h:"Cliente", w:28 }, { k:"pre", h:"Prenda", w:32 }, { k:"est", h:"Estado", w:14, t:"estado" },
       { k:"fec", h:"Fecha", w:13, t:"fecha" }, { k:"vig", h:"Vigencia (días)", w:11, t:"num" }, { k:"ven", h:"Vence", w:13, t:"fecha" }, { k:"ale", h:"Alerta", w:14, t:"estado" }, { k:"det", h:"Detalle", w:26, t:"centro" },
-      { k:"und", h:"Unidades", w:10, t:"num" }, { k:"pun", h:"Precio x unidad (sin IGV)", w:15, t:"moneda" }, { k:"sub", h:"Subtotal", w:15, t:"moneda" }, { k:"igv", h:"IGV (18%)", w:14, t:"moneda" }, { k:"tot", h:"Total", w:16, t:"moneda" }],
+      { k:"und", h:"Unidades", w:10, t:"num" }, { k:"pun", h:"Precio x unidad (sin IGV)", w:15, t:"moneda" }, { k:"sub", h:"Subtotal", w:15, t:"moneda" }, { k:"igv", h:"IGV", w:14, t:"moneda" }, { k:"tot", h:"Total", w:16, t:"moneda" }],
     filas, totales:["und","sub","igv","tot"], marcar:(f,k) => (k === "ven" && f.ale === "Vencida") ? "rojo" : null }]);
 }
 function gruposSemana(){
