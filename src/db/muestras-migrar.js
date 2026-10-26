@@ -11,8 +11,9 @@ async function migrarMuestras(pool){
   for(const pid of Object.keys(porPedido)){
     const filas = porPedido[pid], base = filas[0];
     const titulo = (filas.find(f => f.titulo) || {}).titulo || base.producto;
-    const m = await pool.query("INSERT INTO muestras (cliente,titulo,matriz,pedido_id) VALUES ($1,$2,$3,$4) RETURNING id",
-      [base.cliente, titulo, JSON.stringify(base.matriz || []), pid]);
+    const m = await pool.query("INSERT INTO muestras (cliente,titulo,matriz) VALUES ($1,$2,$3) RETURNING id",
+      [base.cliente, titulo, JSON.stringify(base.matriz || [])]);
+    await pool.query("INSERT INTO muestra_pedidos (muestra_id, pedido_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", [m.rows[0].id, pid]);
     await pool.query("UPDATE pedido_muestras SET muestra_id = $1, pedido_id = NULL WHERE id = ANY($2)", [m.rows[0].id, filas.map(f => f.id)]);
     creadas++;
   }

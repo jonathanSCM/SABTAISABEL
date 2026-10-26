@@ -1208,6 +1208,8 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
       <div class="field full"><label>Tallas y colores de este modelo</label><div id="ms-matriz"></div></div>
     </div>
     <div id="ms-bloque-version" style="display:contents">
+      <div class="field full"><label for="ms-nombre">Nombre de esta versión</label><input class="input" id="ms-nombre" placeholder="Opcional. Ej. Versión roja, Ajuste de manga"></div>
+      <div class="field full" id="ms-ref-box" style="display:none"><label for="ms-referencia">Referencia dentro del pedido</label><input class="input" id="ms-referencia" placeholder="Opcional. Ej. color rojo, lote 2"></div>
       <div class="field full"><label for="ms-responsable">Responsable</label><input class="input" id="ms-responsable" list="responsables" placeholder="Opcional"></div>
       <div class="field"><label for="ms-talla">Talla de la muestra</label><input class="input" id="ms-talla" placeholder="Ej. S"></div>
       <div class="field"><label for="ms-materiales">Materiales</label><input class="input" id="ms-materiales" placeholder="Tela, encaje, forro…"></div>
@@ -2159,12 +2161,12 @@ function vPapelera(){
 function vMuestras(){
   const f = state.mFiltro, t = (state.mTexto || "").trim().toLowerCase();
   const cumple = (m, k) => k === "todas" ? true
-    : k === "sin-pedido" ? (!m.pedidoId && m.estado !== "Anulada")
-    : k === "con-pedido" ? !!m.pedidoId
+    : k === "sin-pedido" ? (!(m.pedidos || []).length && m.estado !== "Anulada")
+    : k === "con-pedido" ? (m.pedidos || []).length > 0
     : k === "revision" ? (m.estado === "Pendiente" || m.estado === "Rechazada")
     : m.estado === "Aprobada";
   const FILTROS = [["todas","Todas"],["sin-pedido","Sin pedido"],["con-pedido","Con pedido"],["revision","En revisión"],["aprobadas","Aprobadas"]];
-  const lista = muestrasLista.filter(m => cumple(m, f) && (!t || (m.titulo+" "+m.cliente+" "+(m.pedidoId||"")).toLowerCase().includes(t)));
+  const lista = muestrasLista.filter(m => cumple(m, f) && (!t || (m.titulo+" "+m.cliente+" "+(m.pedidos||[]).map(x => x.id).join(" ")).toLowerCase().includes(t)));
   return '<section class="card">'+
     '<div class="card__head"><h2>Muestras</h2><span class="muted">cada modelo con sus tallas, colores y versiones</span>'+
       '<button class="btn btn--primary btn--sm" id="btnNuevaMuestraG" style="margin-left:auto">+ Nueva muestra</button></div>'+
@@ -2175,7 +2177,8 @@ function vMuestras(){
       '<div class="row" role="button" tabindex="0" data-open-muestra="'+m.id+'"><span class="row__main"><span class="row__t">'+esc(m.titulo)+"</span>"+
         '<span class="row__s">'+esc(m.cliente)+" · "+m.versiones.length+" versión"+(m.versiones.length===1?"":"es")+(m.unidades ? " · "+m.unidades+" und" : "")+"</span></span>"+
         '<span class="row__r"><span class="badge '+mEstadoClase(m.estado)+'">'+m.estado+"</span>"+
-          (m.pedidoId ? '<span class="badge s-produccion">'+esc(m.pedidoId)+"</span>" : '<span class="badge s-preparacion">Sin pedido</span>')+"</span></div>").join("")
+          ((m.pedidos || []).length ? m.pedidos.slice(0, 2).map(x => '<span class="badge s-produccion">'+esc(x.id)+"</span>").join("")+(m.pedidos.length > 2 ? '<span class="badge s-preparacion">+'+(m.pedidos.length-2)+"</span>" : "")
+            : '<span class="badge s-preparacion">Sin pedido</span>')+"</span></div>").join("")
       : '<div class="empty">'+(t || f !== "todas" ? "Ninguna muestra coincide con el filtro." : "Todavía no hay muestras. Crea la primera con «Nueva muestra».")+"</div>")+"</div>"+
   "</section>";
 }
@@ -2188,7 +2191,7 @@ function hojaMuestraHTML(m0){
   const cabecera = '<div class="hoja-head"><div class="hoja-head__brand"><b>Santa Isabel</b><span>Taller de confección</span></div>'+
     '<div class="hoja-head__doc"><div class="hoja-head__t">Hoja de muestra</div><div class="hoja-head__id">M-'+String(m.id).padStart(4,"0")+"</div></div></div>";
   const cuerpo = '<dl class="hoja-datos"><div><dt>Cliente</dt><dd>'+esc(m.cliente)+"</dd></div><div><dt>Modelo</dt><dd>"+esc(m.titulo)+"</dd></div>"+
-      "<div><dt>Estado</dt><dd>"+esc(m.estado)+"</dd></div><div><dt>Pedido</dt><dd>"+(m.pedidoId ? esc(m.pedidoId) : "Sin pedido")+"</dd></div></dl>"+
+      "<div><dt>Estado</dt><dd>"+esc(m.estado)+"</dd></div><div><dt>Pedidos</dt><dd>"+((m.pedidos || []).length ? m.pedidos.map(x => esc(x.id)).join(", ") : "Sin pedido")+"</dd></div></dl>"+
     '<h4 class="hoja-h">Tallas y colores</h4>'+
     ((m.matriz && m.matriz.length) ? matrizTablaHTML(m.matriz) : '<p class="hoja-vacio">Este modelo todavía no tiene tallas ni colores.</p>')+
     '<h4 class="hoja-h">Versiones</h4>'+
@@ -2230,19 +2233,24 @@ function abrirMuestra(id){
   if(!m) return;
   state.pedidoAbierto = null; state.muestraAbierta = id;
   const ctx = "muestra:"+id;
+  const peds = m.pedidos || [];
   $("#drawerKicker").textContent = "Muestra";
   $("#drawerTitle").textContent = m.titulo;
   $("#drawerBody").innerHTML =
     '<div class="dprimary"><div class="dprimary__top"><span class="badge '+mEstadoClase(m.estado)+'">'+m.estado+'</span><span class="muted" style="font-size:12.5px">'+esc(m.cliente)+"</span></div>"+
-      (m.pedidoId
-        ? '<div class="notice notice--baja"><h3>Vinculada al pedido '+esc(m.pedidoId)+'</h3>Cuenta para las muestras que debe aprobar ese pedido.</div>'
-        : '<div class="notice notice--media"><h3>Sin pedido</h3>Esta muestra existe por sí sola. Puedes vincularla a un pedido cuando lo haya.</div>')+
+      (peds.length
+        ? '<div class="notice notice--baja"><h3>En '+peds.length+" pedido"+(peds.length===1?"":"s")+"</h3>"+
+            peds.map(x => '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px"><b>'+esc(x.id)+"</b><span>"+esc(x.cliente)+" · "+esc(x.producto)+(x.referencia ? ' · <i>'+esc(x.referencia)+"</i>" : "")+"</span>"+
+              '<button class="btn btn--ghost btn--sm" data-md-abrir="'+esc(x.id)+'">Abrir</button>'+
+              '<button class="btn btn--ghost btn--sm" data-md-ref="'+esc(x.id)+'">Referencia</button>'+
+              '<button class="btn btn--ghost btn--sm" data-md-quitar="'+esc(x.id)+'">Quitar</button></div>').join("")+"</div>"
+        : '<div class="notice notice--media"><h3>Sin pedido</h3>Esta muestra existe por sí sola. Puedes vincularla a uno o varios pedidos.</div>')+
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-        (m.pedidoId ? '<button class="btn btn--ghost btn--sm" id="mdAbrirPedido">Abrir pedido</button><button class="btn btn--ghost btn--sm" id="mdQuitar">Quitar del pedido</button>'
-                    : '<button class="btn btn--primary btn--sm" id="mdVincular">Vincular a un pedido</button>')+
+        '<button class="btn btn--primary btn--sm" id="mdVincular">+ Vincular a un pedido</button>'+
+        '<button class="btn btn--ghost btn--sm" id="mdDuplicar">Duplicar</button>'+
         '<button class="btn btn--ghost btn--sm" id="mdEditar">Editar modelo</button>'+
         '<button class="btn btn--ghost btn--sm" id="mdNuevaVersion">+ Nueva versión</button>'+
-        '<button class="btn btn--primary btn--sm" id="mdImprimir">Imprimir muestra</button>'+
+        '<button class="btn btn--ghost btn--sm" id="mdImprimir">Imprimir muestra</button>'+
         (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="mdEliminar" style="color:var(--danger)">Mover a la papelera</button>' : "")+
       "</div></div>"+
     '<h4 class="lbl" style="margin:16px 0 6px">Tallas y colores</h4>'+
@@ -2250,19 +2258,21 @@ function abrirMuestra(id){
     '<h4 class="lbl" style="margin:16px 0 6px">Versiones</h4>'+
     '<div class="muestras-list">'+m.versiones.slice().reverse().map(v => versionCardHTML(v, ctx)).join("")+"</div>";
   const rootB = $("#drawerBody");
-  const ap = $("#mdAbrirPedido"); if(ap) ap.onclick = () => abrirPedido(m.pedidoId, "muestra");
-  const qt = $("#mdQuitar"); if(qt) qt.onclick = () => quitarMuestraDePedido(m.id, ctx);
-  const vi = $("#mdVincular"); if(vi) vi.onclick = () => vincularMuestraAPedido(m, ctx);
+  rootB.querySelectorAll("[data-md-abrir]").forEach(b => b.onclick = () => abrirPedido(b.dataset.mdAbrir, "muestra"));
+  rootB.querySelectorAll("[data-md-ref]").forEach(b => b.onclick = () => editarReferenciaMuestra(m.id, b.dataset.mdRef, ctx));
+  rootB.querySelectorAll("[data-md-quitar]").forEach(b => b.onclick = () => quitarMuestraDePedido(m.id, ctx, b.dataset.mdQuitar));
+  $("#mdVincular").onclick = () => vincularMuestraAPedido(m, ctx);
+  $("#mdDuplicar").onclick = () => duplicarMuestra(m.id, ctx, null);
   $("#mdEditar").onclick = () => abrirModalMuestra({ modo:"modelo", muestra:m, ctx });
   $("#mdNuevaVersion").onclick = () => abrirModalMuestra({ modo:"version", muestraId:m.id, ctx });
   $("#mdImprimir").onclick = () => abrirHojaMuestra(m.id);
   const el = $("#mdEliminar");
   if(el) el.onclick = async () => {
-    if(!confirm("¿Mover la muestra «"+m.titulo+"» a la papelera?\n\nSe puede restaurar desde Papelera con todas sus versiones.")) return;
+    if(!confirm("¿Mover la muestra «"+m.titulo+"» a la papelera?\n\nSe puede restaurar desde Papelera con todas sus versiones"+(peds.length ? " y sus vínculos." : "."))) return;
     try{
       const r = await api("/muestras/"+m.id, { method:"DELETE" });
       const i = muestrasLista.findIndex(x => x.id === m.id); if(i >= 0) muestrasLista.splice(i, 1);
-      if(r.pedido){ const ped = pedidos.find(x => x.id === r.pedidoId); if(ped) Object.assign(ped, r.pedido); }
+      Object.keys(r.pedidos || {}).forEach(pid => { const ped = pedidos.find(x => x.id === pid); if(ped && r.pedidos[pid]) Object.assign(ped, r.pedidos[pid]); });
       cerrarDrawer(); render();
       toastConAccion("Muestra movida a la papelera.", "Deshacer", async () => {
         try{ await restaurarDePapelera("muestras", m.id); render(); toast("Muestra restaurada."); } catch(e){ toast(e.message); }
@@ -2294,31 +2304,51 @@ function enlazarVersiones(root, ctx){
     try{ const r = await api("/muestras/versiones/"+b.dataset.mvAnular+"/anular", { method:"POST" }); toast("Versión anulada."); refrescarMuestras(ctx, r); }
     catch(err){ toast(err.message); }
   });
-  root.querySelectorAll("[data-mv-ficha]").forEach(b => b.onclick = () => { const { m } = buscarVersion(Number(b.dataset.mvFicha)); if(m && m.pedidoId) abrirFicha(m.pedidoId, Number(b.dataset.mvFicha)); });
+  root.querySelectorAll("[data-mv-ficha]").forEach(b => b.onclick = () => { const pid = ctx.startsWith("pedido:") ? ctx.slice(7) : null; if(pid) abrirFicha(pid, Number(b.dataset.mvFicha)); });
 }
 async function cambiarEstadoVersion(vid, estado, ctx){
   try{ const r = await api("/muestras/versiones/"+vid+"/estado", { method:"PATCH", body:JSON.stringify({ estado }) }); toast("Versión → "+estado); refrescarMuestras(ctx, r); }
   catch(e){ toast(e.message); }
 }
-async function quitarMuestraDePedido(mid, ctx){
-  if(!confirm("¿Quitar esta muestra del pedido? La muestra no se borra: queda disponible sin pedido.")) return;
-  try{ const r = await api("/muestras/"+mid+"/desvincular", { method:"POST" }); toast("Muestra quitada del pedido."); refrescarMuestras(ctx, r); }
+async function quitarMuestraDePedido(mid, ctx, pedidoId){
+  if(!confirm("¿Quitar esta muestra del pedido "+pedidoId+"? La muestra no se borra: sigue existiendo y en sus otros pedidos.")) return;
+  try{ const r = await api("/muestras/"+mid+"/desvincular", { method:"POST", body:JSON.stringify({ pedidoId }) }); toast("Muestra quitada del pedido."); refrescarMuestras(ctx, r); }
   catch(e){ toast(e.message); }
+}
+async function editarReferenciaMuestra(mid, pedidoId, ctx){
+  const m = muestrasLista.find(x => x.id === mid); const v = m && (m.pedidos || []).find(x => x.id === pedidoId);
+  const ref = prompt("Referencia de esta muestra en el pedido "+pedidoId+" (por ejemplo «color rojo», «lote 2»):", v ? v.referencia : "");
+  if(ref == null) return;
+  try{ const r = await api("/muestras/"+mid+"/vinculos/"+pedidoId, { method:"PATCH", body:JSON.stringify({ referencia:ref }) }); toast("Referencia guardada."); refrescarMuestras(ctx, r); }
+  catch(e){ toast(e.message); }
+}
+/* duplicar = modelo nuevo que parte de la última versión aprobada (por ejemplo, la misma muestra en otro color) */
+async function duplicarMuestra(mid, ctx, pedidoId){
+  const m = muestrasLista.find(x => x.id === mid); if(!m) return;
+  const titulo = prompt("Nombre del nuevo modelo (copia de «"+m.titulo+"»):", m.titulo+" · copia");
+  if(titulo == null || !titulo.trim()) return;
+  try{
+    const r = await api("/muestras/"+mid+"/duplicar", { method:"POST", body:JSON.stringify({ titulo:titulo.trim(), pedidoId:pedidoId || null }) });
+    toast("Muestra duplicada."); aplicarRespMuestra(r); render();
+    if(pedidoId) abrirPedido(pedidoId, "muestra"); else abrirMuestra(r.muestra.id);
+  } catch(e){ toast(e.message); }
 }
 /* agregar una muestra que ya existe (sin pedido) a este pedido */
 async function vincularExistente(p){
-  const libres = muestrasLista.filter(m => !m.pedidoId && m.estado !== "Anulada")
+  const libres = muestrasLista.filter(m => m.estado !== "Anulada" && !(m.pedidos || []).some(x => x.id === p.id))
     .sort((a, b) => (b.cliente === p.cliente) - (a.cliente === p.cliente) || b.id - a.id).slice(0, 25);
-  if(!libres.length){ toast("No hay muestras sueltas. Crea una con «Nueva muestra»."); return; }
-  const val = await abrirActionSheet("Agregar muestra existente", libres.map(m => ({ val:String(m.id), label:m.titulo+" · "+m.cliente+(m.cliente === p.cliente ? "" : " (otro cliente)") })),
-    "Elige la muestra que quieres sumar a "+esc(p.id)+". Un pedido puede tener varios modelos.");
+  if(!libres.length){ toast("No hay otras muestras para agregar. Crea una con «Nueva muestra»."); return; }
+  const val = await abrirActionSheet("Agregar muestra existente", libres.map(m => ({ val:String(m.id),
+      label:m.titulo+" · "+m.cliente+((m.pedidos || []).length ? " (ya en "+m.pedidos.map(x => x.id).join(", ")+")" : "")+(m.cliente === p.cliente ? "" : " · otro cliente") })),
+    "Elige la muestra que quieres sumar a "+esc(p.id)+". Una misma muestra puede estar en varios pedidos.");
   if(!val) return;
   try{ const r = await api("/muestras/"+val+"/vincular", { method:"POST", body:JSON.stringify({ pedidoId:p.id }) }); toast("Muestra agregada al pedido."); refrescarMuestras("pedido:"+p.id, r); }
   catch(e){ toast(e.message); }
 }
 async function vincularMuestraAPedido(m, ctx){
-  const cand = pedidos.filter(x => x.estado !== "Entregado").sort((a, b) => (b.cliente === m.cliente) - (a.cliente === m.cliente) || a.id.localeCompare(b.id)).slice(0, 25);
-  if(!cand.length){ toast("No hay pedidos abiertos para vincular."); return; }
+  const ya = new Set((m.pedidos || []).map(x => x.id));
+  const cand = pedidos.filter(x => x.estado !== "Entregado" && !ya.has(x.id)).sort((a, b) => (b.cliente === m.cliente) - (a.cliente === m.cliente) || a.id.localeCompare(b.id)).slice(0, 25);
+  if(!cand.length){ toast("No hay más pedidos abiertos para vincular."); return; }
   const val = await abrirActionSheet("Vincular a un pedido", cand.map(x => ({ val:x.id, label:x.id+" · "+x.cliente+" · "+x.producto })),
     "Primero salen los pedidos de "+esc(m.cliente)+".");
   if(!val) return;
@@ -3308,7 +3338,7 @@ function mEstadoClase(e){ return e==="Aprobada"?"s-terminado":e==="Rechazada"?"s
 /* una versión (iteración) de un modelo de muestra */
 function versionCardHTML(v, ctx){
   return '<div class="muestra-card"'+(v.estado==="Anulada" ? ' style="opacity:.6"' : "")+'>'+
-    '<div class="muestra-card__h"><b>Versión '+v.version+'</b><span class="badge '+mEstadoClase(v.estado)+'">'+v.estado+"</span></div>"+
+    '<div class="muestra-card__h"><b>Versión '+v.version+(v.nombre ? " · "+esc(v.nombre) : "")+'</b><span class="badge '+mEstadoClase(v.estado)+'">'+v.estado+"</span></div>"+
     '<div class="muted" style="font-size:12px;margin-top:2px">'+fechaCorta(v.fecha)+(v.responsable?" · "+esc(v.responsable):"")+"</div>"+
     (v.tallaAprobada ? '<div style="font-size:13px;margin-top:8px"><b>Talla:</b> '+esc(v.tallaAprobada)+"</div>" : "")+
     (v.materiales ? '<div style="font-size:13px;margin-top:4px"><b>Materiales:</b> '+esc(v.materiales)+"</div>" : "")+
@@ -3332,13 +3362,15 @@ function modeloEstado(g){
 }
 function modeloBloqueHTML(g, ctx){
   const est = modeloEstado(g);
-  return '<div class="modelo-box"><div class="muestra-card__h"><b>'+esc(g.titulo)+'</b><span class="badge '+(est==="Aprobada"?"s-terminado":est==="Anulada"?"s-entregado":"s-preparacion")+'">'+est+"</span></div>"+
+  return '<div class="modelo-box"><div class="muestra-card__h"><b>'+esc(g.titulo)+(g.referencia ? ' <span class="muted" style="font-weight:500">· '+esc(g.referencia)+"</span>" : "")+'</b><span class="badge '+(est==="Aprobada"?"s-terminado":est==="Anulada"?"s-entregado":"s-preparacion")+'">'+est+"</span></div>"+
     (g.matriz && g.matriz.length ? '<div style="margin-top:8px">'+matrizTablaHTML(g.matriz)+"</div>"
       : '<div class="muted" style="font-size:12px;margin-top:6px">Este modelo todavía no tiene tallas ni colores.</div>')+
     '<div class="muestras-list" style="margin-top:10px">'+g.versiones.slice().reverse().map(v => versionCardHTML(v, ctx)).join("")+"</div>"+
     '<div class="muestra-card__acciones">'+
       '<button class="btn btn--primary btn--sm" data-mm-version="'+g.id+'">+ Nueva versión</button>'+
       '<button class="btn btn--ghost btn--sm" data-mm-editar="'+g.id+'">Editar modelo</button>'+
+      '<button class="btn btn--ghost btn--sm" data-mm-ref="'+g.id+'">Referencia</button>'+
+      '<button class="btn btn--ghost btn--sm" data-mm-dup="'+g.id+'">Duplicar aquí</button>'+
       '<button class="btn btn--ghost btn--sm" data-mm-abrir="'+g.id+'">Abrir muestra</button>'+
       '<button class="btn btn--ghost btn--sm" data-mm-imprimir="'+g.id+'">Imprimir</button>'+
       '<button class="btn btn--ghost btn--sm" data-mm-quitar="'+g.id+'">Quitar del pedido</button>'+
@@ -3902,7 +3934,9 @@ function abrirPedido(id, tabIni){
   $("#drawerBody").querySelectorAll("[data-mm-editar]").forEach(b => b.onclick = () => { const m = muestrasLista.find(x => x.id === Number(b.dataset.mmEditar)); if(m) abrirModalMuestra({ modo:"modelo", muestra:m, ctx:ctxM }); });
   $("#drawerBody").querySelectorAll("[data-mm-imprimir]").forEach(b => b.onclick = () => abrirHojaMuestra(Number(b.dataset.mmImprimir), p.id));
   $("#drawerBody").querySelectorAll("[data-mm-abrir]").forEach(b => b.onclick = () => abrirMuestra(Number(b.dataset.mmAbrir)));
-  $("#drawerBody").querySelectorAll("[data-mm-quitar]").forEach(b => b.onclick = () => quitarMuestraDePedido(Number(b.dataset.mmQuitar), ctxM));
+  $("#drawerBody").querySelectorAll("[data-mm-quitar]").forEach(b => b.onclick = () => quitarMuestraDePedido(Number(b.dataset.mmQuitar), ctxM, p.id));
+  $("#drawerBody").querySelectorAll("[data-mm-ref]").forEach(b => b.onclick = () => editarReferenciaMuestra(Number(b.dataset.mmRef), p.id, ctxM));
+  $("#drawerBody").querySelectorAll("[data-mm-dup]").forEach(b => b.onclick = () => duplicarMuestra(Number(b.dataset.mmDup), ctxM, p.id));
   enlazarVersiones($("#drawerBody"), ctxM);
   $("#drawerBody").querySelectorAll("[data-prod]").forEach(b => b.onclick = () => abrirModalProduccion(p.id, b.dataset.prod));
   $("#drawerBody").querySelectorAll("[data-prod-label]").forEach(el => {
@@ -4254,9 +4288,10 @@ function abrirModalMuestra(o){
   $("#modalMuestraTitle").textContent = { nueva:"Nueva muestra", version:"Nueva versión de la muestra", "editar-version":"Editar versión", modelo:"Editar modelo" }[modo];
   $("#btnMuestraSave").textContent = { nueva:"Registrar muestra", version:"Registrar versión", "editar-version":"Guardar cambios", modelo:"Guardar cambios" }[modo];
   msMx = [];
+  $("#ms-ref-box").style.display = (modo === "nueva" && o.pedidoId) ? "" : "none";
   if(modo === "nueva"){ $("#ms-cliente").value = o.cliente || ""; $("#ms-cliente").readOnly = !!o.pedidoId; }
-  if(modo === "modelo"){ $("#ms-cliente").readOnly = !!o.muestra.pedidoId; $("#ms-cliente").value = o.muestra.cliente; $("#ms-titulo").value = o.muestra.titulo; msMx = JSON.parse(JSON.stringify(o.muestra.matriz || [])); }
-  if(modo === "editar-version"){ const v = o.version; $("#ms-responsable").value = v.responsable || ""; $("#ms-talla").value = v.tallaAprobada || ""; $("#ms-materiales").value = v.materiales || ""; $("#ms-cambios").value = v.cambiosSolicitados || ""; $("#ms-comentarios").value = v.comentariosCliente || ""; }
+  if(modo === "modelo"){ $("#ms-cliente").readOnly = (o.muestra.pedidos || []).length > 0; $("#ms-cliente").value = o.muestra.cliente; $("#ms-titulo").value = o.muestra.titulo; msMx = JSON.parse(JSON.stringify(o.muestra.matriz || [])); }
+  if(modo === "editar-version"){ const v = o.version; $("#ms-nombre").value = v.nombre || ""; $("#ms-responsable").value = v.responsable || ""; $("#ms-talla").value = v.tallaAprobada || ""; $("#ms-materiales").value = v.materiales || ""; $("#ms-cambios").value = v.cambiosSolicitados || ""; $("#ms-comentarios").value = v.comentariosCliente || ""; }
   if(modo === "nueva" || modo === "modelo") montarMatriz($("#ms-matriz"), msMx, { consumo:false });
   scrim.dataset.open = "true"; modalMuestra.dataset.open = "true";
 }
@@ -4274,7 +4309,7 @@ formMuestra.addEventListener("submit", async e => {
   e.preventDefault();
   const o = msEstado; if(!o) return;
   const btn = $("#btnMuestraSave"); btn.disabled = true;
-  const version = () => ({ responsable:$("#ms-responsable").value.trim(), tallaAprobada:$("#ms-talla").value.trim(), materiales:$("#ms-materiales").value.trim(),
+  const version = () => ({ nombre:$("#ms-nombre").value.trim(), referencia:$("#ms-referencia").value.trim(), responsable:$("#ms-responsable").value.trim(), tallaAprobada:$("#ms-talla").value.trim(), materiales:$("#ms-materiales").value.trim(),
     cambiosSolicitados:$("#ms-cambios").value.trim(), comentariosCliente:$("#ms-comentarios").value.trim(), fotos:formMuestra._fotos });
   const matrizLimpia = () => msMx.filter(r => (r.talla || "").trim() || r.colores.some(c => c.cant > 0));
   try{

@@ -43,7 +43,7 @@ async function histDet(db, req, pedidoId, texto, d){
 
 function filaVersionPedido(m){
   return {
-    id: m.id, muestraId: m.muestra_id, modelo: m.modelo || "", version: m.version, estado: m.estado, fecha: m.fecha, responsable: m.responsable,
+    id: m.id, muestraId: m.muestra_id, modelo: m.modelo || "", version: m.version, nombre: m.nombre || "", estado: m.estado, fecha: m.fecha, responsable: m.responsable,
     cambiosSolicitados: m.cambios_solicitados, comentariosCliente: m.comentarios_cliente,
     fotos: m.fotos, aprobadoPor: m.aprobado_por, aprobadoEn: m.aprobado_en,
     tallaAprobada: m.talla_aprobada, materiales: m.materiales
@@ -53,7 +53,7 @@ function agruparModelos(filas){
   const out = [], idx = {};
   filas.forEach(m => {
     let g = idx[m.muestra_id];
-    if(!g){ g = idx[m.muestra_id] = { id: m.muestra_id, titulo: m.modelo || "", matriz: m.modelo_matriz || [], versiones: [] }; out.push(g); }
+    if(!g){ g = idx[m.muestra_id] = { id: m.muestra_id, titulo: m.modelo || "", referencia: m.referencia || "", matriz: m.modelo_matriz || [], versiones: [] }; out.push(g); }
     g.versiones.push(filaVersionPedido(m));
   });
   return out;
@@ -95,7 +95,7 @@ async function pedidoCompleto(client, id){
   if(!p.rows[0]) return null;
   const h = await client.query("SELECT fecha, texto, creado_en, usuario, tipo, etapa, anterior, nuevo, resp_anterior, resp_nuevo FROM pedido_historial WHERE pedido_id = $1 ORDER BY id ASC", [id]);
   const c = await client.query("SELECT id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist WHERE pedido_id = $1", [id]);
-  const m = await client.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, m.pedido_id FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id WHERE m.pedido_id = $1 AND m.eliminado_en IS NULL ORDER BY m.id, v.version", [id]);
+  const m = await client.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, mp.pedido_id AS pedido_id, mp.referencia AS referencia, v.nombre FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id JOIN muestra_pedidos mp ON mp.muestra_id = m.id WHERE mp.pedido_id = $1 AND m.eliminado_en IS NULL ORDER BY m.id, v.version", [id]);
   const t = await client.query("SELECT id, etapa, label, orden, tipo, responsable, estado, proveedor, fecha_inicio, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion WHERE pedido_id = $1", [id]);
   const ad = await client.query("SELECT id, etapa_id, leyenda, nombre, orden, categoria, mime, octet_length(bytes) AS tamano FROM pedido_adjuntos WHERE pedido_id = $1", [id]);
   return filaPedido(p.rows[0], h.rows, c.rows, m.rows, t.rows, ad.rows);
@@ -106,7 +106,7 @@ router.get("/", async (req, res) => {
   const [hist, checklist, muestras, produccion, adjuntos] = await Promise.all([
     pool.query("SELECT pedido_id, fecha, texto, creado_en, usuario, tipo, etapa, anterior, nuevo, resp_anterior, resp_nuevo FROM pedido_historial ORDER BY id ASC"),
     pool.query("SELECT id, pedido_id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist"),
-    pool.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, m.pedido_id FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id WHERE m.pedido_id IS NOT NULL AND m.eliminado_en IS NULL ORDER BY m.id, v.version"),
+    pool.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, mp.pedido_id AS pedido_id, mp.referencia AS referencia, v.nombre FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id JOIN muestra_pedidos mp ON mp.muestra_id = m.id WHERE m.eliminado_en IS NULL ORDER BY m.id, v.version"),
     pool.query("SELECT id, pedido_id, etapa, label, orden, tipo, responsable, estado, proveedor, fecha_inicio, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion"),
     pool.query("SELECT id, pedido_id, etapa_id, leyenda, nombre, orden, categoria, mime, octet_length(bytes) AS tamano FROM pedido_adjuntos")
   ]);
@@ -180,7 +180,7 @@ router.patch("/:id/estado", async (req, res) => {
         `SELECT m.titulo,
                 EXISTS (SELECT 1 FROM pedido_muestras v WHERE v.muestra_id = m.id AND v.estado = 'Aprobada') AS ok,
                 EXISTS (SELECT 1 FROM pedido_muestras v WHERE v.muestra_id = m.id AND v.estado <> 'Anulada') AS viva
-           FROM muestras m WHERE m.pedido_id = $1 AND m.eliminado_en IS NULL`, [id]);
+           FROM muestras m JOIN muestra_pedidos mp ON mp.muestra_id = m.id WHERE mp.pedido_id = $1 AND m.eliminado_en IS NULL`, [id]);
       const vivas = ms.rows.filter(r => r.viva);
       if(!vivas.length){
         await client.query("ROLLBACK");

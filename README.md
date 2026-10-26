@@ -255,3 +255,9 @@ public/
 - **Eliminar = mover a la papelera** (pedidos, cotizaciones, muestras y moldes). Lo eliminado desaparece de todas las listas y vistas pero se conserva con quién y cuándo lo eliminó.
 - Sección **Papelera** (solo administrador): restaurar, borrar para siempre o vaciar. Al eliminar aparece un aviso con **Deshacer**.
 - Un pedido restaurado vuelve completo (checklist, etapas, fotos, historial y muestras vinculadas). Mientras un pedido está en la papelera, sus muestras figuran sin pedido pero conservan el vínculo.
+
+## Entrega 3 · Muestras en varios pedidos
+- **Una muestra, varios pedidos:** la tabla `muestra_pedidos` vincula muchos a muchos. Una muestra aprobada una vez sirve para todos sus pedidos (cada pedido sigue exigiendo que sus muestras vigentes estén aprobadas).
+- **Duplicar:** crea un modelo nuevo desde la última versión aprobada (por ejemplo, la misma muestra en otro color), solo o ya vinculado a un pedido.
+- **Nombre de versión** (opcional) y **referencia** editable de la muestra dentro de cada pedido.
+- La migración mueve los vínculos existentes a la tabla nueva.

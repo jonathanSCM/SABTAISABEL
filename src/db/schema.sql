@@ -298,3 +298,16 @@ ALTER TABLE muestras ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;
 ALTER TABLE muestras ADD COLUMN IF NOT EXISTS eliminado_por TEXT;
 ALTER TABLE moldes ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;
 ALTER TABLE moldes ADD COLUMN IF NOT EXISTS eliminado_por TEXT;
+
+-- C1/C3: una muestra puede estar en varios pedidos; cada versión puede llevar un nombre
+CREATE TABLE IF NOT EXISTS muestra_pedidos (
+  muestra_id INT NOT NULL REFERENCES muestras(id) ON DELETE CASCADE,
+  pedido_id TEXT NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+  referencia TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (muestra_id, pedido_id)
+);
+-- los vínculos que vivían en muestras.pedido_id pasan a la tabla nueva; la columna vieja queda vacía
+INSERT INTO muestra_pedidos (muestra_id, pedido_id) SELECT id, pedido_id FROM muestras WHERE pedido_id IS NOT NULL ON CONFLICT DO NOTHING;
+UPDATE muestras SET pedido_id = NULL WHERE pedido_id IS NOT NULL;
+ALTER TABLE pedido_muestras ADD COLUMN IF NOT EXISTS nombre TEXT NOT NULL DEFAULT '';

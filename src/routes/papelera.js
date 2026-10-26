@@ -17,7 +17,6 @@ const TIPOS = {
 
 async function borrarParaSiempre(db, tipo, id){
   if(tipo === "pedidos"){
-    await db.query("UPDATE muestras SET pedido_id = NULL WHERE pedido_id = $1", [id]);
     await db.query("UPDATE cotizaciones SET pedido_id = NULL WHERE pedido_id = $1", [id]);
     await db.query("UPDATE cotizaciones SET pedidos_extra = pedidos_extra - $1::text WHERE pedidos_extra ? $1::text", [id]);
   }
@@ -30,7 +29,7 @@ router.get("/", async (req, res) => {
   const [ped, cot, mue, mol] = await Promise.all([
     pool.query("SELECT id, cliente, producto, cantidad, estado, eliminado_en, eliminado_por FROM pedidos WHERE eliminado_en IS NOT NULL ORDER BY eliminado_en DESC"),
     pool.query("SELECT id, cliente, prenda, estado, eliminado_en, eliminado_por FROM cotizaciones WHERE eliminado_en IS NOT NULL ORDER BY eliminado_en DESC"),
-    pool.query("SELECT m.id, m.cliente, m.titulo, m.pedido_id, m.eliminado_en, m.eliminado_por, (SELECT count(*)::int FROM pedido_muestras v WHERE v.muestra_id = m.id) AS versiones FROM muestras m WHERE m.eliminado_en IS NOT NULL ORDER BY m.eliminado_en DESC"),
+    pool.query("SELECT m.id, m.cliente, m.titulo, (SELECT string_agg(mp.pedido_id, ', ') FROM muestra_pedidos mp WHERE mp.muestra_id = m.id) AS pedido_id, m.eliminado_en, m.eliminado_por, (SELECT count(*)::int FROM pedido_muestras v WHERE v.muestra_id = m.id) AS versiones FROM muestras m WHERE m.eliminado_en IS NOT NULL ORDER BY m.eliminado_en DESC"),
     pool.query("SELECT id, cliente, prenda, codigo, ubicacion, eliminado_en, eliminado_por FROM moldes WHERE eliminado_en IS NOT NULL ORDER BY eliminado_en DESC")
   ]);
   const f = r => r.rows.map(x => ({ ...x, eliminadoEn: x.eliminado_en, eliminadoPor: x.eliminado_por, eliminado_en: undefined, eliminado_por: undefined }));
