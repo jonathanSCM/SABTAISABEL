@@ -311,3 +311,17 @@ CREATE TABLE IF NOT EXISTS muestra_pedidos (
 INSERT INTO muestra_pedidos (muestra_id, pedido_id) SELECT id, pedido_id FROM muestras WHERE pedido_id IS NOT NULL ON CONFLICT DO NOTHING;
 UPDATE muestras SET pedido_id = NULL WHERE pedido_id IS NOT NULL;
 ALTER TABLE pedido_muestras ADD COLUMN IF NOT EXISTS nombre TEXT NOT NULL DEFAULT '';
+
+-- E1: entregas parciales (cada una con su guía): qué talla/color y cuántas unidades se entregan
+CREATE TABLE IF NOT EXISTS pedido_entregas (
+  id SERIAL PRIMARY KEY,
+  pedido_id TEXT NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+  numero INT NOT NULL,
+  fecha DATE NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]',
+  total INT NOT NULL DEFAULT 0,
+  notas TEXT NOT NULL DEFAULT '',
+  creado_por TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (pedido_id, numero)
+);

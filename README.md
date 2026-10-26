@@ -261,3 +261,7 @@ public/
 - **Duplicar:** crea un modelo nuevo desde la última versión aprobada (por ejemplo, la misma muestra en otro color), solo o ya vinculado a un pedido.
 - **Nombre de versión** (opcional) y **referencia** editable de la muestra dentro de cada pedido.
 - La migración mueve los vínculos existentes a la tabla nueva.
+
+## Entrega 4 · Variantes en cotización y guía de entrega parcial
+- **Variantes:** cada prenda adicional de una cotización puede ser *otra prenda* (suma al total) o *variante* (alternativa de la misma prenda, p. ej. con y sin botones: se muestra con su precio por unidad y su total, pero no suma). Botón «Duplicar» y «Variante de la prenda principal». Al aprobar se elige qué opciones pasan a pedido (una o varias; las variantes vienen sin marcar).
+- **Entrega parcial:** con el pedido Terminado se registran entregas por talla y color; cada una tiene su guía (con lo entregado, el acumulado y el pendiente). Al llegar el saldo a cero el pedido pasa solo a Entregado; el administrador puede anular una entrega, y también se puede cerrar el pedido con saldo (con confirmación).

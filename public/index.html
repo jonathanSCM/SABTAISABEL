@@ -547,6 +547,9 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
 .muestra-card__fotos{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .muestra-card__fotos img{width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
 .muestra-card__acciones{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+#modalEntrega,#modalAprobar{width:min(620px,94vw);max-width:620px}
+#entregaCuerpo{display:block}
+#entregaCuerpo table{width:100%}
 .modelo-box{border:1.5px solid var(--line);border-radius:var(--r-md);padding:14px;margin-bottom:14px;background:var(--card)}
 .modelo-box > .muestra-card__h b{font-size:15px}
 
@@ -1184,6 +1187,18 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
   <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnMiCuentaCancel">Cancelar</button><button type="submit" form="formMiCuenta" class="btn btn--primary" id="btnMiCuentaSave">Guardar</button></div>
 </div>
 
+<div class="modal" id="modalAprobar" role="dialog" aria-modal="true" aria-labelledby="modalAprobarTitle">
+  <div class="modal__h"><h2 id="modalAprobarTitle">Aprobar cotización</h2><button class="btn btn--ghost btn--sm" id="modalAprobarClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <div class="form" id="aprobarCuerpo"></div>
+  <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnAprobarCancel">Cancelar</button><button type="button" class="btn btn--primary" id="btnAprobarOk">Aprobar y crear pedidos</button></div>
+</div>
+
+<div class="modal" id="modalEntrega" role="dialog" aria-modal="true" aria-labelledby="modalEntregaTitle">
+  <div class="modal__h"><h2 id="modalEntregaTitle">Registrar entrega</h2><button class="btn btn--ghost btn--sm" id="modalEntregaClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
+  <div class="form" id="entregaCuerpo"></div>
+  <div class="modal__f"><button type="button" class="btn btn--ghost" id="btnEntregaCancel">Cancelar</button><button type="button" class="btn btn--primary" id="btnEntregaOk">Registrar y ver guía</button></div>
+</div>
+
 <div class="modal" id="modalResumen" role="dialog" aria-modal="true" aria-labelledby="modalResumenTitle">
   <div class="modal__h"><h2 id="modalResumenTitle">Editar resumen del pedido</h2><button class="btn btn--ghost btn--sm" id="modalResumenClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
   <form class="form" id="formResumen" novalidate>
@@ -1506,11 +1521,15 @@ function montarMatriz(host, mx, opt){
 
 function itemUnidades(it){ return (it.curva || []).reduce((s,r)=>s+r.cant,0); }
 function itemCostoUnit(it){ return (it.groups || []).reduce((s,g)=>s+groupTotal(g),0); }
-function qItems(q){ return [q].concat(q.extras || []); }   // la principal es la propia cotización; el resto va en extras
+function qItems(q){ return [q].concat((q.extras || []).filter(e => e.modo !== "alternativa")); }   // la principal es la propia cotización; las "variantes" no suman
+function qAlternativas(q){ return (q.extras || []).filter(e => e.modo === "alternativa"); }
 function qUnidades(q){ return qItems(q).reduce((s,it) => s + itemUnidades(it), 0); }
 function qCostoUnit(q){ return itemCostoUnit(q); }
 function qTotalProd(q){ return qItems(q).reduce((s,it) => s + itemCostoUnit(it) * itemUnidades(it), 0); }
-function qPrendaTxt(q){ const n = (q.extras || []).length; return (q.prenda || "") + (n ? " +"+n+" prenda"+(n===1?"":"s") : ""); }
+function qPrendaTxt(q){
+  const n = (q.extras || []).filter(e => e.modo !== "alternativa").length, v = qAlternativas(q).length;
+  return (q.prenda || "") + (n ? " +"+n+" prenda"+(n===1?"":"s") : "") + (v ? " · "+v+" variante"+(v===1?"":"s") : "");
+}
 const IGV_PCT = 18;
 function qSubtotal(q){ return qTotalProd(q) + Number(q.muestra||0) + Number(q.molde||0); }
 function qIGV(q){ return q.incluirIgv === false ? 0 : Math.round(qSubtotal(q) * IGV_PCT) / 100; }
@@ -1536,7 +1555,7 @@ const state = {
   filtros:{ estado:"Todos", cliente:"Todos", rango:"Todas", texto:"" },
   mes:(function(){ const d = hoy(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
   pedidoAbierto:null, entrando:true, recien:null, confirmAlta:false, semanaModo:"estado", qTexto:"", qFiltro:"todas", qOrden:"reciente", qVista:null, planSemana:0, planAtrasados:false,
-  vistaGuiaId:null, vistaFichaId:null, vistaFichaVersion:null, mFiltro:"todas", mTexto:"", muestraAbierta:null, vistaMuestraId:null, vistaMuestraVuelta:null,
+  vistaGuiaId:null, vistaGuiaEntrega:null, vistaFichaId:null, vistaFichaVersion:null, mFiltro:"todas", mTexto:"", muestraAbierta:null, vistaMuestraId:null, vistaMuestraVuelta:null,
   vistaPaqueteId:null, paqueteSel:[],
   moldesPorCliente:{}, moldesCargando:new Set(),
   cotiz:{ modo:"lista", verId:null, draft:null, wired:false }
@@ -2536,7 +2555,7 @@ function sheetHTML(q, opts){
   }).join("")+
   (q.extras || []).map((e, i) => {
     const cu = itemCostoUnit(e), un = itemUnidades(e);
-    return '<div class="sheet__extra"><hr class="sheet__stitch"><h4 class="lbl">Prenda '+(i+2)+": "+(esc(e.prenda) || "sin nombre")+"</h4>"+
+    return '<div class="sheet__extra"><hr class="sheet__stitch"><h4 class="lbl">'+(e.modo === "alternativa" ? "Variante" : "Prenda")+" "+(i+2)+": "+(esc(e.prenda) || "sin nombre")+(e.modo === "alternativa" ? " · alternativa, no suma al total" : "")+"</h4>"+
       (e.obs ? '<p style="font-size:12.5px;color:var(--ink-2);margin:0 0 8px">'+esc(e.obs)+"</p>" : "")+
       ((e.matriz && e.matriz.length) ? matrizTablaHTML(e.matriz, { consumo:true }) : "")+
       (e.groups || []).map(g => '<div style="margin-top:10px"><h4 class="lbl">'+esc(g.label)+'</h4><table class="sheet-t"><thead><tr><th>Nombre</th><th class="r">Consumo</th><th class="r">Precio</th><th class="r">Total</th></tr></thead><tbody>'+
@@ -2557,6 +2576,10 @@ function sheetHTML(q, opts){
     (q.incluirIgv === false ? "" : '<div class="totalbox__row"><span>IGV ('+IGV_PCT+'%)</span><span class="amt">'+money(qIGV(q))+"</span></div>")+
     '<div class="totalbox__row grand"><span>Total cotización'+(q.incluirIgv === false ? " (sin IGV)" : "")+'</span><span class="amt">'+money(qTotal(q))+"</span></div>"+
   "</div>"+
+  (qAlternativas(q).length ? '<div class="totalbox" style="margin-top:10px"><div class="totalbox__row" style="background:var(--surface-2);font-weight:700"><span>Variantes (alternativas, no incluidas en el total)</span><span></span></div>'+
+    qAlternativas(q).map(e => { const cu = itemCostoUnit(e), un = itemUnidades(e), tot = cu * un, conIgv = q.incluirIgv === false ? tot : Math.round(tot * (100 + IGV_PCT)) / 100;
+      return '<div class="totalbox__row"><span>'+(esc(e.prenda) || "Variante")+" · precio por unidad"+(q.incluirIgv === false ? "" : " (sin IGV)")+'</span><span class="amt">'+money(cu)+"</span></div>"+
+        '<div class="totalbox__row"><span>'+(esc(e.prenda) || "Variante")+" · "+un+" und. "+(q.incluirIgv === false ? "" : "(con IGV)")+'</span><span class="amt">'+money(conIgv)+"</span></div>"; }).join("")+"</div>" : "")+
   '<div class="sheet__terms"><h4 class="lbl">Sobre la producción</h4>'+esc(q.termsProd)+'<br><br><h4 class="lbl">Sobre la muestra y el molde</h4>'+esc(q.termsMuestra)+"</div>"+
   '<hr class="sheet__stitch">'+
   '<div class="sheet__foot"><span>Taller Santa Isabel · '+(q.incluirIgv === false ? "Precios sin IGV" : "Total incluye IGV (18%)")+'</span><span class="signature">Conforme cliente</span></div>';
@@ -2621,9 +2644,26 @@ function wireVerCotizacion(){
   wireExport($("#theSheet"), q, "#btnPrintQ");
 }
 
-async function aprobarCotizacion(q){
+/* con varias prendas o variantes se elige qué pasa a pedido */
+function aprobarCotizacion(q){
+  const extras = q.extras || [];
+  if(!extras.length) return aprobarCotizacionConfirmada(q, null);
+  const filas = [{ k:"principal", txt:(q.prenda || "Prenda principal")+" · "+qUnidades({ curva:q.curva })+" und.", marca:true, tag:"Principal" }]
+    .concat(extras.map((e, i) => ({ k:String(i), txt:(e.prenda || "Prenda "+(i+2))+" · "+itemUnidades(e)+" und.", marca:e.modo !== "alternativa", tag:e.modo === "alternativa" ? "Variante" : "Otra prenda" })));
+  $("#aprobarCuerpo").innerHTML = '<p class="muted" style="margin:0 0 10px">Elige qué opciones se convierten en pedido. Cada una crea su propio pedido; las variantes vienen sin marcar.</p>'+
+    filas.map(f => '<label class="paq-opt" style="display:flex;gap:8px;margin-bottom:8px"><input type="checkbox" data-ap="'+f.k+'"'+(f.marca ? " checked" : "")+'> <span><b>'+esc(f.tag)+"</b> · "+esc(f.txt)+"</span></label>").join("");
+  scrim.dataset.open = "true"; $("#modalAprobar").dataset.open = "true";
+  $("#btnAprobarOk").onclick = () => {
+    const principal = $("#aprobarCuerpo").querySelector('[data-ap="principal"]').checked;
+    const ex = [...$("#aprobarCuerpo").querySelectorAll("[data-ap]")].filter(c => c.dataset.ap !== "principal" && c.checked).map(c => Number(c.dataset.ap));
+    if(!principal && !ex.length){ toast("Elige al menos una opción."); return; }
+    cerrarModalAprobar(); aprobarCotizacionConfirmada(q, { principal, extras:ex });
+  };
+}
+function cerrarModalAprobar(){ $("#modalAprobar").dataset.open = "false"; if(!otroOverlayAbierto("modalAprobar")) scrim.dataset.open = "false"; }
+async function aprobarCotizacionConfirmada(q, incluir){
   try{
-    const { cotizacion, pedido, pedidosExtra } = await api("/cotizaciones/"+q.id+"/aprobar", { method:"POST" });
+    const { cotizacion, pedido, pedidosExtra } = await api("/cotizaciones/"+q.id+"/aprobar", { method:"POST", body:JSON.stringify(incluir ? { incluir } : {}) });
     Object.assign(q, cotizacion);
     pedidos.push(pedido);
     if(pedidosExtra && pedidosExtra.length){ const todos = await api("/pedidos"); pedidos.length = 0; todos.forEach(p => pedidos.push(p)); }
@@ -2667,9 +2707,10 @@ function vCotizEditor(){
       '<hr class="qstitch">'+
 
       '<div class="qsection"><div class="qsection__h"><h3>Otras prendas de esta cotización</h3><span class="n" id="q-extrasN"></span></div>'+
-        '<p class="muted" style="font-size:12px;margin:0 0 8px">Para colecciones: cada prenda lleva sus tallas, colores y costos. Al aprobar, cada una nace como su propio pedido.</p>'+
+        '<p class="muted" style="font-size:12px;margin:0 0 8px">«Otra prenda» se suma al total (colecciones). «Variante» es una alternativa de la misma prenda (por ejemplo con y sin botones): se muestra con su propio precio pero no suma al total. Al aprobar eliges qué pasa a pedido.</p>'+
         '<div id="q-extras"></div>'+
         '<button type="button" class="addline" id="q-add-prenda">+ Agregar otra prenda</button>'+
+        '<button type="button" class="addline" id="q-add-variante">+ Variante de la prenda principal (copia)</button>'+
       "</div>"+
       '<hr class="qstitch">'+
 
@@ -2748,19 +2789,32 @@ function initEditorCotiz(){
     d.extras.forEach((e, i) => {
       if(!e.matriz || !e.matriz.length) e.matriz = [{talla:"Única",consumo:1,colores:[{color:"",cant:1}]}];
       const card = document.createElement("div"); card.className = "lgroup"; card.style.marginBottom = "14px";
-      card.innerHTML = '<div class="lgroup__h"><span>Prenda '+(i+2)+'</span><button type="button" class="rowdel" data-q-del-prenda="'+i+'" aria-label="Quitar prenda">×</button></div>'+
+      card.innerHTML = '<div class="lgroup__h"><span>'+(e.modo === "alternativa" ? "Variante" : "Prenda")+' '+(i+2)+'</span><span style="margin-left:auto;display:flex;gap:6px"><button type="button" class="btn btn--ghost btn--sm" data-q-dup-prenda="'+i+'">Duplicar</button><button type="button" class="rowdel" data-q-del-prenda="'+i+'" aria-label="Quitar prenda">×</button></span></div>'+
+        '<div class="field"><label>Tipo</label><select class="input" data-ex="modo"><option value="suma"'+(e.modo !== "alternativa" ? " selected" : "")+'>Otra prenda (se suma al total)</option><option value="alternativa"'+(e.modo === "alternativa" ? " selected" : "")+'>Variante de la prenda (alternativa, no suma)</option></select></div>'+
         '<div class="field"><label>Descripción de la prenda</label><input class="input" data-ex="prenda" value="'+esc(e.prenda)+'"></div>'+
         '<div class="field"><label>Notas de diseño</label><textarea class="input" data-ex="obs">'+esc(e.obs || "")+'</textarea></div>'+
         '<h4 class="lbl" style="margin:8px 0 4px">Tallas y variantes de color</h4><div data-ex-mx></div>'+
         '<h4 class="lbl" style="margin:12px 0 4px">Costos de producción</h4><div data-ex-groups style="display:flex;flex-direction:column;gap:12px"></div>';
       host.appendChild(card);
-      card.querySelectorAll("[data-ex]").forEach(inp => inp.addEventListener("input", () => { e[inp.dataset.ex] = inp.value; updateSheet(); }));
+      card.querySelectorAll("[data-ex]").forEach(inp => inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => { e[inp.dataset.ex] = inp.value; updateSheet(); if(inp.dataset.ex === "modo"){ renderExtras(); } }));
+      card.querySelector("[data-q-dup-prenda]").onclick = () => duplicarPrenda(i);
       card.querySelector("[data-q-del-prenda]").onclick = () => { d.extras.splice(i, 1); renderExtras(); updateSheet(); };
       montarMatriz(card.querySelector("[data-ex-mx]"), e.matriz, { consumo:true, onChange:() => { Object.assign(e, matrizDerivar(e.matriz)); updateSheet(); } });
       Object.assign(e, matrizDerivar(e.matriz));
       renderGroupsInto(card.querySelector("[data-ex-groups]"), e.groups);
     });
   }
+  /* duplicar una prenda (la principal si no se indica) como variante: copia tallas, colores, costos y notas */
+  function duplicarPrenda(i){
+    const o = (i == null) ? d : d.extras[i];
+    const copia = { prenda:(o.prenda || "Prenda")+" (variante)", obs:o.obs || "", img:o.img || null, modo:"alternativa",
+      matriz:JSON.parse(JSON.stringify(o.matriz || [])), curva:[], colores:[], groups:JSON.parse(JSON.stringify(o.groups || [])) };
+    Object.assign(copia, matrizDerivar(copia.matriz));
+    d.extras = d.extras || []; d.extras.push(copia);
+    renderExtras(); updateSheet();
+    const cards = qs("#q-extras").children; cards[cards.length-1].scrollIntoView({ block:"center" });
+  }
+  qs("#q-add-variante").onclick = () => duplicarPrenda(null);
   qs("#q-add-prenda").onclick = () => { d.extras = d.extras || []; d.extras.push(nuevaPrenda()); renderExtras(); updateSheet(); const cards = qs("#q-extras").children; cards[cards.length-1].scrollIntoView({ block:"center" }); };
 
   ["cliente","id","prenda","obs"].forEach(f => qs("#q-"+f).addEventListener("input", () => { d[f] = qs("#q-"+f).value; updateSheet(); }));
@@ -3210,14 +3264,14 @@ function debounce(fn,ms){ let t; return function(){ clearTimeout(t); t = setTime
 /* ---- drawer ---- */
 const scrim = $("#scrim"), drawer = $("#drawer"), modal = $("#modal");
 /* varios overlays comparten un mismo scrim; se oculta recién cuando ninguno queda abierto */
-const OVERLAY_IDS = ["drawer","modal","actsheet","modalUsuario","modalResetPw","modalMiCuenta","modalResumen","modalMuestra","modalProduccion","modalMolde","modalCurva","modalCompras","modalTransfer"];
+const OVERLAY_IDS = ["drawer","modal","actsheet","modalUsuario","modalResetPw","modalMiCuenta","modalAprobar","modalEntrega","modalResumen","modalMuestra","modalProduccion","modalMolde","modalCurva","modalCompras","modalTransfer"];
 function otroOverlayAbierto(exceptoId){
   return OVERLAY_IDS.some(id => id !== exceptoId && $("#"+id).dataset.open === "true");
 }
 function abrirDrawer(){ scrim.dataset.open = "true"; drawer.dataset.open = "true"; drawer.focus(); }
 function cerrarDrawer(){ drawer.dataset.open = "false"; if(!otroOverlayAbierto("drawer")) scrim.dataset.open = "false"; state.pedidoAbierto = null; state.muestraAbierta = null; }
 $("#drawerClose").onclick = cerrarDrawer;
-function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalResumen(); cerrarModalMuestra(); cerrarModalProduccion(); cerrarModalMolde(); cerrarModalCurva(); cerrarModalCompras(); cerrarModalTransfer(); }
+function cerrarTodosLosOverlays(){ cerrarDrawer(); cerrarModal(); cerrarActionSheet(); cerrarModalUsuario(); cerrarModalResetPw(); cerrarModalMiCuenta(); cerrarModalAprobar(); cerrarModalEntrega(); cerrarModalResumen(); cerrarModalMuestra(); cerrarModalProduccion(); cerrarModalMolde(); cerrarModalCurva(); cerrarModalCompras(); cerrarModalTransfer(); }
 scrim.onclick = cerrarTodosLosOverlays;
 document.addEventListener("keydown", e => { if(e.key === "Escape"){ cerrarTodosLosOverlays(); cerrarFabMenu(); } });
 
@@ -3438,42 +3492,77 @@ function paneComprasHTML(p){
       compras.map(c => "<tr><td>"+esc(c.item)+"</td><td>"+esc(c.color||"—")+'</td><td class="r">'+esc(c.cantidad)+"</td></tr>").join("")+
     "</tbody></table>" : '<div class="empty">Todavía no hay una lista de compras para este pedido.</div>');
 }
+/* lo que pidió el pedido por talla/color, lo ya entregado y lo que falta */
+function saldoEntrega(p){
+  const mx = p.matriz || [], filas = [], idx = {};
+  const k = (t, c) => String(t || "").trim().toLowerCase()+"|"+String(c || "").trim().toLowerCase();
+  if(mx.length) mx.forEach(t => (t.colores || []).forEach(c => { const kk = k(t.talla, c.color); if(!idx[kk]){ idx[kk] = { talla:t.talla, color:c.color, pedido:0, entregado:0 }; filas.push(idx[kk]); } idx[kk].pedido += Number(c.cant) || 0; }));
+  else { idx["|"] = { talla:"", color:"", pedido:Number(p.cantidad) || 0, entregado:0 }; filas.push(idx["|"]); }
+  (p.entregas || []).forEach(e => (e.items || []).forEach(it => { const kk = mx.length ? k(it.talla, it.color) : "|"; if(idx[kk]) idx[kk].entregado += Number(it.cant) || 0; }));
+  filas.forEach(f => { f.saldo = Math.max(0, f.pedido - f.entregado); });
+  return { filas, pedido:filas.reduce((s, f) => s + f.pedido, 0), entregado:filas.reduce((s, f) => s + f.entregado, 0), saldo:filas.reduce((s, f) => s + f.saldo, 0), conMatriz:mx.length > 0 };
+}
+function itemsAMatriz(items){
+  const por = {}, out = [];
+  (items || []).forEach(it => { let t = por[it.talla]; if(!t){ t = por[it.talla] = { talla:it.talla, consumo:0, colores:[] }; out.push(t); } t.colores.push({ color:it.color, cant:it.cant }); });
+  return out;
+}
 function paneEntregaHTML(p){
-  const puedeGuia = p.estado === "Terminado" || p.estado === "Entregado";
+  const sd = saldoEntrega(p), entregas = p.entregas || [];
+  const terminado = p.estado === "Terminado", entregado = p.estado === "Entregado";
+  const legacy = !entregas.length && p.guiaGeneradaEn && (terminado || entregado);
+  const pct = sd.pedido ? Math.min(100, Math.round(sd.entregado * 100 / sd.pedido)) : 0;
   return '<dl class="dl">'+
       "<dt>Cliente</dt><dd>"+esc(p.cliente)+"</dd>"+
       "<dt>Prenda</dt><dd>"+esc(p.producto)+' <span class="muted">('+nf(p.cantidad)+" und.)</span></dd>"+
       "<dt>Comprometida</dt><dd>"+fechaLarga(p.compromiso)+' <span class="muted">('+relativo(p.compromiso)+")</span></dd>"+
     "</dl>"+
-    (puedeGuia
-      ? '<button class="btn btn--primary btn--sm" id="btnGenerarGuia" style="align-self:flex-start">'+(p.guiaGeneradaEn ? "Ver guía de entrega" : "Generar guía de entrega")+"</button>"
-      : '<div class="notice notice--media"><h3>Todavía no está listo</h3>La guía de entrega se habilita cuando el pedido pasa a Terminado.</div>')+
-    (p.estado === "Terminado"
-      ? '<button class="btn btn--ghost btn--sm" id="btnMarcarEntregado" style="align-self:flex-start">Marcar como entregado</button>'
-      : p.estado === "Entregado"
-        ? '<div class="notice notice--baja"><h3>Entregado</h3>Este pedido ya fue entregado al cliente.</div>'
-        : "")+
+    ((terminado || entregado || entregas.length)
+      ? '<div style="margin:6px 0 10px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px"><b>Entregado '+nf(sd.entregado)+" de "+nf(sd.pedido)+" unidades</b><span class=\"muted\">"+(sd.saldo ? "quedan "+nf(sd.saldo) : "completo")+"</span></div>"+
+          '<div style="height:8px;border-radius:99px;background:var(--surface-3);overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--success)"></div></div></div>'
+      : '<div class="notice notice--media"><h3>Todavía no está listo</h3>Las entregas y su guía se habilitan cuando el pedido pasa a Terminado.</div>')+
+    (terminado && sd.saldo ? '<button class="btn btn--primary btn--sm" id="btnNuevaEntrega" style="align-self:flex-start">'+(entregas.length ? "Registrar otra entrega" : "Registrar entrega y guía")+"</button>" : "")+
+    (terminado && sd.conMatriz && sd.saldo && entregas.length
+      ? '<h4 class="lbl" style="margin:12px 0 4px">Pendiente de entregar</h4><table class="sheet-t"><thead><tr><th>Talla</th><th>Color</th><th class="r">Pedido</th><th class="r">Entregado</th><th class="r">Pendiente</th></tr></thead><tbody>'+
+          sd.filas.filter(f => f.saldo).map(f => "<tr><td>"+esc(f.talla)+"</td><td>"+(esc(f.color) || "—")+'</td><td class="r">'+f.pedido+'</td><td class="r">'+f.entregado+'</td><td class="r"><b>'+f.saldo+"</b></td></tr>").join("")+"</tbody></table>" : "")+
+    (entregas.length ? '<h4 class="lbl" style="margin:14px 0 6px">Entregas registradas</h4><div class="muestras-list">'+entregas.map(e =>
+      '<div class="muestra-card"><div class="muestra-card__h"><b>Entrega '+e.numero+'</b><span class="muted" style="font-size:12px">'+fechaCorta(e.fecha)+" · "+nf(e.total)+" und.</span></div>"+
+      (e.notas ? '<div style="font-size:13px;margin-top:4px">'+esc(e.notas)+"</div>" : "")+
+      '<div class="muestra-card__acciones"><button class="btn btn--ghost btn--sm" data-entrega-guia="'+e.id+'">Ver guía / imprimir</button>'+
+        (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" data-entrega-del="'+e.id+'" style="color:var(--danger)">Anular</button>' : "")+"</div></div>").join("")+"</div>" : "")+
+    (legacy ? '<button class="btn btn--ghost btn--sm" id="btnGenerarGuia" style="align-self:flex-start;margin-top:8px">Ver guía de entrega</button>' : "")+
+    (terminado ? '<button class="btn btn--ghost btn--sm" id="btnMarcarEntregado" style="align-self:flex-start;margin-top:8px">'+(sd.saldo && entregas.length ? "Cerrar como entregado (con saldo)" : "Marcar como entregado")+"</button>"
+      : entregado ? '<div class="notice notice--baja"><h3>Entregado</h3>Este pedido ya fue entregado al cliente.</div>' : "")+
     '<button type="button" class="btn btn--ghost btn--sm" id="btnImprimirCompleto" style="align-self:flex-start;margin-top:6px">Imprimir hojas del pedido</button>';
 }
-function guiaSheetHTML(p){
+function guiaSheetHTML(p, e){
+  const sd = saldoEntrega(p);
+  const previas = e ? (p.entregas || []).filter(x => x.numero <= e.numero) : [];
+  const acumulado = previas.reduce((s, x) => s + x.total, 0);
   return '<div class="sheet__head">'+
     '<div class="sheet__brand"><b>Santa Isabel</b><span>Taller de confección</span></div>'+
-    '<div class="sheet__doc"><div class="id">'+p.id+'</div><div>Guía de entrega</div></div>'+
+    '<div class="sheet__doc"><div class="id">'+p.id+(e ? "-E"+e.numero : "")+'</div><div>Guía de entrega'+(e ? " N° "+e.numero : "")+"</div></div>"+
   "</div>"+
   '<hr class="sheet__stitch">'+
   '<dl class="sheet__client">'+
     "<div><dt>Cliente</dt><dd>"+esc(p.cliente)+"</dd></div>"+
-    "<div><dt>Fecha de entrega</dt><dd>"+fechaLarga(p.compromiso)+"</dd></div>"+
+    "<div><dt>Fecha de entrega</dt><dd>"+fechaLarga(e ? e.fecha : p.compromiso)+"</dd></div>"+
     "<div><dt>Modelo / prenda</dt><dd>"+esc(p.producto)+"</dd></div>"+
-    "<div><dt>Total de unidades</dt><dd>"+nf(p.cantidad)+"</dd></div>"+
+    "<div><dt>"+(e ? "Unidades en esta entrega" : "Total de unidades")+"</dt><dd>"+nf(e ? e.total : p.cantidad)+"</dd></div>"+
   "</dl>"+
-  '<div class="sheet__hero"><div class="sheet__desc"><h3>'+esc(p.producto)+"</h3><p>"+nf(p.cantidad)+" unidades</p></div></div>"+
+  '<div class="sheet__hero"><div class="sheet__desc"><h3>'+esc(p.producto)+"</h3><p>"+nf(e ? e.total : p.cantidad)+" unidades"+(e ? " entregadas ahora" : "")+"</p></div></div>"+
   '<div><h4 class="lbl">Detalle entregado: tallas y colores</h4>'+
-    ((p.matriz && p.matriz.length) ? matrizTablaHTML(p.matriz)
-      : (((p.curva||[]).length || (p.colores||[]).length)
-          ? '<p style="font-size:12.5px;color:var(--ink-2)">'+matrizResumenHTML(p)+"</p>"
-          : '<p style="font-size:12.5px;color:var(--ink-3)">Sin tallas ni colores registrados.</p>'))+"</div>"+
-  (p.obs ? '<div><h4 class="lbl">Observaciones</h4><p style="font-size:12.5px;color:var(--ink-2)">'+esc(p.obs)+"</p></div>" : "")+
+    (e
+      ? ((sd.conMatriz && e.items.length) ? matrizTablaHTML(itemsAMatriz(e.items)) : '<p style="font-size:12.5px;color:var(--ink-2)">'+nf(e.total)+" unidades</p>")
+      : ((p.matriz && p.matriz.length) ? matrizTablaHTML(p.matriz)
+          : (((p.curva||[]).length || (p.colores||[]).length)
+              ? '<p style="font-size:12.5px;color:var(--ink-2)">'+matrizResumenHTML(p)+"</p>"
+              : '<p style="font-size:12.5px;color:var(--ink-3)">Sin tallas ni colores registrados.</p>')))+"</div>"+
+  (e ? '<table class="sheet-t" style="margin-top:6px"><tbody><tr><td>Entregado en esta guía</td><td class="r"><b>'+nf(e.total)+"</b></td></tr>"+
+        "<tr><td>Acumulado entregado (hasta esta guía)</td><td class=\"r\">"+nf(acumulado)+" de "+nf(sd.pedido)+"</td></tr>"+
+        "<tr><td>Pendiente por entregar</td><td class=\"r\">"+nf(Math.max(0, sd.pedido - acumulado))+"</td></tr></tbody></table>"+
+        (e.notas ? '<div><h4 class="lbl">Notas de la entrega</h4><p style="font-size:12.5px;color:var(--ink-2)">'+esc(e.notas)+"</p></div>" : "") : "")+
+  (p.obs && !e ? '<div><h4 class="lbl">Observaciones</h4><p style="font-size:12.5px;color:var(--ink-2)">'+esc(p.obs)+"</p></div>" : "")+
   '<hr class="sheet__stitch">'+
   '<div class="sheet__foot"><span>Taller Santa Isabel</span><span class="signature">Conforme cliente</span></div>';
 }
@@ -3776,12 +3865,12 @@ function vGuia(){
       '<b>Exportar a PDF</b> — o usá <kbd>Ctrl</kbd>+<kbd>P</kbd> (<kbd>Cmd</kbd>+<kbd>P</kbd> en Mac).</span>'+
       '<button class="exportNotice__close" id="exportNoticeClose" aria-label="Cerrar aviso">×</button>'+
     "</div>"+
-    '<div class="qsheet-wrap"><div class="sheet sheet--static" id="theSheetGuia">'+guiaSheetHTML(p)+"</div></div>"+
+    '<div class="qsheet-wrap"><div class="sheet sheet--static" id="theSheetGuia">'+guiaSheetHTML(p, (p.entregas || []).find(x => x.id === state.vistaGuiaEntrega) || null)+"</div></div>"+
   "</div>";
 }
-function abrirGuia(pedidoId){
+function abrirGuia(pedidoId, entregaId){
   cerrarDrawer();
-  state.vistaGuiaId = pedidoId;
+  state.vistaGuiaId = pedidoId; state.vistaGuiaEntrega = entregaId || null;
   state.view = "guia";
   state.entrando = true;
   render();
@@ -3959,7 +4048,19 @@ function abrirPedido(id, tabIni){
   const btnGuia = $("#btnGenerarGuia"); if(btnGuia) btnGuia.onclick = () => generarGuia(p);
   const btnImprimirTop = $("#btnImprimirCompletoTop"); if(btnImprimirTop) btnImprimirTop.onclick = () => abrirPaquete(p.id);
   const btnImprimirCompleto = $("#btnImprimirCompleto"); if(btnImprimirCompleto) btnImprimirCompleto.onclick = () => abrirPaquete(p.id);
-  const btnEntregado = $("#btnMarcarEntregado"); if(btnEntregado) btnEntregado.onclick = () => cambiarEstado(p, "Entregado");
+  const btnEntregado = $("#btnMarcarEntregado");
+  if(btnEntregado) btnEntregado.onclick = () => {
+    const sd = saldoEntrega(p);
+    if(sd.saldo && (p.entregas || []).length && !confirm("Quedan "+sd.saldo+" unidades sin entregar. ¿Cerrar el pedido como entregado igualmente?")) return;
+    cambiarEstado(p, "Entregado");
+  };
+  const btnNuevaEntrega = $("#btnNuevaEntrega"); if(btnNuevaEntrega) btnNuevaEntrega.onclick = () => abrirModalEntrega(p);
+  $("#drawerBody").querySelectorAll("[data-entrega-guia]").forEach(b => b.onclick = () => abrirGuia(p.id, Number(b.dataset.entregaGuia)));
+  $("#drawerBody").querySelectorAll("[data-entrega-del]").forEach(b => b.onclick = async () => {
+    if(!confirm("¿Anular esta entrega? Si el pedido había quedado entregado, vuelve a Terminado.")) return;
+    try{ const r = await api("/pedidos/"+p.id+"/entregas/"+b.dataset.entregaDel, { method:"DELETE" }); Object.assign(p, r); toast("Entrega anulada."); render(); abrirPedido(p.id, "entrega"); }
+    catch(err){ toast(err.message); }
+  });
   const btnToggleRM = $("#btnToggleRequiereMuestra"); if(btnToggleRM) btnToggleRM.onclick = () => cambiarRequiereMuestra(p, !p.requiereMuestra);
   const btnEliminarPedido = $("#btnEliminarPedido");
   if(btnEliminarPedido) btnEliminarPedido.onclick = async () => {
@@ -4240,6 +4341,43 @@ formMiCuenta.addEventListener("submit", async e => {
     toast("Contraseña actualizada.");
   } catch(err){ toast(err.message); } finally { btn.disabled = false; }
 });
+
+$("#modalAprobarClose").onclick = cerrarModalAprobar;
+$("#btnAprobarCancel").onclick = cerrarModalAprobar;
+
+/* ---- modal: registrar una entrega (total o parcial) ---- */
+let entregaPedido = null;
+function abrirModalEntrega(p){
+  entregaPedido = p;
+  const sd = saldoEntrega(p), filas = sd.filas.filter(f => f.saldo > 0);
+  $("#entregaCuerpo").innerHTML = '<p class="muted" style="margin:0 0 10px">Indica cuántas unidades entregas ahora. Por defecto va todo lo pendiente; baja las cantidades si entregas por partes.</p>'+
+    '<table class="sheet-t"><thead><tr>'+(sd.conMatriz ? "<th>Talla</th><th>Color</th>" : "<th>Detalle</th>")+'<th class="r">Pendiente</th><th class="r">Entregar ahora</th></tr></thead><tbody>'+
+      filas.map((f, i) => "<tr>"+(sd.conMatriz ? "<td>"+esc(f.talla)+"</td><td>"+(esc(f.color) || "—")+"</td>" : "<td>Unidades</td>")+'<td class="r">'+f.saldo+'</td><td class="r"><input class="input num" type="number" min="0" max="'+f.saldo+'" step="1" value="'+f.saldo+'" data-en-i="'+i+'" style="width:90px;text-align:right"></td></tr>').join("")+"</tbody></table>"+
+    '<div style="display:flex;gap:8px;align-items:center;margin:10px 0"><button type="button" class="btn btn--ghost btn--sm" id="enTodo">Todo lo pendiente</button><button type="button" class="btn btn--ghost btn--sm" id="enNada">Ninguno</button><span style="margin-left:auto">Total: <b id="enTotal">0</b> unidades</span></div>'+
+    '<div class="field full"><label for="en-notas">Notas (opcional)</label><textarea class="input" id="en-notas" placeholder="Quién recibe, observaciones…"></textarea></div>';
+  const inputs = () => [...$("#entregaCuerpo").querySelectorAll("[data-en-i]")];
+  const total = () => { $("#enTotal").textContent = inputs().reduce((s, i) => s + (Number(i.value) || 0), 0); };
+  inputs().forEach(i => i.oninput = total);
+  $("#enTodo").onclick = () => { inputs().forEach((i, k) => { i.value = filas[k].saldo; }); total(); };
+  $("#enNada").onclick = () => { inputs().forEach(i => { i.value = 0; }); total(); };
+  total();
+  $("#btnEntregaOk").onclick = async () => {
+    const items = inputs().map((i, k) => ({ talla:filas[k].talla, color:filas[k].color, cant:Math.max(0, Math.min(filas[k].saldo, Math.round(Number(i.value) || 0))) })).filter(x => x.cant > 0);
+    if(!items.length){ toast("Indica cuántas unidades se entregan."); return; }
+    const btn = $("#btnEntregaOk"); btn.disabled = true;
+    try{
+      const r = await api("/pedidos/"+p.id+"/entregas", { method:"POST", body:JSON.stringify({ items, notas:$("#en-notas").value.trim() }) });
+      Object.assign(p, r); cerrarModalEntrega(); render();
+      const ult = (p.entregas || []).slice(-1)[0];
+      toast(p.estado === "Entregado" ? "Entrega completa: pedido "+p.id+" entregado." : "Entrega "+(ult ? ult.numero : "")+" registrada.");
+      if(ult) abrirGuia(p.id, ult.id);
+    } catch(err){ toast(err.message); } finally { btn.disabled = false; }
+  };
+  scrim.dataset.open = "true"; $("#modalEntrega").dataset.open = "true";
+}
+function cerrarModalEntrega(){ $("#modalEntrega").dataset.open = "false"; if(!otroOverlayAbierto("modalEntrega")) scrim.dataset.open = "false"; }
+$("#modalEntregaClose").onclick = cerrarModalEntrega;
+$("#btnEntregaCancel").onclick = cerrarModalEntrega;
 
 /* ---- modal: editar el resumen del pedido (la fecha comprometida solo la cambia el administrador) ---- */
 const modalResumen = $("#modalResumen"), formResumen = $("#formResumen");

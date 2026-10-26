@@ -43,7 +43,7 @@ function normalizarExtras(extras){
       key: String((g && g.key) || ""), label: String((g && g.label) || ""),
       rows: (Array.isArray(g && g.rows) ? g.rows : []).map(r => ({ n:String((r && r.n) || ""), c:Number(r && r.c) || 0, p:Number(r && r.p) || 0 }))
     }));
-    return { prenda:String((e && e.prenda) || "").trim(), obs:String((e && e.obs) || ""), img:(e && e.img) || null, matriz, curva:der.curva, colores:der.colores, groups };
+    return { prenda:String((e && e.prenda) || "").trim(), obs:String((e && e.obs) || ""), img:(e && e.img) || null, modo:(e && e.modo === "alternativa") ? "alternativa" : "suma", matriz, curva:der.curva, colores:der.colores, groups };
   }).filter(e => e.prenda || e.matriz.length);
 }
 
@@ -132,65 +132,40 @@ router.post("/:id/aprobar", async (req, res) => {
       return res.status(409).json({ error:"Esta cotización ya fue cerrada." });
     }
 
-    const seqRes = await client.query("SELECT nextval('pedido_seq') AS n");
-    const pedidoId = "PD-"+String(seqRes.rows[0].n).padStart(4,"0");
-    const unidades = qUnidades(q.curva) || 1;
     const registro = isoHoy();
     const compromiso = new Date(Date.now() + 42*86400000).toISOString().slice(0,10);
-
-    await client.query(
-      `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,curva,colores,matriz,created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación','Normal','','', $8, $9, $10, $11, $12, $13, $14)`,
-      [pedidoId, q.cliente, q.prenda, unidades, registro, compromiso, compromiso,
-       "Generado desde cotización "+id, id, unidades, JSON.stringify(q.curva || []), JSON.stringify(q.colores || []), JSON.stringify(q.matriz || []), req.session.userId]
-    );
-    await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,'Pedido registrado',$3,$4)", [pedidoId, registro, req.user.id, req.user.nombre]);
-    await sembrarChecklist(client, pedidoId);
-    await sembrarProduccion(client, pedidoId);
-        /* cada prenda adicional de la cotización nace como su propio pedido, con su matriz */
-    const idsExtra = [];
     const extras = Array.isArray(q.extras) ? q.extras : [];
-    for(const [k, e] of extras.entries()){
+    /* qué opciones pasan a pedido: por defecto la prenda principal y las que suman; las variantes solo si se eligen */
+    const body = req.body || {};
+    const inc = body.incluir || { principal:true, extras: extras.map((e, i) => i).filter(i => extras[i].modo !== "alternativa") };
+    const items = [];
+    if(inc.principal !== false) items.push({ producto:q.prenda, curva:q.curva, colores:q.colores, matriz:q.matriz, nota:"" });
+    (inc.extras || []).forEach(i => { const e = extras[Number(i)]; if(e) items.push({ producto:e.prenda || ("Prenda "+(Number(i)+2)), curva:e.curva, colores:e.colores, matriz:e.matriz, nota:" ("+(e.modo === "alternativa" ? "variante" : "prenda")+" "+(Number(i)+2)+")" }); });
+    if(!items.length){ await client.query("ROLLBACK"); return res.status(400).json({ error:"Elige al menos una opción para crear el pedido." }); }
+    const ids = [];
+    for(const it of items){
       const sn = await client.query("SELECT nextval('pedido_seq') AS n");
-      const eid = "PD-"+String(sn.rows[0].n).padStart(4,"0");
-      const eund = qUnidades(e.curva) || 1;
+      const pid = "PD-"+String(sn.rows[0].n).padStart(4,"0");
+      const und = qUnidades(it.curva) || 1;
       await client.query(
         `INSERT INTO pedidos (id,cliente,producto,cantidad,registro,solicitada,compromiso,estado,prioridad,responsable,etapa,obs,origen_cotizacion,cotiz_unidades,curva,colores,matriz,created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,'Preparación','Normal','','', $8, $9, $10, $11, $12, $13, $14)`,
-        [eid, q.cliente, e.prenda || ("Prenda "+(k+2)), eund, registro, compromiso, compromiso,
-         "Generado desde cotización "+id+" (prenda "+(k+2)+")", id, eund, JSON.stringify(e.curva || []), JSON.stringify(e.colores || []), JSON.stringify(e.matriz || []), req.session.userId]
-      );
-      await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,'Pedido registrado',$3,$4)", [eid, registro, req.user.id, req.user.nombre]);
-      await sembrarChecklist(client, eid);
-      await sembrarProduccion(client, eid);
-      idsExtra.push(eid);
+        [pid, q.cliente, it.producto, und, registro, compromiso, compromiso, "Generado desde cotización "+id+it.nota, id, und,
+         JSON.stringify(it.curva || []), JSON.stringify(it.colores || []), JSON.stringify(it.matriz || []), req.session.userId]);
+      await client.query("INSERT INTO pedido_historial (pedido_id,fecha,texto,usuario_id,usuario) VALUES ($1,$2,'Pedido registrado',$3,$4)", [pid, registro, req.user.id, req.user.nombre]);
+      await sembrarChecklist(client, pid);
+      await sembrarProduccion(client, pid);
+      ids.push(pid);
     }
-    await client.query("UPDATE cotizaciones SET pedidos_extra=$1 WHERE id=$2", [JSON.stringify(idsExtra), id]);
-await client.query("UPDATE cotizaciones SET estado='Aprobada', pedido_id=$1, updated_at=now() WHERE id=$2", [pedidoId, id]);
+    const pedidoId = ids[0], idsExtra = ids.slice(1);
+    await client.query("UPDATE cotizaciones SET estado='Aprobada', pedido_id=$1, pedidos_extra=$2, updated_at=now() WHERE id=$3", [pedidoId, JSON.stringify(idsExtra), id]);
 
     await client.query("COMMIT");
     const updated = await pool.query("SELECT * FROM cotizaciones WHERE id=$1", [id]);
-    const pedidoRow = await pool.query("SELECT * FROM pedidos WHERE id=$1", [pedidoId]);
-    const checklistRow = await pool.query("SELECT item, orden, hecho, fecha, responsable FROM pedido_checklist WHERE pedido_id=$1 ORDER BY orden", [pedidoId]);
-    const produccionRow = await pool.query("SELECT id, etapa, label, orden, tipo, responsable, estado, fecha_prevista, fecha_real, notas FROM pedido_produccion WHERE pedido_id=$1 ORDER BY orden", [pedidoId]);
-    const pr = pedidoRow.rows[0];
     res.json({
-      pedidosExtra: (await pool.query("SELECT id FROM pedidos WHERE id = ANY($1)", [idsExtra])).rows.map(r => r.id),
+      pedidosExtra: idsExtra,
       cotizacion: fila(updated.rows[0]),
-      pedido: {
-        id: pr.id, cliente: pr.cliente, producto: pr.producto, cantidad: pr.cantidad,
-        registro: pr.registro, solicitada: pr.solicitada, compromiso: pr.compromiso,
-        estado: pr.estado, prioridad: pr.prioridad, responsable: pr.responsable, etapa: pr.etapa,
-        obs: pr.obs, origenCotizacion: pr.origen_cotizacion,
-        cotizUnidades: pr.cotiz_unidades != null ? Number(pr.cotiz_unidades) : null,
-        guiaGeneradaEn: null,
-        requiereMuestra: pr.requiere_muestra,
-        curva: pr.curva || [], colores: pr.colores || [], matriz: pr.matriz || [],
-        hist: [{ fecha: registro, texto:"Pedido registrado" }],
-        checklist: checklistRow.rows.map(c => ({ item:c.item, label:CHECKLIST_LABEL[c.item] || c.item, orden:c.orden, hecho:c.hecho, fecha:c.fecha, responsable:c.responsable })),
-        muestras: [],
-        produccion: produccionRow.rows.map(t => ({ id:t.id, etapa:t.etapa, label:t.label || ETAPA_LABEL[t.etapa] || t.etapa, orden:t.orden, tipo:t.tipo, responsable:t.responsable, estado:t.estado, fechaPrevista:t.fecha_prevista, fechaReal:t.fecha_real, notas:t.notas, materiales:[], controles:[], fotos:[] }))
-      }
+      pedido: await require("./pedidos").pedidoCompleto(pool, pedidoId)
     });
   } catch(err){
     await client.query("ROLLBACK");
