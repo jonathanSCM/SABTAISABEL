@@ -10,6 +10,14 @@ const router = express.Router();
 const ESTADOS = ["Preparación","En producción","Terminado","Entregado"];
 
 router.use(requireAuth);
+router.param("id", async (req, res, next, id) => {
+  try{
+    const r = await pool.query("SELECT eliminado_en FROM pedidos WHERE id = $1", [id]);
+    if(r.rows[0] && r.rows[0].eliminado_en) return res.status(404).json({ error:"Pedido no encontrado." });
+    next();
+  } catch(e){ next(e); }
+});
+
 /* el operador no ve nada que venga de cotizaciones: se quitan esos datos de las respuestas */
 router.use((req, res, next) => {
   if(req.user && req.user.rol !== "admin"){
@@ -87,18 +95,18 @@ async function pedidoCompleto(client, id){
   if(!p.rows[0]) return null;
   const h = await client.query("SELECT fecha, texto, creado_en, usuario, tipo, etapa, anterior, nuevo, resp_anterior, resp_nuevo FROM pedido_historial WHERE pedido_id = $1 ORDER BY id ASC", [id]);
   const c = await client.query("SELECT id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist WHERE pedido_id = $1", [id]);
-  const m = await client.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, m.pedido_id FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id WHERE m.pedido_id = $1 ORDER BY m.id, v.version", [id]);
+  const m = await client.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, m.pedido_id FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id WHERE m.pedido_id = $1 AND m.eliminado_en IS NULL ORDER BY m.id, v.version", [id]);
   const t = await client.query("SELECT id, etapa, label, orden, tipo, responsable, estado, proveedor, fecha_inicio, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion WHERE pedido_id = $1", [id]);
   const ad = await client.query("SELECT id, etapa_id, leyenda, nombre, orden, categoria, mime, octet_length(bytes) AS tamano FROM pedido_adjuntos WHERE pedido_id = $1", [id]);
   return filaPedido(p.rows[0], h.rows, c.rows, m.rows, t.rows, ad.rows);
 }
 
 router.get("/", async (req, res) => {
-  const pedidos = await pool.query("SELECT * FROM pedidos ORDER BY compromiso ASC");
+  const pedidos = await pool.query("SELECT * FROM pedidos WHERE eliminado_en IS NULL ORDER BY compromiso ASC");
   const [hist, checklist, muestras, produccion, adjuntos] = await Promise.all([
     pool.query("SELECT pedido_id, fecha, texto, creado_en, usuario, tipo, etapa, anterior, nuevo, resp_anterior, resp_nuevo FROM pedido_historial ORDER BY id ASC"),
     pool.query("SELECT id, pedido_id, item, label, orden, hecho, fecha, responsable, cantidad, notas FROM pedido_checklist"),
-    pool.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, m.pedido_id FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id WHERE m.pedido_id IS NOT NULL ORDER BY m.id, v.version"),
+    pool.query("SELECT v.id, v.muestra_id, v.version, v.estado, v.fecha, v.responsable, v.cambios_solicitados, v.comentarios_cliente, v.fotos, v.aprobado_por, v.aprobado_en, v.talla_aprobada, v.materiales, m.titulo AS modelo, m.matriz AS modelo_matriz, m.pedido_id FROM pedido_muestras v JOIN muestras m ON m.id = v.muestra_id WHERE m.pedido_id IS NOT NULL AND m.eliminado_en IS NULL ORDER BY m.id, v.version"),
     pool.query("SELECT id, pedido_id, etapa, label, orden, tipo, responsable, estado, proveedor, fecha_inicio, fecha_prevista, fecha_real, notas, materiales, controles FROM pedido_produccion"),
     pool.query("SELECT id, pedido_id, etapa_id, leyenda, nombre, orden, categoria, mime, octet_length(bytes) AS tamano FROM pedido_adjuntos")
   ]);
@@ -172,7 +180,7 @@ router.patch("/:id/estado", async (req, res) => {
         `SELECT m.titulo,
                 EXISTS (SELECT 1 FROM pedido_muestras v WHERE v.muestra_id = m.id AND v.estado = 'Aprobada') AS ok,
                 EXISTS (SELECT 1 FROM pedido_muestras v WHERE v.muestra_id = m.id AND v.estado <> 'Anulada') AS viva
-           FROM muestras m WHERE m.pedido_id = $1`, [id]);
+           FROM muestras m WHERE m.pedido_id = $1 AND m.eliminado_en IS NULL`, [id]);
       const vivas = ms.rows.filter(r => r.viva);
       if(!vivas.length){
         await client.query("ROLLBACK");
@@ -197,26 +205,13 @@ router.patch("/:id/estado", async (req, res) => {
   }
 });
 
-/* ---- eliminar un pedido (solo administrador). Sus datos propios se van con él; las muestras quedan sueltas y las
-   cotizaciones que lo generaron pierden el vínculo ---- */
+/* ---- eliminar un pedido = moverlo a la papelera (solo administrador). Conserva todo para poder restaurarlo ---- */
 router.delete("/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const client = await pool.connect();
-  try{
-    await client.query("BEGIN");
-    const ped = (await client.query("SELECT id, cliente, producto FROM pedidos WHERE id = $1 FOR UPDATE", [id])).rows[0];
-    if(!ped){ await client.query("ROLLBACK"); return res.status(404).json({ error:"Pedido no encontrado." }); }
-    await client.query("UPDATE muestras SET pedido_id = NULL WHERE pedido_id = $1", [id]);
-    await client.query("UPDATE cotizaciones SET pedido_id = NULL WHERE pedido_id = $1", [id]);
-    await client.query("UPDATE cotizaciones SET pedidos_extra = pedidos_extra - $1::text WHERE pedidos_extra ? $1::text", [id]);
-    await client.query("DELETE FROM pedidos WHERE id = $1", [id]);
-    await client.query("COMMIT");
-    console.log("Pedido "+id+" ("+ped.cliente+" · "+ped.producto+") eliminado por "+req.user.email);
-    res.json({ ok:true, id });
-  } catch(err){
-    await client.query("ROLLBACK"); console.error(err);
-    res.status(500).json({ error:"No se pudo eliminar el pedido." });
-  } finally { client.release(); }
+  const r = await pool.query("UPDATE pedidos SET eliminado_en = now(), eliminado_por = $2 WHERE id = $1 AND eliminado_en IS NULL RETURNING id, cliente, producto", [id, req.user.nombre]);
+  if(!r.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
+  console.log("Pedido "+id+" ("+r.rows[0].cliente+" · "+r.rows[0].producto+") movido a la papelera por "+req.user.email);
+  res.json({ ok:true, id, papelera:true });
 });
 
 /* ---- editar los datos del resumen. La fecha comprometida la cambia solo el administrador ---- */
@@ -707,7 +702,7 @@ router.get("/:id/moldes", async (req, res) => {
   const ped = await pool.query("SELECT cliente FROM pedidos WHERE id=$1", [req.params.id]);
   if(!ped.rows[0]) return res.status(404).json({ error:"Pedido no encontrado." });
   const r = await pool.query(
-    "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, codigo, ubicacion, created_at FROM moldes WHERE cliente=$1 ORDER BY created_at DESC",
+    "SELECT id, cliente, prenda, pedido_id, notas, fotos, responsable, codigo, ubicacion, created_at FROM moldes WHERE cliente=$1 AND eliminado_en IS NULL ORDER BY created_at DESC",
     [ped.rows[0].cliente]
   );
   res.json(r.rows.map(m => ({

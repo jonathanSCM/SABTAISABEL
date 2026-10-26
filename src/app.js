@@ -11,6 +11,7 @@ const cotizacionesRoutes = require("./routes/cotizaciones");
 const usuariosRoutes = require("./routes/usuarios");
 const responsablesRoutes = require("./routes/responsables");
 const muestrasRoutes = require("./routes/muestras");
+const papeleraRoutes = require("./routes/papelera");
 const moldesRoutes = require("./routes/moldes");
 const adjuntosRoutes = require("./routes/adjuntos");
 
@@ -40,6 +41,7 @@ app.use("/api/cotizaciones", cotizacionesRoutes);
 app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/responsables", responsablesRoutes);
 app.use("/api/muestras", muestrasRoutes);
+app.use("/api/papelera", papeleraRoutes);
 app.use("/api/moldes", moldesRoutes);
 app.use("/api/adjuntos", adjuntosRoutes);
 

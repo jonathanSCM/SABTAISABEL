@@ -672,6 +672,7 @@ tbody tr.is-new td:first-child{box-shadow:inset 2px 0 0 var(--rose)}
   pointer-events:none;transition:.22s;box-shadow:var(--shadow);max-width:92vw;letter-spacing:.01em;
 }
 .toast[data-open="true"]{opacity:1;transform:translate(-50%,0)}
+.toast[data-accion="true"]{pointer-events:auto}
 
 .validate{font-size:13px;color:var(--ink-2)}
 .validate ol{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:7px;max-width:72ch}
@@ -1547,8 +1548,9 @@ const VIEWS = [
   { id:"muestras",    label:"Muestras",    ico:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>' },
   { id:"calendario",  label:"Calendario",  ico:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' }
 ];
+const VIEW_PAPELERA = { id:"papelera", label:"Papelera", ico:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>' };
 const VIEW_USUARIOS = { id:"usuarios", label:"Usuarios", ico:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 8.5c1.4.3 2.5 1.6 2.5 3.1M18.5 20c0-2.6-1.8-4.8-4.2-5.6"/>' };
-function viewsActuales(){ return usuarioActual && usuarioActual.rol === "admin" ? [...VIEWS, VIEW_USUARIOS] : VIEWS.filter(v => v.id !== "cotizaciones"); }
+function viewsActuales(){ return usuarioActual && usuarioActual.rol === "admin" ? [...VIEWS, VIEW_USUARIOS, VIEW_PAPELERA] : VIEWS.filter(v => v.id !== "cotizaciones"); }
 
 const $ = s => document.querySelector(s);
 const page = $("#page");
@@ -1574,7 +1576,7 @@ function renderNav(){
   ).join("");
   $("#nav").innerHTML = html;
   // la barra inferior tiene máximo 5 opciones: "Equipo" (solo admin) se abre desde el botón de cuenta
-  const tabViews = views.filter(v => v.id !== "usuarios" && v.id !== "muestras");
+  const tabViews = views.filter(v => v.id !== "usuarios" && v.id !== "muestras" && v.id !== "papelera");
   $("#tabbar").style.gridTemplateColumns = "repeat("+tabViews.length+",1fr)";
   $("#tabbar").innerHTML = tabViews.map(v =>
     '<button data-view="'+v.id+'"'+(state.view===v.id?' aria-current="page"':"")+'>'+
@@ -1584,7 +1586,8 @@ function renderNav(){
   document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => go(b.dataset.view));
 }
 function go(v){
-  if((v === "usuarios" || v === "cotizaciones") && !(usuarioActual && usuarioActual.rol === "admin")) return;
+  if((v === "usuarios" || v === "cotizaciones" || v === "papelera") && !(usuarioActual && usuarioActual.rol === "admin")) return;
+  if(v === "papelera") papeleraData = null;
   state.view = v; state.entrando = true;
   if(v !== "cotizaciones"){ state.cotiz.modo = "lista"; state.cotiz.wired = false; }
   render(); window.scrollTo({ top:0 });
@@ -1593,11 +1596,11 @@ function go(v){
 /* ============ vistas ============ */
 function render(){
   renderNav();
-  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", muestras:"Muestras", muestrahoja:"Hoja de muestra", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte", paquete:"Hojas del pedido", plan:"Planificación semanal" };
+  const t = { tablero:"Tablero", semana:"Esta semana", pedidos:"Pedidos", cotizaciones:"Cotizaciones", muestras:"Muestras", papelera:"Papelera", muestrahoja:"Hoja de muestra", calendario:"Calendario de entregas", usuarios:"Usuarios", guia:"Guía de entrega", ficha:"Ficha técnica", corte:"Orden de corte", paquete:"Hojas del pedido", plan:"Planificación semanal" };
   $("#viewTitle").textContent = t[state.view];
   const d = hoy();
   $("#todayLabel").textContent = DOW[(d.getDay()+6)%7].replace(/^./,c=>c.toUpperCase())+" "+d.getDate()+" de "+MESES[d.getMonth()]+" de "+d.getFullYear();
-  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, muestras:vMuestras, muestrahoja:vHojaMuestra, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte, paquete:vPaquete, plan:vPlan })[state.view]();
+  page.innerHTML = ({ tablero:vTablero, semana:vSemana, pedidos:vPedidos, cotizaciones:vCotizaciones, muestras:vMuestras, papelera:vPapelera, muestrahoja:vHojaMuestra, calendario:vCalendario, usuarios:vUsuarios, guia:vGuia, ficha:vFicha, corte:vOrdenCorte, paquete:vPaquete, plan:vPlan })[state.view]();
   wire();
   if(state.view === "guia"){
     const p = pedidos.find(x => x.id === state.vistaGuiaId);
@@ -2124,6 +2127,34 @@ function vUsuarios(){
   "</section>";
 }
 
+/* ================= Papelera (solo administrador) ================= */
+let papeleraData = null;
+async function cargarPapelera(){
+  try{ papeleraData = await api("/papelera"); }
+  catch(e){ papeleraData = { pedidos:[], cotizaciones:[], muestras:[], moldes:[] }; toast(e.message); }
+  if(state.view === "papelera") render();
+}
+function vPapelera(){
+  if(papeleraData === null){ cargarPapelera(); return '<div class="empty">Cargando papelera…</div>'; }
+  const d = papeleraData;
+  const total = d.pedidos.length + d.cotizaciones.length + d.muestras.length + d.moldes.length;
+  const quien = x => "Eliminado por "+esc(x.eliminadoPor || "—")+" el "+fechaCorta((x.eliminadoEn || "").slice(0,10));
+  const fila = (tipo, id, titulo, sub, x) =>
+    '<div class="row urow"><span class="row__main"><span class="row__t">'+titulo+'</span><span class="row__s">'+sub+" · "+quien(x)+"</span></span>"+
+      '<span class="row__r urow__acciones"><button class="btn btn--ghost btn--sm" data-pap-rest="'+tipo+":"+id+'">Restaurar</button>'+
+      '<button class="btn btn--danger btn--sm" data-pap-del="'+tipo+":"+id+'">Borrar para siempre</button></span></div>';
+  const bloque = (titulo, filas) => filas.length ? '<h4 class="lbl" style="margin:16px 0 6px">'+titulo+" ("+filas.length+")</h4>"+'<div class="rows">'+filas.join("")+"</div>" : "";
+  return '<section class="card">'+
+    '<div class="card__head"><h2>Papelera</h2><span class="muted">lo que se elimina se guarda aquí; solo el administrador lo restaura o lo borra para siempre</span>'+
+      '<button class="btn btn--danger btn--sm" id="btnVaciarPapelera" style="margin-left:auto"'+(total ? "" : " disabled")+">Vaciar papelera</button></div>"+
+    (total ? "" : '<div class="empty">La papelera está vacía.</div>')+
+    bloque("Pedidos", d.pedidos.map(x => fila("pedidos", x.id, esc(x.id)+" · "+esc(x.cliente), esc(x.producto)+" · "+nf(x.cantidad)+" und · "+esc(x.estado), x)))+
+    bloque("Cotizaciones", d.cotizaciones.map(x => fila("cotizaciones", x.id, esc(x.id)+" · "+esc(x.cliente), esc(x.prenda)+" · "+esc(x.estado), x)))+
+    bloque("Muestras", d.muestras.map(x => fila("muestras", x.id, esc(x.titulo), esc(x.cliente)+" · "+x.versiones+" versión"+(x.versiones===1?"":"es")+(x.pedido_id ? " · estaba en "+esc(x.pedido_id) : ""), x)))+
+    bloque("Moldes", d.moldes.map(x => fila("moldes", x.id, "Molde"+(x.codigo ? " · "+esc(x.codigo) : ""), esc(x.cliente)+(x.ubicacion ? " · "+esc(x.ubicacion) : ""), x)))+
+  "</section>";
+}
+
 /* ================= Muestras (modelos con sus versiones; pueden existir sin pedido) ================= */
 function vMuestras(){
   const f = state.mFiltro, t = (state.mTexto || "").trim().toLowerCase();
@@ -2212,7 +2243,7 @@ function abrirMuestra(id){
         '<button class="btn btn--ghost btn--sm" id="mdEditar">Editar modelo</button>'+
         '<button class="btn btn--ghost btn--sm" id="mdNuevaVersion">+ Nueva versión</button>'+
         '<button class="btn btn--primary btn--sm" id="mdImprimir">Imprimir muestra</button>'+
-        (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="mdEliminar" style="color:var(--danger)">Eliminar muestra</button>' : "")+
+        (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="mdEliminar" style="color:var(--danger)">Mover a la papelera</button>' : "")+
       "</div></div>"+
     '<h4 class="lbl" style="margin:16px 0 6px">Tallas y colores</h4>'+
     (m.matriz && m.matriz.length ? matrizTablaHTML(m.matriz) : '<div class="muted" style="font-size:13px">Todavía no tiene tallas ni colores. Se cargan desde «Editar modelo».</div>')+
@@ -2227,12 +2258,15 @@ function abrirMuestra(id){
   $("#mdImprimir").onclick = () => abrirHojaMuestra(m.id);
   const el = $("#mdEliminar");
   if(el) el.onclick = async () => {
-    if(!confirm("¿Eliminar la muestra «"+m.titulo+"» con todas sus versiones? No se puede deshacer.")) return;
+    if(!confirm("¿Mover la muestra «"+m.titulo+"» a la papelera?\n\nSe puede restaurar desde Papelera con todas sus versiones.")) return;
     try{
       const r = await api("/muestras/"+m.id, { method:"DELETE" });
       const i = muestrasLista.findIndex(x => x.id === m.id); if(i >= 0) muestrasLista.splice(i, 1);
       if(r.pedido){ const ped = pedidos.find(x => x.id === r.pedidoId); if(ped) Object.assign(ped, r.pedido); }
-      cerrarDrawer(); render(); toast("Muestra eliminada.");
+      cerrarDrawer(); render();
+      toastConAccion("Muestra movida a la papelera.", "Deshacer", async () => {
+        try{ await restaurarDePapelera("muestras", m.id); render(); toast("Muestra restaurada."); } catch(e){ toast(e.message); }
+      });
     } catch(err){ toast(err.message); }
   };
   enlazarVersiones(rootB, ctx);
@@ -2515,7 +2549,7 @@ function vCotizVer(){
         '<button class="btn btn--ghost btn--sm" id="btnRechazarQ">Rechazar</button>' : "")+
       (q.pedidoId ? '<button class="btn btn--ghost btn--sm" data-open="'+q.pedidoId+'">Ver pedido '+q.pedidoId+"</button>" : "")+
       '<button class="btn btn--ghost btn--sm" id="btnEditarQ">Editar</button>'+
-      (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="btnEliminarQ" style="color:var(--danger)">Eliminar</button>' : "")+
+      (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="btnEliminarQ" style="color:var(--danger)">Mover a la papelera</button>' : "")+
       '<button class="btn btn--primary btn--sm" id="btnPrintQ" title="Abre el diálogo de impresión: elegí “Guardar como PDF” para descargarla">Exportar a PDF</button>'+
     "</div>"+
     '<div class="exportNotice" id="exportNotice">'+
@@ -2534,11 +2568,14 @@ function wireVerCotizacion(){
   const edit = $("#btnEditarQ"); if(edit) edit.onclick = () => abrirCotiz("editar", q.id);
   const eliminarQ = $("#btnEliminarQ");
   if(eliminarQ) eliminarQ.onclick = async () => {
-    if(!confirm("¿Eliminar la cotización "+q.id+" ("+q.cliente+")?"+(q.pedidoId ? "\n\nLos pedidos que generó no se borran." : "")+"\n\nEsta acción no se puede deshacer.")) return;
+    if(!confirm("¿Mover la cotización "+q.id+" ("+q.cliente+") a la papelera?\n\nSe puede restaurar desde Papelera.")) return;
     try{
       await api("/cotizaciones/"+q.id, { method:"DELETE" });
       const i = cotizaciones.findIndex(x => x.id === q.id); if(i >= 0) cotizaciones.splice(i, 1);
-      state.cotiz.modo = "lista"; render(); toast("Cotización "+q.id+" eliminada.");
+      state.cotiz.modo = "lista"; render();
+      toastConAccion("Cotización "+q.id+" movida a la papelera.", "Deshacer", async () => {
+        try{ await restaurarDePapelera("cotizaciones", q.id); render(); toast("Cotización "+q.id+" restaurada."); } catch(e){ toast(e.message); }
+      });
     } catch(e){ toast(e.message); }
   };
   const aprobar = $("#btnAprobarQ"); if(aprobar) aprobar.onclick = () => aprobarCotizacion(q);
@@ -3071,6 +3108,20 @@ function wire(){
   const nq2 = page.querySelector("#btnNewQuoteInline"); if(nq2) nq2.onclick = () => abrirCotiz("nueva");
 
   page.querySelectorAll("[data-open-muestra]").forEach(el => { el.onclick = () => abrirMuestra(Number(el.dataset.openMuestra)); el.onkeydown = e => { if(e.key === "Enter") el.click(); }; });
+  page.querySelectorAll("[data-pap-rest]").forEach(b => b.onclick = async () => {
+    const [tipo, id] = b.dataset.papRest.split(":");
+    try{ await restaurarDePapelera(tipo, id); render(); toast("Restaurado."); } catch(e){ toast(e.message); }
+  });
+  page.querySelectorAll("[data-pap-del]").forEach(b => b.onclick = async () => {
+    const [tipo, id] = b.dataset.papDel.split(":");
+    if(!confirm("¿Borrar para siempre? No se puede deshacer.")) return;
+    try{ await api("/papelera/"+tipo+"/"+id, { method:"DELETE" }); papeleraData = null; render(); toast("Borrado para siempre."); } catch(e){ toast(e.message); }
+  });
+  const bvp = page.querySelector("#btnVaciarPapelera");
+  if(bvp) bvp.onclick = async () => {
+    if(!confirm("¿Vaciar toda la papelera? Todo lo que hay en ella se borra para siempre.")) return;
+    try{ const r = await api("/papelera", { method:"DELETE" }); papeleraData = null; render(); toast("Papelera vaciada ("+r.total+")."); } catch(e){ toast(e.message); }
+  };
   const bnm = page.querySelector("#btnNuevaMuestraG"); if(bnm) bnm.onclick = () => abrirModalMuestra({ modo:"nueva", ctx:"lista" });
   page.querySelectorAll("[data-mfiltro]").forEach(b => b.onclick = () => { state.mFiltro = b.dataset.mfiltro; render(); });
   const mq = page.querySelector("#mq");
@@ -3240,7 +3291,7 @@ function moldeCardHTML(m){
     (m.responsable ? '<div class="muted" style="font-size:12px;margin-top:2px">'+esc(m.responsable)+"</div>" : "")+
     (m.ubicacion ? '<div style="font-size:13px;margin-top:6px"><b>Ubicación:</b> '+esc(m.ubicacion)+"</div>" : "")+
     (m.notas ? '<div style="font-size:13px;margin-top:6px">'+esc(m.notas)+"</div>" : "")+
-    (usuarioActual && usuarioActual.rol === "admin" ? '<div class="muestra-card__acciones"><button type="button" class="btn btn--ghost btn--sm" data-molde-del="'+m.id+'" style="color:var(--danger)">Eliminar molde</button></div>' : "")+
+    (usuarioActual && usuarioActual.rol === "admin" ? '<div class="muestra-card__acciones"><button type="button" class="btn btn--ghost btn--sm" data-molde-del="'+m.id+'" style="color:var(--danger)">Mover a la papelera</button></div>' : "")+
     (m.fotos && m.fotos.length ? '<div class="muestra-card__fotos">'+m.fotos.map(f=>'<img src="'+f+'">').join("")+"</div>" : "")+
   "</div>";
 }
@@ -3750,7 +3801,7 @@ function abrirPedido(id, tabIni){
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
         '<button class="btn btn--ghost btn--sm" id="btnCambiarEstado">Cambiar estado…</button>'+
         '<button class="btn btn--ghost btn--sm" id="btnImprimirCompletoTop">Imprimir hojas del pedido</button>'+
-        (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="btnEliminarPedido" style="color:var(--danger)">Eliminar pedido</button>' : "")+
+        (usuarioActual && usuarioActual.rol === "admin" ? '<button class="btn btn--ghost btn--sm" id="btnEliminarPedido" style="color:var(--danger)">Mover a la papelera</button>' : "")+
       "</div>"+
     "</div>"+
     '<div class="dtabs" role="tablist">'+
@@ -3878,12 +3929,15 @@ function abrirPedido(id, tabIni){
   const btnToggleRM = $("#btnToggleRequiereMuestra"); if(btnToggleRM) btnToggleRM.onclick = () => cambiarRequiereMuestra(p, !p.requiereMuestra);
   const btnEliminarPedido = $("#btnEliminarPedido");
   if(btnEliminarPedido) btnEliminarPedido.onclick = async () => {
-    if(!confirm("¿Eliminar el pedido "+p.id+" ("+p.cliente+" · "+p.producto+")?\n\nSe borran también su checklist, etapas, fotos, documentos e historial. Las muestras quedan sueltas. Esta acción no se puede deshacer.")) return;
+    if(!confirm("¿Mover el pedido "+p.id+" ("+p.cliente+" · "+p.producto+") a la papelera?\n\nDesaparece de las listas, pero se puede restaurar desde Papelera con todo lo que tiene.")) return;
     try{
       await api("/pedidos/"+p.id, { method:"DELETE" });
       const i = pedidos.findIndex(x => x.id === p.id); if(i >= 0) pedidos.splice(i, 1);
       await cargarMuestras();
-      cerrarDrawer(); render(); toast("Pedido "+p.id+" eliminado.");
+      cerrarDrawer(); render();
+      toastConAccion("Pedido "+p.id+" movido a la papelera.", "Deshacer", async () => {
+        try{ await restaurarDePapelera("pedidos", p.id); render(); toast("Pedido "+p.id+" restaurado."); } catch(e){ toast(e.message); }
+      });
     } catch(err){ toast(err.message); }
   };
   const btnEditarResumen = $("#btnEditarResumen"); if(btnEditarResumen) btnEditarResumen.onclick = () => abrirModalResumen(p);
@@ -3891,11 +3945,15 @@ function abrirPedido(id, tabIni){
   const btnActivarM = $("#btnActivarMuestra"); if(btnActivarM) btnActivarM.onclick = () => cambiarRequiereMuestra(p, true);
   const btnDesactivarM = $("#btnDesactivarMuestra"); if(btnDesactivarM) btnDesactivarM.onclick = () => cambiarRequiereMuestra(p, false);
   $("#drawerBody").querySelectorAll("[data-molde-del]").forEach(b => b.onclick = async () => {
-    if(!confirm("¿Eliminar este molde del archivo? No se puede deshacer.")) return;
+    if(!confirm("¿Mover este molde a la papelera? Se puede restaurar desde Papelera.")) return;
+    const mid = b.dataset.moldeDel;
     try{
-      await api("/moldes/"+b.dataset.moldeDel, { method:"DELETE" });
-      const l = state.moldesPorCliente[p.cliente]; if(l){ const i = l.findIndex(x => String(x.id) === b.dataset.moldeDel); if(i >= 0) l.splice(i, 1); }
-      toast("Molde eliminado."); abrirPedido(p.id, "preparacion");
+      await api("/moldes/"+mid, { method:"DELETE" });
+      const l = state.moldesPorCliente[p.cliente]; if(l){ const i = l.findIndex(x => String(x.id) === mid); if(i >= 0) l.splice(i, 1); }
+      abrirPedido(p.id, "preparacion");
+      toastConAccion("Molde movido a la papelera.", "Deshacer", async () => {
+        try{ await restaurarDePapelera("moldes", mid); abrirPedido(p.id, "preparacion"); toast("Molde restaurado."); } catch(e){ toast(e.message); }
+      });
     } catch(err){ toast(err.message); }
   });
   const btnNuevoMolde = $("#btnNuevoMolde"); if(btnNuevoMolde) btnNuevoMolde.onclick = () => abrirModalMolde(p.id);
@@ -4602,7 +4660,26 @@ form.addEventListener("submit", async e => {
 
 /* ---- toast ---- */
 let tt;
-function toast(msg){ const el = $("#toast"); el.textContent = msg; el.dataset.open = "true"; clearTimeout(tt); tt = setTimeout(() => el.dataset.open = "false", 3200); }
+function toast(msg){ const el = $("#toast"); el.textContent = msg; delete el.dataset.accion; el.dataset.open = "true"; clearTimeout(tt); tt = setTimeout(() => el.dataset.open = "false", 3200); }
+/* aviso con un botón (por ejemplo «Deshacer») que dura más */
+function toastConAccion(msg, label, fn){
+  const el = $("#toast");
+  el.innerHTML = esc(msg)+' <button type="button" id="toastAccion" style="margin-left:14px;background:none;border:0;color:var(--primary);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline">'+esc(label)+"</button>";
+  el.dataset.accion = "true"; el.dataset.open = "true"; clearTimeout(tt); tt = setTimeout(() => el.dataset.open = "false", 9000);
+  $("#toastAccion").onclick = () => { el.dataset.open = "false"; fn(); };
+}
+/* vuelve a pedir al servidor todo lo que se muestra en listas (tras restaurar o deshacer) */
+async function recargarDatos(){
+  const [pd, ct] = await Promise.all([ api("/pedidos"), usuarioActual.rol === "admin" ? api("/cotizaciones") : Promise.resolve([]) ]);
+  pedidos = pd; cotizaciones = ct;
+  await cargarMuestras();
+  state.moldesPorCliente = {}; state.moldesCargando = new Set();
+  refrescarDatalists();
+}
+async function restaurarDePapelera(tipo, id){
+  await api("/papelera/"+tipo+"/"+id+"/restaurar", { method:"POST" });
+  await recargarDatos(); papeleraData = null;
+}
 
 /* ---- tema claro / oscuro ---- */
 const THEME_KEY = "santa-isabel-theme";
@@ -4666,12 +4743,13 @@ $("#btnAcct").onclick = async () => {
   const rol = usuarioActual.rol === "admin" ? "Administrador" : "Operador";
   const val = await abrirActionSheet(usuarioActual.nombre, [
     { val:"muestras", label:"Muestras" },
-    ...(usuarioActual.rol === "admin" ? [{ val:"usuarios", label:"Gestionar usuarios" }] : []),
+    ...(usuarioActual.rol === "admin" ? [{ val:"usuarios", label:"Gestionar usuarios" }, { val:"papelera", label:"Papelera" }] : []),
     { val:"pw", label:"Cambiar contraseña" },
     { val:"out", label:"Cerrar sesión" }
   ], esc(usuarioActual.email)+" · "+rol);
   if(val === "usuarios") go("usuarios");
   if(val === "muestras") go("muestras");
+  if(val === "papelera") go("papelera");
   if(val === "pw") abrirModalMiCuenta();
   if(val === "out") $("#btnLogout").click();
 };

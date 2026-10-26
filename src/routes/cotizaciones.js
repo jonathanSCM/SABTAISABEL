@@ -10,6 +10,13 @@ const router = express.Router();
 
 router.use(requireAuth);
 router.use(requireAdmin); // el operador no ve cotizaciones (precios y totales)
+router.param("id", async (req, res, next, id) => {
+  try{
+    const r = await pool.query("SELECT eliminado_en FROM cotizaciones WHERE id = $1", [id]);
+    if(r.rows[0] && r.rows[0].eliminado_en) return res.status(404).json({ error:"Cotización no encontrada." });
+    next();
+  } catch(e){ next(e); }
+});
 
 function isoHoy(){ const d = new Date(); return d.toISOString().slice(0,10); }
 function qUnidades(curva){ return (curva || []).reduce((s,r) => s + Number(r.cant || 0), 0); }
@@ -51,7 +58,7 @@ function fila(row){
 }
 
 router.get("/", async (req, res) => {
-  const r = await pool.query("SELECT * FROM cotizaciones ORDER BY fecha DESC");
+  const r = await pool.query("SELECT * FROM cotizaciones WHERE eliminado_en IS NULL ORDER BY fecha DESC");
   res.json(r.rows.map(fila));
 });
 
@@ -94,10 +101,10 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", requireAdmin, async (req, res) => {
-  const r = await pool.query("DELETE FROM cotizaciones WHERE id = $1 RETURNING id", [req.params.id]);
+  const r = await pool.query("UPDATE cotizaciones SET eliminado_en = now(), eliminado_por = $2 WHERE id = $1 AND eliminado_en IS NULL RETURNING id", [req.params.id, req.user.nombre]);
   if(!r.rows[0]) return res.status(404).json({ error:"Cotización no encontrada." });
-  console.log("Cotización "+r.rows[0].id+" eliminada por "+req.user.email);
-  res.json({ ok:true, id:r.rows[0].id });
+  console.log("Cotización "+r.rows[0].id+" movida a la papelera por "+req.user.email);
+  res.json({ ok:true, id:r.rows[0].id, papelera:true });
 });
 
 router.post("/:id/enviar", async (req, res) => {

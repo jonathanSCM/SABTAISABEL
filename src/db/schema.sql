@@ -288,3 +288,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS pedido_muestras_muestra_version ON pedido_mues
 
 -- el IGV se puede incluir o no en cada cotización
 ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS incluir_igv BOOLEAN NOT NULL DEFAULT true;
+
+-- B1: papelera (eliminar = mover a la papelera; solo el administrador borra para siempre)
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS eliminado_por TEXT;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS eliminado_por TEXT;
+ALTER TABLE muestras ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;
+ALTER TABLE muestras ADD COLUMN IF NOT EXISTS eliminado_por TEXT;
+ALTER TABLE moldes ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMPTZ;
+ALTER TABLE moldes ADD COLUMN IF NOT EXISTS eliminado_por TEXT;

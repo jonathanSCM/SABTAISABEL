@@ -250,3 +250,8 @@ public/
 - **Operador sin cotizaciones:** el servidor rechaza todo `/api/cotizaciones` a quien no sea administrador y quita de las respuestas cualquier dato de origen de cotización; en pantalla se ocultan el menú, el botón «+ Cotización» y las alertas.
 - **Usuario sin correo:** el acceso es un «usuario» de texto (un correo o una palabra, sin espacios).
 - **Letra grande:** botón «A+» junto al tema (se recuerda por dispositivo); contraste del modo oscuro mejorado.
+
+## Entrega 2 · Papelera
+- **Eliminar = mover a la papelera** (pedidos, cotizaciones, muestras y moldes). Lo eliminado desaparece de todas las listas y vistas pero se conserva con quién y cuándo lo eliminó.
+- Sección **Papelera** (solo administrador): restaurar, borrar para siempre o vaciar. Al eliminar aparece un aviso con **Deshacer**.
+- Un pedido restaurado vuelve completo (checklist, etapas, fotos, historial y muestras vinculadas). Mientras un pedido está en la papelera, sus muestras figuran sin pedido pero conservan el vínculo.

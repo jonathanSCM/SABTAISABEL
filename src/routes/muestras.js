@@ -41,11 +41,14 @@ function filaMuestra(m, versiones){
   const unidades = (m.matriz || []).reduce((s, t) => s + (t.colores || []).reduce((a, c) => a + (Number(c.cant) || 0), 0), 0);
   return {
     id: m.id, cliente: m.cliente, titulo: m.titulo, matriz: m.matriz || [], unidades,
-    pedidoId: m.pedido_id || null, creadoEn: m.created_at, estado: resumenEstado(vs), versiones: vs
+    pedidoId: m.pedido_efectivo || null, creadoEn: m.created_at, estado: resumenEstado(vs), versiones: vs
   };
 }
 async function cargar(db, ids){
-  const ms = ids ? await db.query("SELECT * FROM muestras WHERE id = ANY($1) ORDER BY id DESC", [ids]) : await db.query("SELECT * FROM muestras ORDER BY id DESC");
+  const base = `SELECT m.*, CASE WHEN p.id IS NOT NULL THEN m.pedido_id END AS pedido_efectivo
+                  FROM muestras m LEFT JOIN pedidos p ON p.id = m.pedido_id AND p.eliminado_en IS NULL
+                 WHERE m.eliminado_en IS NULL`;
+  const ms = ids ? await db.query(base + " AND m.id = ANY($1) ORDER BY m.id DESC", [ids]) : await db.query(base + " ORDER BY m.id DESC");
   if(!ms.rows.length) return [];
   const vs = await db.query("SELECT * FROM pedido_muestras WHERE muestra_id = ANY($1) ORDER BY version ASC", [ms.rows.map(m => m.id)]);
   const por = {}; vs.rows.forEach(v => (por[v.muestra_id] ||= []).push(v));
@@ -75,6 +78,14 @@ async function insertarVersion(db, muestraId, b){
     [muestraId, n, isoHoy(), c.responsable, c.cambios, c.comentarios, JSON.stringify(c.fotos), c.talla, c.materiales]);
   return n;
 }
+
+router.param("id", async (req, res, next, id) => {
+  try{
+    const r = await pool.query("SELECT eliminado_en FROM muestras WHERE id = $1", [Number(id)]);
+    if(r.rows[0] && r.rows[0].eliminado_en) return res.status(404).json({ error:"Muestra no encontrada." });
+    next();
+  } catch(e){ next(e); }
+});
 
 router.get("/", async (req, res) => { res.json(await cargar(pool)); });
 
@@ -140,7 +151,8 @@ router.post("/:id/vincular", async (req, res) => {
   const p = (await pool.query("SELECT id FROM pedidos WHERE id = $1", [pid])).rows[0];
   if(!p) return res.status(404).json({ error:"Pedido no encontrado." });
   if(cur.pedido_id === p.id) return res.json(await respuesta(pool, cur.id, [p.id]));
-  if(cur.pedido_id) return res.status(409).json({ error:"Esta muestra ya está en el pedido "+cur.pedido_id+". Quítala de ahí primero." });
+  const ocupado = cur.pedido_id && (await pool.query("SELECT 1 FROM pedidos WHERE id = $1 AND eliminado_en IS NULL", [cur.pedido_id])).rows[0];
+  if(ocupado) return res.status(409).json({ error:"Esta muestra ya está en el pedido "+cur.pedido_id+". Quítala de ahí primero." });
   await pool.query("UPDATE muestras SET pedido_id = $1 WHERE id = $2", [p.id, cur.id]);
   await hist(pool, req, p.id, "Muestra «"+cur.titulo+"» vinculada al pedido", { tipo:"muestra" });
   res.json(await respuesta(pool, cur.id, [p.id]));
@@ -155,21 +167,21 @@ router.post("/:id/desvincular", async (req, res) => {
   res.json(await respuesta(pool, cur.id, [cur.pedido_id]));
 });
 
-/* eliminar una muestra completa (con todas sus versiones); solo administrador */
+/* eliminar una muestra = moverla a la papelera (solo administrador) */
 router.delete("/:id", requireAdmin, async (req, res) => {
-  const cur = (await pool.query("SELECT * FROM muestras WHERE id = $1", [req.params.id])).rows[0];
+  const cur = (await pool.query("UPDATE muestras SET eliminado_en = now(), eliminado_por = $2 WHERE id = $1 AND eliminado_en IS NULL RETURNING *", [req.params.id, req.user.nombre])).rows[0];
   if(!cur) return res.status(404).json({ error:"Muestra no encontrada." });
-  await pool.query("DELETE FROM muestras WHERE id = $1", [cur.id]);
-  await hist(pool, req, cur.pedido_id, "Muestra «"+cur.titulo+"» eliminada", { tipo:"muestra" });
-  const pedido = cur.pedido_id ? await pedidosRoutes().pedidoCompleto(pool, cur.pedido_id) : null;
-  res.json({ ok:true, id:cur.id, pedidoId:cur.pedido_id, pedido });
+  await hist(pool, req, cur.pedido_id, "Muestra «"+cur.titulo+"» movida a la papelera", { tipo:"muestra" });
+  const pedido = cur.pedido_id ? await pedidosRoutes().pedidoCompleto(pool, cur.pedido_id).catch(() => null) : null;
+  res.json({ ok:true, id:cur.id, pedidoId:cur.pedido_id, pedido, papelera:true });
 });
 
 /* ---- versiones ---- */
 async function versionYModelo(vid){
   const v = (await pool.query("SELECT * FROM pedido_muestras WHERE id = $1", [vid])).rows[0];
   if(!v) return {};
-  const m = (await pool.query("SELECT * FROM muestras WHERE id = $1", [v.muestra_id])).rows[0];
+  const m = (await pool.query("SELECT * FROM muestras WHERE id = $1 AND eliminado_en IS NULL", [v.muestra_id])).rows[0];
+  if(!m) return {};
   return { v, m };
 }
 
