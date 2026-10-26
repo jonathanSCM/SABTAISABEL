@@ -17,6 +17,8 @@ router.post("/", async (req, res) => {
   const { nombre, email, password, rol } = req.body || {};
   if(!nombre || !email || !password) return res.status(400).json({ error:"Faltan nombre, correo o contraseña." });
   if(String(password).length < 8) return res.status(400).json({ error:"La contraseña debe tener al menos 8 caracteres." });
+  const usuarioLimpio = String(email).trim().toLowerCase();
+  if(usuarioLimpio.length < 2 || /\s/.test(usuarioLimpio)) return res.status(400).json({ error:"El usuario debe tener al menos 2 caracteres y no puede llevar espacios (puede ser un correo o una sola palabra)." });
   const rolFinal = rol === "admin" ? "admin" : "operador";
 
   const existe = await pool.query("SELECT id FROM usuarios WHERE email = $1", [String(email).trim().toLowerCase()]);

@@ -10,6 +10,15 @@ const router = express.Router();
 const ESTADOS = ["Preparación","En producción","Terminado","Entregado"];
 
 router.use(requireAuth);
+/* el operador no ve nada que venga de cotizaciones: se quitan esos datos de las respuestas */
+router.use((req, res, next) => {
+  if(req.user && req.user.rol !== "admin"){
+    const enviar = res.json.bind(res);
+    res.json = body => enviar(JSON.parse(JSON.stringify(body, (k, v) => (k === "origenCotizacion" || k === "cotizUnidades") ? null : v)));
+  }
+  next();
+});
+
 
 function isoHoy(){ const d = new Date(); return d.toISOString().slice(0,10); }
 

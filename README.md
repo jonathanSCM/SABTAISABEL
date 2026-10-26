@@ -245,3 +245,8 @@ public/
 - Una **muestra** es un modelo/prenda con sus **tallas y colores** (matriz) y sus **versiones** (iteraciones). Existe por sí sola (vista *Muestras*) y se puede **vincular** a un pedido, o crear directamente desde el pedido.
 - Un pedido puede tener **varios modelos**, cada uno con su matriz y su aprobación. Para pasar a producción (si el pedido requiere muestra) cada modelo vigente debe tener una versión final aprobada. Las versiones anuladas no cuentan.
 - La migración agrupa las muestras que ya existían en un modelo por pedido.
+
+## Entrega 1 (permisos y accesibilidad)
+- **Operador sin cotizaciones:** el servidor rechaza todo `/api/cotizaciones` a quien no sea administrador y quita de las respuestas cualquier dato de origen de cotización; en pantalla se ocultan el menú, el botón «+ Cotización» y las alertas.
+- **Usuario sin correo:** el acceso es un «usuario» de texto (un correo o una palabra, sin espacios).
+- **Letra grande:** botón «A+» junto al tema (se recuerda por dispositivo); contraste del modo oscuro mejorado.

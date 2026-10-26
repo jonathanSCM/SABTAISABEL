@@ -40,8 +40,8 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
   --paper:#08111F; --surface:#101C2B; --surface-2:#152235; --surface-3:#1B2A40; --nav-bg:#0D1726;
-  --line:#26364A; --line-2:#33465E;
-  --ink:#F8FAFC; --ink-2:#B9C3D1; --ink-3:#8290A3;
+  --line:#2E4059; --line-2:#3D5270;
+  --ink:#FFFFFF; --ink-2:#CBD5E3; --ink-3:#A1AFC2;
   --primary:#3B82F6; --primary-hover:#60A5FA; --primary-active:#93C5FD; --primary-soft:rgba(59,130,246,.15);
   --info:#3B82F6; --info-soft:rgba(59,130,246,.16);
   --production:#A855F7; --production-soft:rgba(168,85,247,.16);
@@ -66,6 +66,8 @@
   --shadow:none; --shadow-hover:none; --shadow-lg:0 12px 32px rgba(0,0,0,.5); --scrim:rgba(0,0,0,.6);
 }
 
+html[data-size="large"]{zoom:1.18}
+@media (max-width:860px){html[data-size="large"]{zoom:1.1}}
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
@@ -1084,6 +1086,7 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
           <button class="btn btn--primary" id="btnNew">+ Nuevo pedido</button>
         </div>
         <button class="acct-btn" id="btnAcct" type="button" aria-label="Mi cuenta" title="Mi cuenta">?</button>
+        <button class="theme-toggle" id="fontToggle" type="button" aria-label="Cambiar tamaño de letra" title="Tamaño de letra" style="font-weight:700;font-size:12.5px;letter-spacing:-.02em">A+</button>
         <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambiar a tema oscuro" title="Cambiar tema claro/oscuro"></button>
       </div>
     </header>
@@ -1155,7 +1158,7 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
   <div class="modal__h"><h2 id="modalUsuarioTitle">Nuevo usuario</h2><button class="btn btn--ghost btn--sm" id="modalUsuarioClose" style="margin-left:auto" aria-label="Cerrar">Cerrar</button></div>
   <form class="form" id="formUsuario" novalidate>
     <div class="field full"><label for="u-nombre">Nombre</label><input class="input" id="u-nombre" required></div>
-    <div class="field full"><label for="u-email">Correo</label><input class="input" id="u-email" type="email" required></div>
+    <div class="field full"><label for="u-email">Usuario (correo o una palabra)</label><input class="input" id="u-email" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Ej. paz o paz@taller.com" required></div>
     <div class="field"><label for="u-password">Contraseña</label><input class="input" id="u-password" type="password" minlength="8" required></div>
     <div class="field"><label for="u-rol">Rol</label><select class="input" id="u-rol"><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
   </form>
@@ -1545,7 +1548,7 @@ const VIEWS = [
   { id:"calendario",  label:"Calendario",  ico:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' }
 ];
 const VIEW_USUARIOS = { id:"usuarios", label:"Usuarios", ico:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 8.5c1.4.3 2.5 1.6 2.5 3.1M18.5 20c0-2.6-1.8-4.8-4.2-5.6"/>' };
-function viewsActuales(){ return usuarioActual && usuarioActual.rol === "admin" ? [...VIEWS, VIEW_USUARIOS] : VIEWS; }
+function viewsActuales(){ return usuarioActual && usuarioActual.rol === "admin" ? [...VIEWS, VIEW_USUARIOS] : VIEWS.filter(v => v.id !== "cotizaciones"); }
 
 const $ = s => document.querySelector(s);
 const page = $("#page");
@@ -1581,7 +1584,7 @@ function renderNav(){
   document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => go(b.dataset.view));
 }
 function go(v){
-  if(v === "usuarios" && !(usuarioActual && usuarioActual.rol === "admin")) return;
+  if((v === "usuarios" || v === "cotizaciones") && !(usuarioActual && usuarioActual.rol === "admin")) return;
   state.view = v; state.entrando = true;
   if(v !== "cotizaciones"){ state.cotiz.modo = "lista"; state.cotiz.wired = false; }
   render(); window.scrollTo({ top:0 });
@@ -4622,6 +4625,18 @@ function aplicarTema(t){
   else document.documentElement.removeAttribute("data-theme");
   pintarBotonTema();
 }
+/* tamaño de letra: normal / grande (se recuerda en este dispositivo) */
+const SIZE_KEY = "santa-isabel-size";
+function aplicarTamano(t){
+  if(t === "large") document.documentElement.setAttribute("data-size", "large"); else document.documentElement.removeAttribute("data-size");
+  const b = $("#fontToggle"); if(b){ b.textContent = t === "large" ? "A−" : "A+"; b.title = t === "large" ? "Letra normal" : "Letra grande"; b.setAttribute("aria-label", b.title); }
+}
+$("#fontToggle").onclick = () => {
+  const next = document.documentElement.getAttribute("data-size") === "large" ? "normal" : "large";
+  try{ localStorage.setItem(SIZE_KEY, next); }catch(e){}
+  aplicarTamano(next);
+};
+try{ aplicarTamano(localStorage.getItem(SIZE_KEY) === "large" ? "large" : "normal"); }catch(e){}
 $("#themeToggle").onclick = () => {
   const next = efectiveTheme() === "dark" ? "light" : "dark";
   try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
@@ -4698,7 +4713,8 @@ async function boot(){
   if(usuarioActual.debeCambiarPassword){ $("#bootOverlay").remove(); exigirCambioDeClave(); return; }
   $("#btnAcct").textContent = (usuarioActual.nombre || "?").trim().charAt(0).toUpperCase();
 
-  const [pd, ct] = await Promise.all([ api("/pedidos"), api("/cotizaciones") ]);
+  const [pd, ct] = await Promise.all([ api("/pedidos"), usuarioActual.rol === "admin" ? api("/cotizaciones") : Promise.resolve([]) ]);
+  if(usuarioActual.rol !== "admin"){ const bq = $("#btnNewQuote"); if(bq) bq.style.display = "none"; const fq = $("#fabQuote"); if(fq) fq.style.display = "none"; }
   pedidos = pd; cotizaciones = ct;
   await cargarResponsables();
   await cargarMuestras();

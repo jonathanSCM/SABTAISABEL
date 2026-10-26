@@ -6,6 +6,15 @@ const { normalizarMatriz } = require("../db/matriz");
 
 const router = express.Router();
 router.use(requireAuth);
+/* el operador no ve nada que venga de cotizaciones: se quitan esos datos de las respuestas */
+router.use((req, res, next) => {
+  if(req.user && req.user.rol !== "admin"){
+    const enviar = res.json.bind(res);
+    res.json = body => enviar(JSON.parse(JSON.stringify(body, (k, v) => (k === "origenCotizacion" || k === "cotizUnidades") ? null : v)));
+  }
+  next();
+});
+
 
 /* Una "muestra" es un modelo/prenda con sus tallas y colores y sus versiones (iteraciones).
    Puede existir sola (sin pedido) y vincularse después a un pedido; un pedido puede tener varias. */

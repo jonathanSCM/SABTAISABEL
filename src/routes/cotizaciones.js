@@ -9,6 +9,7 @@ const { normalizarMatriz, derivarMatriz } = require("../db/matriz");
 const router = express.Router();
 
 router.use(requireAuth);
+router.use(requireAdmin); // el operador no ve cotizaciones (precios y totales)
 
 function isoHoy(){ const d = new Date(); return d.toISOString().slice(0,10); }
 function qUnidades(curva){ return (curva || []).reduce((s,r) => s + Number(r.cant || 0), 0); }
