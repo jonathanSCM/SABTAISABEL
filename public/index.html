@@ -1059,6 +1059,14 @@ select.qorden{width:auto;min-width:150px;padding:7px 10px;font-size:12.5px}
   .sheet__terms{break-inside:avoid}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* sugerencias de responsables: lista propia (el administrador quita nombres con la ×) */
+.sugs{position:fixed;z-index:120;background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r-md);box-shadow:0 10px 28px rgba(0,0,0,.22);max-height:min(320px,50vh);overflow:auto;padding:4px}
+.sugs__i{display:flex;align-items:center;gap:6px;border-radius:8px}
+.sugs__i:hover,.sugs__i[data-act="true"]{background:var(--primary-soft,rgba(37,99,235,.12))}
+.sugs__n{flex:1;text-align:left;background:none;border:0;color:var(--ink);font:inherit;font-weight:600;padding:9px 10px;cursor:pointer}
+.sugs__x{background:none;border:0;color:var(--ink-3);font-size:18px;line-height:1;padding:6px 10px;cursor:pointer;border-radius:8px}
+.sugs__x:hover{color:var(--danger);background:rgba(220,38,38,.1)}
 </style>
 </head>
 <body>
@@ -1388,6 +1396,46 @@ async function cargarResponsables(){
   try{ responsablesCat = await api("/responsables"); }catch(e){ responsablesCat = []; }
   actualizarResponsables();
 }
+
+/* lista de sugerencias de responsables con × para quitar (reemplaza al datalist nativo, que no admite botones) */
+(function(){
+  let pop = null, campo = null, activo = -1;
+  const cerrar = () => { if(pop){ pop.remove(); pop = null; } campo = null; activo = -1; };
+  function elegir(nombre){ if(!campo) return; const c = campo; c.value = nombre; c.dispatchEvent(new Event("input", { bubbles:true })); c.dispatchEvent(new Event("change", { bubbles:true })); cerrar(); }
+  function pintar(){
+    if(!campo) return;
+    const q = campo.value.trim().toLowerCase();
+    const admin = usuarioActual && usuarioActual.rol === "admin";
+    const lista = responsablesCat.length ? responsablesCat.map(r => ({ id:r.id, nombre:r.nombre })) : RESPONSABLES.map(n => ({ id:null, nombre:n }));
+    const vis = lista.filter(r => !q || r.nombre.toLowerCase().includes(q)).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    if(!vis.length){ if(pop){ pop.remove(); pop = null; } return; }
+    if(!pop){ pop = document.createElement("div"); pop.className = "sugs"; pop.setAttribute("role", "listbox"); document.body.appendChild(pop);
+      pop.addEventListener("mousedown", e => e.preventDefault()); }
+    const r = campo.getBoundingClientRect();
+    pop.style.left = r.left+"px"; pop.style.top = (r.bottom+4)+"px"; pop.style.width = Math.max(r.width, 200)+"px";
+    pop.innerHTML = vis.map((x, i) => '<div class="sugs__i" data-act="'+(i === activo)+'"><button type="button" class="sugs__n" data-n="'+esc(x.nombre)+'">'+esc(x.nombre)+"</button>"+
+      (admin && x.id ? '<button type="button" class="sugs__x" data-id="'+x.id+'" aria-label="Quitar a '+esc(x.nombre)+' de la lista" title="Quitar de la lista">×</button>' : "")+"</div>").join("");
+    pop.querySelectorAll(".sugs__n").forEach(b => b.onclick = () => elegir(b.dataset.n));
+    pop.querySelectorAll(".sugs__x").forEach(b => b.onclick = async () => {
+      const x = responsablesCat.find(y => String(y.id) === b.dataset.id); if(!x) return;
+      if(!confirm("¿Quitar a «"+x.nombre+"» de las sugerencias? Los pedidos que ya lo tienen no cambian.")) return;
+      try{ await api("/responsables/"+x.id, { method:"DELETE" }); await cargarResponsables(); toast("Responsable quitado de la lista."); pintar(); }
+      catch(err){ toast(err.message); }
+    });
+  }
+  document.addEventListener("focusin", e => {
+    const t = e.target;
+    if(t && t.matches && t.matches('input[list="responsables"], input[data-sugs="resp"]')){
+      t.removeAttribute("list"); t.dataset.sugs = "resp"; t.setAttribute("autocomplete", "off");
+      campo = t; activo = -1; pintar();
+    } else if(!(pop && pop.contains(t))) cerrar();
+  });
+  document.addEventListener("click", e => { const t = e.target; if(t && t.dataset && t.dataset.sugs === "resp" && !pop){ campo = t; activo = -1; pintar(); } });
+  document.addEventListener("input", e => { if(e.target === campo){ activo = -1; pintar(); } });
+  document.addEventListener("keydown", e => { if(e.key === "Escape" && pop){ cerrar(); e.stopPropagation(); } }, true);
+  document.addEventListener("mousedown", e => { if(pop && e.target !== campo && !pop.contains(e.target)) cerrar(); });
+  window.addEventListener("resize", cerrar);
+})();
 const ETAPAS = ["Corte","Costura","Bordado/Sublimado","Acabado","Planchado"];
 const PRODUCTOS = ["Vestido de quinceañera","Vestido de gala","Vestido de dama de honor","Vestido de primera comunión",
   "Traje de bautizo","Trajes de bautizo (niño y niña)","Conjunto madre e hija","Uniforme de gala escolar",
